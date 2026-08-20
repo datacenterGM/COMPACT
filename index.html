@@ -4068,7 +4068,7 @@
                             html += `<td>${escapeHtml(r.Pembayaran)}</td>`;
                         } else if (c === 'Harga Beli') {
                             html +=
-                                `<td class="editable num"><input type="number" placeholder="isi" value="${r['Harga Beli']!=null?r['Harga Beli']:''}" data-idx="${idx}" data-col="Harga Beli" oninput="window.__rapEditCell(this)"></td>`;
+                                `<td class="editable num"><input type="number" name="hargaBeli_${idx}" placeholder="isi" value="${r['Harga Beli']!=null?r['Harga Beli']:''}" data-idx="${idx}" data-col="Harga Beli" oninput="window.__rapEditCell(this)"></td>`;
                         } else if (NUM_COLS.has(c)) {
                             html += `<td class="num">${fmtNum(r[c])}</td>`;
                         } else {
