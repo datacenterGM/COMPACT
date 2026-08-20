@@ -979,6 +979,10 @@
             <!-- RINGKASAN DASHBOARD -->
             <div class="ringkasan-wrap" id="ringkasanWrap">
                 <div class="rk-panel" id="rkFitriPanel">
+                    <div class="rk-period-bar" style="padding:8px 10px 0;">
+                        <span class="rk-chip" id="rkPeriodLabel">Kartu · Hari terkini</span>
+                        <span class="rk-live">Live</span>
+                    </div>
                     <div class="rk-fitri-cards" id="rkFitriCards">
                         <div class="rk-unit-card total">
                             <div class="rk-label">TOTAL FITRI <span class="rk-unit-tag">Unit</span></div>
@@ -3181,12 +3185,55 @@
         }
 
         function renderRingkasan(rows) {
-            const fitriMap = {}; // produk -> { sales: qty }
-            const rupaMap = {};
+            // === CARDS: hanya HARI TERKINI ===
+            let dayRows = rows || [];
+            let latestKey = -1;
+            let latestDateObj = null;
+            for (const r of dayRows) {
+                const k = salesDateSortKey(r);
+                if (k > latestKey) {
+                    latestKey = k;
+                    latestDateObj = parseSalesDate(r.tanggal);
+                }
+            }
+            if (latestKey > 0) {
+                dayRows = dayRows.filter(r => salesDateSortKey(r) === latestKey);
+            }
+            const periodEl = document.getElementById('rkPeriodLabel');
+            if (periodEl) {
+                if (latestDateObj && !isNaN(latestDateObj)) {
+                    const dd = String(latestDateObj.getDate()).padStart(2, '0');
+                    const mm = String(latestDateObj.getMonth() + 1).padStart(2, '0');
+                    const yy = latestDateObj.getFullYear();
+                    periodEl.textContent = 'Kartu · Hari terkini · ' + dd + '/' + mm + '/' + yy;
+                } else if (dayRows.length) {
+                    periodEl.textContent = 'Kartu · Hari terkini';
+                } else {
+                    periodEl.textContent = 'Belum ada data';
+                }
+            }
+
             const fitriBySales = { GC: 0, HAFID: 0, JOSSY: 0, PARIMIN: 0, RAJU: 0 };
             let totalFitri = 0;
+            for (const r of dayRows) {
+                const name = (r.produk || '').trim() || '—';
+                const qty = Number(r.jumlah) || 0;
+                if (!qty) continue;
+                if (!name.toUpperCase().includes('FITRI')) continue;
+                totalFitri += qty;
+                const sales = normalizeSalesName(r.sales);
+                if (RK_SALES_LIST.includes(sales)) fitriBySales[sales] += qty;
+            }
+            document.getElementById('rkTotalFitri').textContent = totalFitri.toLocaleString('id-ID');
+            RK_SALES_LIST.forEach(s => {
+                const el = document.getElementById('rkFitri' + s);
+                if (el) el.textContent = (fitriBySales[s] || 0).toLocaleString('id-ID');
+            });
 
-            for (const r of rows) {
+            // === TABEL: tetap BULAN TERKINI (rows yang sudah difilter filter bulan) ===
+            const fitriMap = {}; // produk -> { sales: qty }
+            const rupaMap = {};
+            for (const r of (rows || [])) {
                 const name = (r.produk || '').trim() || '—';
                 const qty = Number(r.jumlah) || 0;
                 if (!qty) continue;
@@ -3202,17 +3249,7 @@
                     map[name]._other += qty;
                 }
                 map[name].TOTAL += qty;
-                if (isFitri) {
-                    totalFitri += qty;
-                    if (RK_SALES_LIST.includes(sales)) fitriBySales[sales] += qty;
-                }
             }
-
-            document.getElementById('rkTotalFitri').textContent = totalFitri.toLocaleString('id-ID');
-            RK_SALES_LIST.forEach(s => {
-                const el = document.getElementById('rkFitri' + s);
-                if (el) el.textContent = (fitriBySales[s] || 0).toLocaleString('id-ID');
-            });
 
             // Fitri table — sort by TOTAL desc
             const fitriRows = Object.values(fitriMap).sort((a, b) => b.TOTAL - a.TOTAL);
