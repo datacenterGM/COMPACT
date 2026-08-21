@@ -960,11 +960,11 @@
 
             <div class="subtabs show" id="salesSubtabs">
                 <button class="subtab-btn active" id="subBtnRingkasan" onclick="switchSalesSub('ringkasan')">📊 Ringkasan</button>
-                <button class="subtab-btn" id="subBtnTransaksi" onclick="switchSalesSub('transaksi')" style="display:none;">📋 Transaksi</button>
+                <button class="subtab-btn" id="subBtnTransaksi" onclick="switchSalesSub('transaksi')">📋 Transaksi</button>
                 <button class="subtab-btn" id="subBtnProduk" onclick="switchSalesSub('produk')" style="display:none;">📦 Profit Per Produk</button>
                 <button class="subtab-btn" id="subBtnPay" onclick="switchSalesSub('pay')" style="display:none;">💳 Profit Per Produk Per Pembayaran</button>
                 <button class="subtab-btn" id="subBtnSales" onclick="switchSalesSub('sales')" style="display:none;">👤 Profit Per Sales</button>
-                <button class="subtab-btn" id="subBtnBulan" onclick="switchSalesSub('bulan')">🗓️ Profit Per Bulan</button>
+                <button class="subtab-btn" id="subBtnBulan" onclick="switchSalesSub('bulan')" style="display:none;">🗓️ Profit Per Bulan</button>
                 <button class="subtab-btn subtab-btn-ghost" id="subBtnLockedAccess" onclick="toggleSubtabAccess()">🔐 Sub Tab</button>
                 <div class="view-toggle" id="salesViewToggle" style="display:none;">
                     <button type="button" class="view-toggle-btn active" id="btnViewTable" onclick="setSalesViewMode('table')">☰ Tabel</button>
@@ -2900,18 +2900,22 @@
         }
 
         function renderSalesTable(rows) {
-            salesResultInfo.style.display = 'block';
-            salesResultInfo.innerHTML = 'Menampilkan <strong>' + rows.length.toLocaleString('id-ID') +
-                '</strong> dari <strong>' + salesRows.length.toLocaleString('id-ID') + '</strong> transaksi';
             setFilterCount('sales', rows.length, salesRows.length);
             updateSalesFilterChips();
             document.getElementById('salesSubtabs').classList.toggle('show', salesRows.length > 0);
             const viewToggle = document.getElementById('salesViewToggle');
             if (viewToggle) viewToggle.style.display = (salesRows.length > 0 && currentSalesSub === 'transaksi') ? 'inline-flex' : 'none';
             rebuildFakturNominalMap(rows);
-            updateSalesCards(rows);
             lastSalesFiltered = rows;
-            if (currentSalesSub !== 'transaksi') return;
+            if (currentSalesSub !== 'transaksi') {
+                salesResultInfo.style.display = 'none';
+                document.getElementById('salesCards').classList.remove('show');
+                return;
+            }
+            salesResultInfo.style.display = 'block';
+            salesResultInfo.innerHTML = 'Menampilkan <strong>' + rows.length.toLocaleString('id-ID') +
+                '</strong> dari <strong>' + salesRows.length.toLocaleString('id-ID') + '</strong> transaksi';
+            updateSalesCards(rows);
 
             const grid = document.getElementById('salesCardsGrid');
             if (salesViewMode === 'cards') {
@@ -3101,7 +3105,7 @@
         }
 
         function switchSalesSub(sub) {
-            if (['transaksi', 'produk', 'pay', 'sales'].includes(sub) && !subtabUnlocked) {
+            if (['produk', 'pay', 'sales', 'bulan'].includes(sub) && !subtabUnlocked) {
                 return;
             }
             currentSalesSub = sub;
@@ -4571,7 +4575,7 @@
         // ================================================================
         const SUBTAB_ACCESS_PIN = '1618';
         let subtabUnlocked = false;
-        const PROTECTED_SUBTABS = ['subBtnTransaksi', 'subBtnProduk', 'subBtnPay', 'subBtnSales'];
+        const PROTECTED_SUBTABS = ['subBtnProduk', 'subBtnPay', 'subBtnSales', 'subBtnBulan'];
 
         function updateSubtabAccessUI() {
             PROTECTED_SUBTABS.forEach(id => {
@@ -4586,7 +4590,7 @@
             if (subtabUnlocked) {
                 subtabUnlocked = false;
                 updateSubtabAccessUI();
-                if (['transaksi', 'produk', 'pay', 'sales'].includes(currentSalesSub)) {
+                if (['produk', 'pay', 'sales', 'bulan'].includes(currentSalesSub)) {
                     switchSalesSub('ringkasan');
                 }
                 return;
