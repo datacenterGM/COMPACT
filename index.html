@@ -117,6 +117,8 @@
         .subtabs.show { display: flex; }
         .subtab-btn { padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-weight: 600; font-size: 0.72rem; cursor: pointer; white-space: nowrap; }
         .subtab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .subtab-btn-ghost { background: transparent; border-style: dashed; opacity: 0.65; font-weight: 500; }
+        .subtab-btn-ghost:hover { opacity: 1; }
         .subtab-dl { margin-left: auto; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text); font-weight: 600; font-size: 0.72rem; cursor: pointer; white-space: nowrap; }
         
 .subtab-dl:hover { border-color: var(--accent); color: var(--accent); }
@@ -793,7 +795,8 @@
                 <div class="menu-wrap" id="menuWrap">
                     <button class="menu-btn" id="menuBtn" onclick="toggleMenu()">☰ Menu ▾</button>
                     <div class="menu-dd" id="menuDd">
-                        <label class="menu-item upload-item">
+                        <button class="menu-item" id="uangMasukAccessBtn" onclick="toggleUangMasukAccess(); closeMenu();">🔐 Buka Data Uang Masuk</button>
+                        <label class="menu-item upload-item" id="uangMasukUploadItem" style="display:none;">
                             <input type="file" id="fileInput" accept=".xlsx,.xls" multiple="">
                             📂 Upload Excel (Uang Masuk)
                         </label>
@@ -835,8 +838,8 @@
 
     <div class="container">
         <div class="tabs" id="tabsBar" style="display:flex;">
-            <button class="tab-btn active" id="tabBtnFaktur" onclick="switchTab('faktur')">💰 Uang Masuk</button>
-            <button class="tab-btn" id="tabBtnPenjualan" onclick="switchTab('penjualan')">📊 Data Penjualan</button>
+            <button class="tab-btn" id="tabBtnFaktur" onclick="switchTab('faktur')" style="display:none;">💰 Uang Masuk</button>
+            <button class="tab-btn active" id="tabBtnPenjualan" onclick="switchTab('penjualan')">📊 Data Penjualan</button>
         </div>
 
         <!-- TAB UANG MASUK -->
@@ -956,12 +959,13 @@
             <div class="result-info" id="salesResultInfo" style="display:none;">Menampilkan <strong>0</strong> dari <strong>0</strong> transaksi</div>
 
             <div class="subtabs show" id="salesSubtabs">
-                <button class="subtab-btn" id="subBtnRingkasan" onclick="switchSalesSub('ringkasan')">📊 Ringkasan</button>
-                <button class="subtab-btn active" id="subBtnTransaksi" onclick="switchSalesSub('transaksi')">📋 Transaksi</button>
-                <button class="subtab-btn" id="subBtnProduk" onclick="switchSalesSub('produk')">📦 Profit Per Produk</button>
-                <button class="subtab-btn" id="subBtnPay" onclick="switchSalesSub('pay')">💳 Profit Per Produk Per Pembayaran</button>
-                <button class="subtab-btn" id="subBtnSales" onclick="switchSalesSub('sales')">👤 Profit Per Sales</button>
+                <button class="subtab-btn active" id="subBtnRingkasan" onclick="switchSalesSub('ringkasan')">📊 Ringkasan</button>
+                <button class="subtab-btn" id="subBtnTransaksi" onclick="switchSalesSub('transaksi')" style="display:none;">📋 Transaksi</button>
+                <button class="subtab-btn" id="subBtnProduk" onclick="switchSalesSub('produk')" style="display:none;">📦 Profit Per Produk</button>
+                <button class="subtab-btn" id="subBtnPay" onclick="switchSalesSub('pay')" style="display:none;">💳 Profit Per Produk Per Pembayaran</button>
+                <button class="subtab-btn" id="subBtnSales" onclick="switchSalesSub('sales')" style="display:none;">👤 Profit Per Sales</button>
                 <button class="subtab-btn" id="subBtnBulan" onclick="switchSalesSub('bulan')">🗓️ Profit Per Bulan</button>
+                <button class="subtab-btn subtab-btn-ghost" id="subBtnLockedAccess" onclick="toggleSubtabAccess()">🔐 Sub Tab</button>
                 <div class="view-toggle" id="salesViewToggle" style="display:none;">
                     <button type="button" class="view-toggle-btn active" id="btnViewTable" onclick="setSalesViewMode('table')">☰ Tabel</button>
                     <button type="button" class="view-toggle-btn" id="btnViewCards" onclick="setSalesViewMode('cards')">▦ Kartu</button>
@@ -3097,6 +3101,9 @@
         }
 
         function switchSalesSub(sub) {
+            if (['transaksi', 'produk', 'pay', 'sales'].includes(sub) && !subtabUnlocked) {
+                return;
+            }
             currentSalesSub = sub;
             document.getElementById('subBtnRingkasan').classList.toggle('active', sub === 'ringkasan');
             document.getElementById('subBtnTransaksi').classList.toggle('active', sub === 'transaksi');
@@ -4518,7 +4525,88 @@
             updateThemeLabel();
         })();
 
+        // ================================================================
+        // AKSES KHUSUS DATA UANG MASUK
+        // Default: tersembunyi. Hanya dibuka setelah PIN benar.
+        // PIN sementara: 1618 — ubah nilai ini bila diperlukan.
+        // ================================================================
+        const UANG_MASUK_ACCESS_PIN = '1618';
+        let uangMasukUnlocked = false;
+
+        function updateUangMasukAccessUI() {
+            const tabBtn = document.getElementById('tabBtnFaktur');
+            const uploadItem = document.getElementById('uangMasukUploadItem');
+            const accessBtn = document.getElementById('uangMasukAccessBtn');
+            if (tabBtn) tabBtn.style.display = uangMasukUnlocked ? '' : 'none';
+            if (uploadItem) uploadItem.style.display = uangMasukUnlocked ? 'flex' : 'none';
+            if (accessBtn) accessBtn.textContent = uangMasukUnlocked ? '🔒 Sembunyikan Data Uang Masuk' : '🔐 Buka Data Uang Masuk';
+        }
+
+        function toggleUangMasukAccess() {
+            if (uangMasukUnlocked) {
+                uangMasukUnlocked = false;
+                updateUangMasukAccessUI();
+                switchTab('penjualan');
+                switchSalesSub('ringkasan');
+                return;
+            }
+            const pin = prompt('Masukkan PIN untuk membuka Data Uang Masuk:');
+            if (pin === null) return;
+            if (pin === UANG_MASUK_ACCESS_PIN) {
+                uangMasukUnlocked = true;
+                updateUangMasukAccessUI();
+                alert('Akses Data Uang Masuk dibuka.');
+            } else {
+                alert('PIN salah. Data Uang Masuk tetap tersembunyi.');
+            }
+        }
+
+        updateUangMasukAccessUI();
+
+        // ================================================================
+        // AKSES KHUSUS SUB TAB (Transaksi, Profit Per Produk, Profit Per
+        // Produk Per Pembayaran, Profit Per Sales)
+        // Default: tersembunyi. Hanya dibuka setelah PIN benar.
+        // PIN sementara: 1618 — ubah nilai ini bila diperlukan.
+        // ================================================================
+        const SUBTAB_ACCESS_PIN = '1618';
+        let subtabUnlocked = false;
+        const PROTECTED_SUBTABS = ['subBtnTransaksi', 'subBtnProduk', 'subBtnPay', 'subBtnSales'];
+
+        function updateSubtabAccessUI() {
+            PROTECTED_SUBTABS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = subtabUnlocked ? '' : 'none';
+            });
+            const btn = document.getElementById('subBtnLockedAccess');
+            if (btn) btn.textContent = subtabUnlocked ? '🔒 Sub Tab' : '🔐 Sub Tab';
+        }
+
+        function toggleSubtabAccess() {
+            if (subtabUnlocked) {
+                subtabUnlocked = false;
+                updateSubtabAccessUI();
+                if (['transaksi', 'produk', 'pay', 'sales'].includes(currentSalesSub)) {
+                    switchSalesSub('ringkasan');
+                }
+                return;
+            }
+            const pin = prompt('Masukkan PIN untuk membuka sub tab ini:');
+            if (pin === null) return;
+            if (pin === SUBTAB_ACCESS_PIN) {
+                subtabUnlocked = true;
+                updateSubtabAccessUI();
+            } else {
+                alert('PIN salah. Sub tab tetap tersembunyi.');
+            }
+        }
+
+        updateSubtabAccessUI();
+
         function switchTab(tab) {
+            if (tab === 'faktur' && !uangMasukUnlocked) {
+                return;
+            }
             const tabs = ['faktur', 'penjualan', 'rapikan'];
             tabs.forEach(t => {
                 const panelName = 'tab' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -4682,6 +4770,14 @@
         document.getElementById('filterSalesMonth').addEventListener('change', doSalesSearch);
         document.getElementById('filterSalesPembayaran').addEventListener('change', doSalesSearch);
         document.getElementById('filterSalesSales').addEventListener('change', doSalesSearch);
+
+        // ================================================================
+        // TAMPILAN PERTAMA SAAT APLIKASI DIBUKA
+        // DATA PENJUALAN -> RINGKASAN
+        // ================================================================
+        switchTab('penjualan');
+        switchSalesSub('ringkasan');
+        updateUangMasukAccessUI();
     </script>
 </body>
 </html>
