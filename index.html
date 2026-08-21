@@ -106,7 +106,6 @@
 
         .sales-cards { display: none; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; margin-bottom: 10px; }
         .sales-cards.show { display: grid; }
-        #fakturCards.show { grid-template-columns: repeat(3, 1fr); }
         #salesCards.show { grid-template-columns: repeat(5, 1fr); }
         .scard { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; position: relative; overflow: hidden; box-shadow: none; min-width: 0; }
         .scard .sc-label { font-size: 0.58rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; line-height: 1.2; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -205,6 +204,17 @@
             color: #fff;
         }
         .rk-table .total-row td.prod-name { color: #fff; }
+        .rk-table th.rk-sales-th {
+            cursor: pointer;
+            color: var(--accent);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            user-select: none;
+        }
+        .rk-table th.rk-sales-th:hover {
+            color: var(--text);
+            background: var(--accent-soft);
+        }
         .rk-search-row {
             display: flex; gap: 8px; padding: 10px 12px 0; flex-wrap: wrap;
         }
@@ -265,7 +275,6 @@
         .search-bar .menu-dd .menu-item { font-weight: 600; }
         .search-bar .btn,
         .search-bar .btn.btn-outline,
-        #searchBar .btn,
         #salesSearchBar .btn {
             min-height: 32px !important;
             height: 32px !important;
@@ -279,8 +288,6 @@
         }
         .search-bar input,
         .search-bar select,
-        #searchBar input,
-        #searchBar select,
         #salesSearchBar input,
         #salesSearchBar select {
             min-height: 32px !important;
@@ -292,7 +299,6 @@
             box-sizing: border-box;
         }
         .search-bar .theme-btn,
-        #searchBar .theme-btn,
         #salesSearchBar .theme-btn {
             min-height: 32px !important;
             height: 32px !important;
@@ -453,7 +459,6 @@
         .hist-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
         .hist-table th { background: var(--th-bg); color: var(--muted); text-align: left; padding: 8px; font-size: 0.68rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
         .hist-table td { padding: 8px; border-top: 1px solid var(--border); }
-        .faktur-link { cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 
         .menu-wrap { position: relative; }
         .menu-btn { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; min-height: 40px; display: flex; align-items: center; touch-action: manipulation; }
@@ -781,7 +786,7 @@
         }
 
         @media (max-width:768px) { .container { padding: 12px; } .tabs { gap: 6px; } .tab-btn { font-size: 0.78rem; padding: 8px 12px; } .search-bar input { min-width: 140px; } .sales-cards { gap: 10px; } .scard .sc-value { font-size: 1rem; } table { font-size: 0.75rem; } }
-        @media (max-width:560px) { .container { padding: 10px; } .brand .sub { display: none; } .tab-btn { flex: 1; font-size: 0.75rem; } .search-bar { flex-direction: column; } #salesCards.show { grid-template-columns: repeat(2,1fr) !important; } #fakturCards.show { grid-template-columns: 1fr !important; } .menu-dd { right: -10px; min-width: 200px; } table { font-size: 0.7rem; } .modal { width: calc(100% - 20px); } }
+        @media (max-width:560px) { .container { padding: 10px; } .brand .sub { display: none; } .tab-btn { flex: 1; font-size: 0.75rem; } .search-bar { flex-direction: column; } #salesCards.show { grid-template-columns: repeat(2,1fr) !important; } .menu-dd { right: -10px; min-width: 200px; } table { font-size: 0.7rem; } .modal { width: calc(100% - 20px); } }
         @media (max-width:420px) { .container { padding: 8px; } .brand h1 { font-size: 0.85rem; } .tab-btn { font-size: 0.7rem; } #salesCards.show { grid-template-columns: 1fr !important; } .scard .sc-value { font-size: 0.9rem; } .modal { margin: 5px; } }
     </style>
 </head>
@@ -795,12 +800,6 @@
                 <div class="menu-wrap" id="menuWrap">
                     <button class="menu-btn" id="menuBtn" onclick="toggleMenu()">☰ Menu ▾</button>
                     <div class="menu-dd" id="menuDd">
-                        <button class="menu-item" id="uangMasukAccessBtn" onclick="toggleUangMasukAccess(); closeMenu();">🔐 Buka Data Uang Masuk</button>
-                        <label class="menu-item upload-item" id="uangMasukUploadItem" style="display:none;">
-                            <input type="file" id="fileInput" accept=".xlsx,.xls" multiple="">
-                            📂 Upload Excel (Uang Masuk)
-                        </label>
-                        <button class="menu-item" id="clearBtn" onclick="clearData(); closeMenu();" style="display:none;">✕ Hapus data Uang Masuk</button>
                         <button class="menu-item" onclick="switchTab('rapikan'); closeMenu();">🧹 Rapikan Data</button>
                         <div class="menu-divider"></div>
                         <button class="menu-item" onclick="saveBackupJson(); closeMenu();">💾 Save Backup JSON</button>
@@ -822,8 +821,6 @@
                         <button class="menu-item" onclick="pickBackupFolder(); closeMenu();">📁 Pilih Folder Backup</button>
                         <button class="menu-item" id="restoreBackupBtn" onclick="restoreFromBackupFolder(); closeMenu();" style="display:none;">🔁 Pulihkan dari Folder Backup</button>
                         <div class="menu-divider"></div>
-                        <div class="menu-files" id="fileName">Data tersimpan (0 baris)</div>
-                        <div class="menu-divider"></div>
                         <button class="menu-item" onclick="toggleTheme(); closeMenu();">
                             <span id="themeLabel">☀️ Mode terang</span>
                         </button>
@@ -838,78 +835,7 @@
 
     <div class="container">
         <div class="tabs" id="tabsBar" style="display:flex;">
-            <button class="tab-btn" id="tabBtnFaktur" onclick="switchTab('faktur')" style="display:none;">💰 Uang Masuk</button>
             <button class="tab-btn active" id="tabBtnPenjualan" onclick="switchTab('penjualan')">📊 Data Penjualan</button>
-        </div>
-
-        <!-- TAB UANG MASUK -->
-        <div id="tabFaktur" style="">
-            <div class="sales-cards show" id="fakturCards">
-                <div class="scard accent-fitri">
-                    <div class="sc-label">MINYAK (CASH+TRF)</div>
-                    <div class="sc-value" id="fcMinyak">0</div>
-                </div>
-                <div class="scard accent-rupa">
-                    <div class="sc-label">RUPA RUPA (CASH+TRF)</div>
-                    <div class="sc-value" id="fcRupa">0</div>
-                </div>
-                <div class="scard accent-total">
-                    <div class="sc-label">TOTAL</div>
-                    <div class="sc-value" id="fcTotal">0</div>
-                </div>
-            </div>
-
-            <div class="search-bar show" id="searchBar">
-                <div class="filter-compact" id="fakturFilterCompact">
-                    <button type="button" class="filter-compact-main" onclick="openFilterSheet('faktur')">
-                        <span class="filter-compact-chips" id="fakturFilterChips"><span class="muted-chip">Semua filter</span></span>
-                        <span class="filter-compact-count" id="fakturFilterCount"></span>
-                        <span class="filter-compact-label">Filter</span>
-                    </button>
-                </div>
-                <div class="filter-sheet-backdrop" id="fakturSheetBackdrop" onclick="closeFilterSheet('faktur')"></div>
-                <div class="filter-fields-inner" id="fakturFilterFields">
-                    <div class="filter-sheet-handle"></div>
-                    <div class="filter-sheet-title">Filter Uang Masuk <button type="button" class="sheet-close" onclick="closeFilterSheet('faktur')">Tutup</button></div>
-                    <input type="text" id="searchInput" placeholder="Cari No Faktur, toko, alamat, atau sales..." autocomplete="off">
-                    <select id="filterMonth"><option value="all">Semua Bulan</option></select>
-                    <select id="filterSection"><option value="all">Semua Bagian</option><option value="PIUTANG TEMPO">Piutang Tempo</option><option value="CASH DROPPING">Cash Dropping</option></select>
-                    <select id="filterStatus"><option value="all">Semua Status</option><option value="LUNAS">Lunas</option><option value="TITIP">Titip</option></select>
-                    <div class="filter-sheet-actions">
-                        <button class="btn btn-outline" onclick="resetSearch(); closeFilterSheet('faktur');">Reset</button>
-                        <button class="btn" onclick="doSearch(); closeFilterSheet('faktur');">Terapkan</button>
-                    </div>
-                    <button class="btn filter-desk-only" onclick="doSearch()">Cari</button>
-                    <button class="btn btn-outline filter-desk-only" onclick="resetSearch()">Reset</button>
-                </div>
-                <div class="menu-wrap" id="fakturSaveWrap" style="margin-left:auto;">
-                    <button class="btn btn-outline" onclick="toggleFakturSaveMenu()">💾 Save</button>
-                    <div class="menu-dd" id="fakturSaveDd">
-                        <button class="menu-item" onclick="downloadFakturExcel('filter'); closeFakturSaveMenu();">⬇ Sesuai Filter</button>
-                        <button class="menu-item" onclick="downloadFakturExcel('all'); closeFakturSaveMenu();">⬇ Semua Data</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="daily-panel" id="dailyPanel" style="display:block;">
-                <div class="daily-head">
-                    <strong>📅 Ringkasan Harian</strong>
-                    <span class="muted" id="dailyHint">Klik baris tanggal untuk filter detail faktur</span>
-                </div>
-                <div class="daily-scroll">
-                    <table class="daily-table">
-                        <thead><tr><th>Tanggal</th><th>Sheet</th><th class="num">Jml Faktur</th><th class="num">Piutang</th><th class="num">Dropping</th><th class="num">Tagihan</th><th class="num">Bayar Cash</th><th class="num">Bayar TF</th><th class="num">Total Bayar</th><th>⬇</th></tr></thead>
-                        <tbody id="dailyBody"><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted);cursor:default;">Belum ada data. Upload file Excel untuk mulai melihat ringkasan.</td></tr></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="result-info" id="resultInfo" style="display:none;">Menampilkan <strong>0</strong> dari <strong>0</strong> faktur</div>
-
-            <div class="table-wrap" id="tableWrap" style="display:none;">
-                <table><thead><tr><th>Tanggal</th><th>Bagian</th><th>Sales</th><th>No Faktur</th><th>Nama Toko</th><th>Alamat</th><th>Tagihan</th><th>Minyak Cash</th><th>Minyak TF</th><th>Rupa Cash</th><th>Rupa TF</th><th>Bayar Terakhir</th><th>Status</th></tr></thead>
-                <tbody id="tbody"></tbody></table>
-            </div>
         </div>
 
         <!-- TAB PENJUALAN -->
@@ -1007,11 +933,11 @@
                             <thead>
                                 <tr>
                                     <th>PRODUK</th>
-                                    <th class="num">GC</th>
-                                    <th class="num">HAFID</th>
-                                    <th class="num">JOSSY</th>
-                                    <th class="num">PARIMIN</th>
-                                    <th class="num">RAJU</th>
+                                    <th class="num rk-sales-th" onclick="openRkSalesDetail('GC','fitri')" title="Klik untuk perincian GC">GC</th>
+                                    <th class="num rk-sales-th" onclick="openRkSalesDetail('HAFID','fitri')" title="Klik untuk perincian HAFID">HAFID</th>
+                                    <th class="num rk-sales-th" onclick="openRkSalesDetail('JOSSY','fitri')" title="Klik untuk perincian JOSSY">JOSSY</th>
+                                    <th class="num rk-sales-th" onclick="openRkSalesDetail('PARIMIN','fitri')" title="Klik untuk perincian PARIMIN">PARIMIN</th>
+                                    <th class="num rk-sales-th" onclick="openRkSalesDetail('RAJU','fitri')" title="Klik untuk perincian RAJU">RAJU</th>
                                     <th class="num">TOTAL</th>
                                 </tr>
                             </thead>
@@ -1035,11 +961,11 @@
                             <thead>
                                 <tr>
                                     <th>PRODUK</th>
-                                    <th class="num">GC</th>
-                                    <th class="num">HAFID</th>
-                                    <th class="num">JOSSY</th>
-                                    <th class="num">PARIMIN</th>
-                                    <th class="num">RAJU</th>
+                                    <th class="num rk-sales-th" onclick="openRkSalesDetail('GC','rupa')" title="Klik untuk perincian GC">GC</th>
+                                    <th class="num rk-sales-th" onclick="openRkSalesDetail('HAFID','rupa')" title="Klik untuk perincian HAFID">HAFID</th>
+                                    <th class="num rk-sales-th" onclick="openRkSalesDetail('JOSSY','rupa')" title="Klik untuk perincian JOSSY">JOSSY</th>
+                                    <th class="num rk-sales-th" onclick="openRkSalesDetail('PARIMIN','rupa')" title="Klik untuk perincian PARIMIN">PARIMIN</th>
+                                    <th class="num rk-sales-th" onclick="openRkSalesDetail('RAJU','rupa')" title="Klik untuk perincian RAJU">RAJU</th>
                                     <th class="num">TOTAL</th>
                                 </tr>
                             </thead>
@@ -1126,36 +1052,35 @@
             </div>
         </div>
 
-        <div class="empty-state" id="emptyState" style="display:block;">
-            <div class="big">📂</div>
-            <div><strong>Upload file Excel</strong> laporan uang masuk harian</div>
-            <div class="hint">Upload satu atau beberapa file Excel (bisa pilih sekaligus).<br>Format sheet harus sama (Piutang Tempo + Cash Dropping + No Faktur).<br>Data diproses di browser Anda.</div>
-            <br>
-            <label class="upload-btn" style="display:inline-flex;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:0.9rem;font-weight:600;cursor:pointer;">
-                📂 Pilih File Excel
-                <input type="file" id="fileInputMain" accept=".xlsx,.xls" multiple="">
-            </label>
-        </div>
-
-        <div class="loading" id="loading" style="display:none;">Memproses file...</div>
-
-        <!-- Modal riwayat faktur -->
-        <div class="modal-backdrop" id="fakturModal" onclick="if(event.target===this)closeFakturModal()">
-            <div class="modal">
+        <!-- Modal perincian penjualan per sales (Rupa Rupa / Fitri) -->
+        <div class="modal-backdrop" id="rkSalesDetailModal" onclick="if(event.target===this)closeRkSalesDetail()">
+            <div class="modal" style="max-width:900px;">
                 <div class="modal-h">
-                    <div><h2 id="modalTitle">—</h2><div class="sub" id="modalSub">Pilih faktur untuk melihat riwayat</div></div>
-                    <button class="modal-close" onclick="closeFakturModal()">Tutup</button>
+                    <div>
+                        <h2 id="rkSalesDetailTitle">—</h2>
+                        <div class="sub" id="rkSalesDetailSub">Perincian penjualan</div>
+                    </div>
+                    <button class="modal-close" onclick="closeRkSalesDetail()">Tutup</button>
                 </div>
                 <div class="modal-body">
-                    <div class="modal-stats" id="modalStats"></div>
-                    <div style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">Riwayat pembayaran</div>
-                    <div style="overflow-x:auto;">
+                    <div class="modal-stats" id="rkSalesDetailStats"></div>
+                    <div style="overflow-x:auto;max-height:55vh;">
                         <table class="hist-table">
-                            <thead><tr><th>Tgl Masuk</th><th>Sheet</th><th>Bagian</th><th>Sales</th><th class="num">Tagihan</th><th class="num">Cash</th><th class="num">TF</th><th class="num">Bayar</th><th>Status</th></tr></thead>
-                            <tbody id="modalHist"></tbody>
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>No Faktur</th>
+                                    <th>Produk</th>
+                                    <th class="num">Qty</th>
+                                    <th>Satuan</th>
+                                    <th class="num">Total</th>
+                                    <th>Customer</th>
+                                    <th>Pembayaran</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rkSalesDetailBody"></tbody>
                         </table>
                     </div>
-                    <p class="muted" style="font-size:0.75rem;margin-top:12px;">Untuk faktur <strong>TITIP</strong>, setiap baris = 1 kali pembayaran. Urut dari paling lama → terbaru. Total bayar dijumlahkan di atas.</p>
                 </div>
             </div>
         </div>
@@ -1169,14 +1094,9 @@
         // ====================================================================
 
         // ---- Global state ----
-        let allRows = [];
         let salesRows = [];
         let cleanRows = []; // untuk tab Rapikan
 
-        // ---- Cache & indeks (dibangun ulang hanya saat data berubah) ----
-        let fakturIndexDirty = true;
-        let rowsByFaktur = {};
-        let fakturLastPayMap = {};
         // ---- Supabase config ----
         const SUPABASE_URL = 'https://rceenjffgklnxetiuwna.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_8AD2MvoL5XhLKTUFDCwufg_31TTzPu2';
@@ -1351,55 +1271,10 @@
             };
         }
 
-        // ---- DOM refs ----
-        const fileInput = document.getElementById('fileInput');
-        const fileInputMain = document.getElementById('fileInputMain');
-        const fileNameEl = document.getElementById('fileName');
-        const loading = document.getElementById('loading');
-        const emptyState = document.getElementById('emptyState');
-        const searchBar = document.getElementById('searchBar');
-        const tableWrap = document.getElementById('tableWrap');
-        const tbody = document.getElementById('tbody');
-        const resultInfo = document.getElementById('resultInfo');
-        const dailyPanel = document.getElementById('dailyPanel');
-        const dailyBody = document.getElementById('dailyBody');
-
-        // ---- Tabel virtual untuk Uang Masuk ----
-        const fakturVirtual = createVirtualTable(tableWrap, tbody, function(r) {
-            const lp = fakturLastPayMap[r.faktur];
-            const lastDate = lp ? lp.date : r.date;
-            const isSame = lastDate === r.date;
-            return '<tr>' +
-                '<td>' + esc(r.date) + '<br><span class="muted" style="font-size:0.7rem">' + esc(r.sheet) + '</span></td>' +
-                '<td>' + sectionBadge(r.section) + '</td>' +
-                '<td>' + esc(r.sales) + '</td>' +
-                '<td class="faktur"><span class="faktur-link" onclick="openFakturModal(\'' + esc(r.faktur).replace(/'/g, "\\'") +
-                '\')" title="Lihat riwayat pembayaran">' + esc(r.faktur) + '</span></td>' +
-                '<td class="toko">' + esc(r.toko) + '</td>' +
-                '<td class="muted">' + esc(r.alamat) + '</td>' +
-                '<td class="num">' + fmt(r.tagihan) + '</td>' +
-                '<td class="num">' + fmt(r.minyakCash) + '</td>' +
-                '<td class="num">' + fmt(r.minyakTf) + '</td>' +
-                '<td class="num">' + fmt(r.rupaCash) + '</td>' +
-                '<td class="num">' + fmt(r.rupaTf) + '</td>' +
-                '<td style="white-space:nowrap">' +
-                (isSame ? '<span class="muted">' + esc(lastDate) + '</span>' : '<strong style="color:var(--accent)">' + esc(
-                    lastDate) + '</strong>') +
-                (lp && lp.sheet !== r.sheet ? '<br><span class="muted" style="font-size:0.65rem">' + esc(lp.sheet) +
-                    '</span>' : '') +
-                '</td>' +
-                '<td>' + statusBadge(r.status) +
-                (r.ket && r.ket !== r.status && r.ket !== '—' ? '<br><span class="muted" style="font-size:0.7rem">' + esc(r
-                    .ket) + '</span>' : '') +
-                '</td>' +
-                '</tr>';
-        }, { rowHeight: 58, colspan: 13 });
-
         // ---- IndexedDB helpers ----
         const DB_NAME = 'uangMasukDB';
         const DB_VERSION = 1;
         const DB_STORE = 'rows';
-        const DB_KEY = 'allRows';
         const DB_KEY_SALES = 'salesRows';
         const DB_KEY_RAPIKAN = 'rapikanCleanRows';
         const DB_KEY_HARGA_BELI = 'rapikanPriceRows';
@@ -1468,7 +1343,6 @@
                     .from('app_data')
                     .upsert({
                         id: SUPABASE_ROW_ID,
-                        all_rows: allRows,
                         sales_rows: salesRows,
                         rapikan_rows: (window.__rapGetCleanRows && window.__rapGetCleanRows()) || [],
                         harga_beli_rows: (window.__rapGetPriceRows && window.__rapGetPriceRows()) || [],
@@ -1489,7 +1363,7 @@
                 setCloudStatus('Mengambil data dari cloud…', false);
                 const { data, error } = await supabaseClient
                     .from('app_data')
-                    .select('all_rows, sales_rows, rapikan_rows, harga_beli_rows, updated_at')
+                    .select('sales_rows, rapikan_rows, harga_beli_rows, updated_at')
                     .eq('id', SUPABASE_ROW_ID)
                     .maybeSingle();
                 if (error) throw error;
@@ -1589,7 +1463,6 @@
                 version: 2,
                 exportedAt: new Date().toISOString(),
                 app: 'DATACENTER',
-                cashInflow: allRows || [],
                 penjualan: salesRows || [],
                 rapikan: (window.__rapGetCleanRows && window.__rapGetCleanRows()) || [],
                 hargaBeli: (window.__rapGetPriceRows && window.__rapGetPriceRows()) || []
@@ -1684,7 +1557,7 @@
 
         function maybeAutoBackupJson() {
             if (!autoBackupJsonEnabled) return;
-            const hasData = (allRows && allRows.length) || (salesRows && salesRows.length);
+            const hasData = (salesRows && salesRows.length);
             if (!hasData || !autoBackupJsonDirty) return;
             const { hour, minute, dateStr } = getWIBTimeParts();
             const minutesOfDay = hour * 60 + minute;
@@ -1720,27 +1593,14 @@
                 const text = await file.text();
                 const data = JSON.parse(text);
                 if (!data || typeof data !== 'object') throw new Error('Format JSON tidak valid');
-                const cash = Array.isArray(data.cashInflow) ? data.cashInflow :
-                    Array.isArray(data.allRows) ? data.allRows : [];
                 const sales = Array.isArray(data.penjualan) ? data.penjualan :
                     Array.isArray(data.salesRows) ? data.salesRows : [];
                 const rapikan = Array.isArray(data.rapikan) ? data.rapikan : [];
                 const hargaBeli = Array.isArray(data.hargaBeli) ? data.hargaBeli : [];
 
-                if (!cash.length && !sales.length && !rapikan.length && !hargaBeli.length) {
-                    alert('File JSON tidak berisi data Uang Masuk / Penjualan / Rapikan.');
+                if (!sales.length && !rapikan.length && !hargaBeli.length) {
+                    alert('File JSON tidak berisi data Penjualan / Rapikan.');
                     return;
-                }
-                if (cash.length) {
-                    allRows = cash.map(r => r.month ? r : Object.assign({}, r, { month: detectMonth(r.sheet, r.date || r
-                            .tanggal) || 'Lainnya' }));
-                    invalidateFakturIndex();
-                    emptyState.style.display = 'none';
-                    searchBar.classList.add('show');
-                    document.getElementById('clearBtn').style.display = 'block';
-                    fileNameEl.textContent = 'Restore JSON (' + allRows.length.toLocaleString('id-ID') + ' baris)';
-                    saveRowsToDB(allRows, DB_KEY);
-                    showSummary();
                 }
                 if (sales.length) {
                     salesRows = sales.map(r => r.month ? r : Object.assign({}, r, { month: detectMonth(r.sheet, r.tanggal) ||
@@ -1761,8 +1621,7 @@
                     saveRowsToDB(hargaBeli, DB_KEY_HARGA_BELI);
                 }
                 document.getElementById('tabsBar').style.display = 'flex';
-                alert('Backup berhasil dimuat.\nUang Masuk: ' + cash.length.toLocaleString('id-ID') +
-                    ' baris\nPenjualan: ' + sales.length.toLocaleString('id-ID') +
+                alert('Backup berhasil dimuat.\nPenjualan: ' + sales.length.toLocaleString('id-ID') +
                     ' baris\nRapikan Data: ' + rapikan.length.toLocaleString('id-ID') +
                     ' baris\nHarga Beli: ' + hargaBeli.length.toLocaleString('id-ID') + ' produk');
             } catch (err) {
@@ -1772,666 +1631,12 @@
         }
 
         // ---- File input handlers ----
-        fileInput.addEventListener('change', e => { if (e.target.files.length) handleFiles(e.target.files); });
-        fileInputMain.addEventListener('change', e => { if (e.target.files.length) handleFiles(e.target.files); });
         document.getElementById('fileInputJson').addEventListener('change', e => {
             const f = e.target.files && e.target.files[0];
             if (f) { loadBackupJson(f);
                 e.target.value = '';
                 closeMenu(); }
         });
-
-        // ---- Parsing Excel (Uang Masuk) ----
-        function parseWorkbook(wb) {
-            const rows = [];
-            for (const sheetName of wb.SheetNames) {
-                if (/^sheet\d*$/i.test(sheetName) && sheetName.toLowerCase() === 'sheet2') continue;
-                const ws = wb.Sheets[sheetName];
-                if (!ws) continue;
-                const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
-                if (!aoa || aoa.length < 5) continue;
-                let dateLabel = sheetName;
-                for (let r = 0; r < Math.min(6, aoa.length); r++) {
-                    for (let c = 0; c < (aoa[r] || []).length; c++) {
-                        const v = aoa[r][c];
-                        if (v && typeof v === 'string' && /\d{1,2}\/\d{1,2}\/\d{4}/.test(v)) { dateLabel = v.trim(); break; }
-                        if (v instanceof Date) { dateLabel = formatDate(v); break; }
-                    }
-                }
-                const sheetMonth = detectMonth(sheetName, dateLabel);
-                let section = 'PIUTANG TEMPO';
-                let currentSales = '';
-                for (let r = 0; r < aoa.length; r++) {
-                    const row = aoa[r] || [];
-                    const rowStr = row.map(x => (x == null ? '' : String(x))).join(' ').toUpperCase();
-                    if (rowStr.includes('CASH DROPPING')) { section = 'CASH DROPPING';
-                        currentSales = ''; continue; }
-                    if (rowStr.includes('PIUTANG TEMPO')) { section = 'PIUTANG TEMPO';
-                        currentSales = ''; continue; }
-                    if (/UANG MASUK DARI PIUTANG|UANG MASUK CASH|TOTAL UANG MASUK|MENGETAHUI|TOTAL CASH|TOTAL TRANSFER/
-                        .test(rowStr)) continue;
-                    const colC = row[2] != null ? String(row[2]).trim() : '';
-                    if (colC && /^(RAJU|JOSSY|HAFID|ZEIN|ALIM)/i.test(colC)) currentSales = colC;
-                    let fakturIdx = -1,
-                        faktur = null;
-                    for (let c = 2; c <= 5; c++) {
-                        const v = row[c];
-                        if (v == null) continue;
-                        const s = String(v).trim();
-                        if (/^\d{10,}$/.test(s) || /^0\d{10,}$/.test(s)) { faktur = s;
-                            fakturIdx = c; break; }
-                    }
-                    if (!faktur) continue;
-                    if (/NO FAKTUR|NOMINAL|TAGIHAN/i.test(rowStr) && !/TOKO|WARUNG|MART|CELL|SWALAYAN|BUMDES/i.test(rowStr))
-                        continue;
-                    const namaToko = str(row[fakturIdx + 1]);
-                    const alamat = str(row[fakturIdx + 2]);
-                    let tagihan = num(row[fakturIdx + 5]);
-                    let minyakCash = num(row[9]);
-                    let minyakTf = num(row[10]);
-                    let rupaCash = num(row[11]);
-                    let rupaTf = num(row[12]);
-                    let ket = str(row[13]) || str(row[14]) || '';
-                    if (!tagihan) tagihan = num(row[8]) || num(row[fakturIdx + 5]);
-                    let status = '—';
-                    const ketUp = ket.toUpperCase();
-                    if (ketUp.includes('LUNAS')) status = 'LUNAS';
-                    else if (ketUp.includes('TITIP')) status = 'TITIP';
-                    else if (ketUp.includes('TF') || ketUp.includes('TRANSFER')) status = 'TF';
-                    else if (ketUp.includes('RETUR')) status = 'RETUR';
-                    else if (ket) status = ket;
-                    let sales = currentSales;
-                    if (section === 'CASH DROPPING' && colC) sales = colC;
-                    else if (!sales && colC && !/^\d+$/.test(colC)) sales = colC;
-                    if (/^TOTAL/i.test(str(row[1])) || /^TOTAL/i.test(namaToko)) continue;
-                    rows.push({
-                        sheet: sheetName,
-                        date: dateLabel,
-                        month: sheetMonth || 'Lainnya',
-                        section,
-                        sales: sales || '—',
-                        faktur,
-                        toko: namaToko || '—',
-                        alamat: alamat || '—',
-                        tagihan,
-                        minyakCash,
-                        minyakTf,
-                        rupaCash,
-                        rupaTf,
-                        ket: ket || '—',
-                        status,
-                        _q: (faktur + ' ' + (namaToko || '') + ' ' + (alamat || '') + ' ' + (sales || '') + ' ' + sheetName +
-                            ' ' + dateLabel + ' ' + (sheetMonth || '')).toLowerCase()
-                    });
-                }
-            }
-            return rows;
-        }
-
-        // ---- Proses file dengan Web Worker (fallback ke main thread) ----
-        async function handleFiles(fileList) {
-            const files = Array.from(fileList).filter(f => /\.(xlsx|xls)$/i.test(f.name));
-            if (!files.length) { alert('File harus .xlsx atau .xls'); return; }
-            emptyState.style.display = 'none';
-            loading.style.display = 'block';
-            tableWrap.style.display = 'none';
-
-            let added = 0;
-            const names = [];
-            const existing = new Set(allRows.map(r => r.faktur + '|' + r.sheet + '|' + r.section + '|' + r.tagihan));
-
-            // Cek apakah browser mendukung Worker
-            if (typeof Worker !== 'undefined') {
-                try {
-                    // Buat worker inline
-                    const workerBlob = new Blob([`
-              self.onmessage = function(e) {
-                const { fileData, fileName } = e.data;
-                try {
-                  // XLSX library harus di-import di worker? Kita inject dengan importScripts dari CDN
-                  importScripts('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
-                  const wb = XLSX.read(fileData, { type: 'array', cellDates: true });
-                  // Parse workbook (sama seperti parseWorkbook)
-                  const rows = [];
-                  for (const sheetName of wb.SheetNames) {
-                    if (/^sheet\\d*$/i.test(sheetName) && sheetName.toLowerCase() === 'sheet2') continue;
-                    const ws = wb.Sheets[sheetName];
-                    if (!ws) continue;
-                    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
-                    if (!aoa || aoa.length < 5) continue;
-                    let dateLabel = sheetName;
-                    for (let r = 0; r < Math.min(6, aoa.length); r++) {
-                      for (let c = 0; c < (aoa[r] || []).length; c++) {
-                        const v = aoa[r][c];
-                        if (v && typeof v === 'string' && /\\d{1,2}\\/\\d{1,2}\\/\\d{4}/.test(v)) { dateLabel = v.trim(); break; }
-                        if (v instanceof Date) { dateLabel = v.toLocaleDateString('id-ID'); break; }
-                      }
-                    }
-                    const sheetMonth = detectMonth(sheetName, dateLabel);
-                    let section = 'PIUTANG TEMPO';
-                    let currentSales = '';
-                    for (let r = 0; r < aoa.length; r++) {
-                      const row = aoa[r] || [];
-                      const rowStr = row.map(x => (x == null ? '' : String(x))).join(' ').toUpperCase();
-                      if (rowStr.includes('CASH DROPPING')) { section = 'CASH DROPPING'; currentSales = ''; continue; }
-                      if (rowStr.includes('PIUTANG TEMPO')) { section = 'PIUTANG TEMPO'; currentSales = ''; continue; }
-                      if (/UANG MASUK DARI PIUTANG|UANG MASUK CASH|TOTAL UANG MASUK|MENGETAHUI|TOTAL CASH|TOTAL TRANSFER/.test(rowStr)) continue;
-                      const colC = row[2] != null ? String(row[2]).trim() : '';
-                      if (colC && /^(RAJU|JOSSY|HAFID|ZEIN|ALIM)/i.test(colC)) currentSales = colC;
-                      let fakturIdx = -1, faktur = null;
-                      for (let c = 2; c <= 5; c++) {
-                        const v = row[c];
-                        if (v == null) continue;
-                        const s = String(v).trim();
-                        if (/^\\d{10,}$/.test(s) || /^0\\d{10,}$/.test(s)) { faktur = s; fakturIdx = c; break; }
-                      }
-                      if (!faktur) continue;
-                      if (/NO FAKTUR|NOMINAL|TAGIHAN/i.test(rowStr) && !/TOKO|WARUNG|MART|CELL|SWALAYAN|BUMDES/i.test(rowStr)) continue;
-                      const namaToko = (row[fakturIdx+1] != null ? String(row[fakturIdx+1]).trim() : '');
-                      const alamat = (row[fakturIdx+2] != null ? String(row[fakturIdx+2]).trim() : '');
-                      let tagihan = parseFloat(String(row[fakturIdx+5]||0).replace(/,/g,'')) || 0;
-                      let minyakCash = parseFloat(String(row[9]||0).replace(/,/g,'')) || 0;
-                      let minyakTf = parseFloat(String(row[10]||0).replace(/,/g,'')) || 0;
-                      let rupaCash = parseFloat(String(row[11]||0).replace(/,/g,'')) || 0;
-                      let rupaTf = parseFloat(String(row[12]||0).replace(/,/g,'')) || 0;
-                      let ket = (row[13] != null ? String(row[13]).trim() : '') || (row[14] != null ? String(row[14]).trim() : '');
-                      if (!tagihan) tagihan = parseFloat(String(row[8]||0).replace(/,/g,'')) || parseFloat(String(row[fakturIdx+5]||0).replace(/,/g,'')) || 0;
-                      let status = '—';
-                      const ketUp = ket.toUpperCase();
-                      if (ketUp.includes('LUNAS')) status = 'LUNAS';
-                      else if (ketUp.includes('TITIP')) status = 'TITIP';
-                      else if (ketUp.includes('TF') || ketUp.includes('TRANSFER')) status = 'TF';
-                      else if (ketUp.includes('RETUR')) status = 'RETUR';
-                      else if (ket) status = ket;
-                      let sales = currentSales;
-                      if (section === 'CASH DROPPING' && colC) sales = colC;
-                      else if (!sales && colC && !/^\\d+$/.test(colC)) sales = colC;
-                      if (/^TOTAL/i.test(String(row[1]||'').trim()) || /^TOTAL/i.test(namaToko)) continue;
-                      rows.push({
-                        sheet: sheetName,
-                        date: dateLabel,
-                        month: sheetMonth || 'Lainnya',
-                        section,
-                        sales: sales || '—',
-                        faktur,
-                        toko: namaToko || '—',
-                        alamat: alamat || '—',
-                        tagihan,
-                        minyakCash, minyakTf, rupaCash, rupaTf,
-                        ket: ket || '—',
-                        status,
-                        _q: (faktur + ' ' + (namaToko||'') + ' ' + (alamat||'') + ' ' + (sales||'') + ' ' + sheetName + ' ' + dateLabel + ' ' + (sheetMonth||'')).toLowerCase()
-                      });
-                    }
-                  }
-                  postMessage({ success: true, rows, fileName });
-                } catch(err) {
-                  postMessage({ success: false, error: err.message, fileName });
-                }
-              };
-            `], { type: 'application/javascript' });
-                    const worker = new Worker(URL.createObjectURL(workerBlob));
-
-                    for (let fi = 0; fi < files.length; fi++) {
-                        const file = files[fi];
-                        names.push(file.name.length > 18 ? file.name.slice(0, 16) + '…' : file.name);
-                        loading.textContent = 'Memproses ' + (fi + 1) + '/' + files.length + ': ' + file.name + ' …';
-                        const buf = await file.arrayBuffer();
-                        const fileData = new Uint8Array(buf);
-
-                        const result = await new Promise((resolve, reject) => {
-                            worker.onmessage = (e) => resolve(e.data);
-                            worker.onerror = (err) => reject(err);
-                            worker.postMessage({ fileData, fileName: file.name });
-                        });
-
-                        if (!result.success) {
-                            console.error('Worker error:', result.error);
-                            // fallback ke main thread
-                            const wb = XLSX.read(fileData, { type: 'array', cellDates: true });
-                            const rows = parseWorkbook(wb);
-                            for (const r of rows) {
-                                const k = r.faktur + '|' + r.sheet + '|' + r.section + '|' + r.tagihan;
-                                if (!existing.has(k)) { allRows.push(r);
-                                    existing.add(k);
-                                    added++; }
-                            }
-                        } else {
-                            const rows = result.rows;
-                            for (const r of rows) {
-                                const k = r.faktur + '|' + r.sheet + '|' + r.section + '|' + r.tagihan;
-                                if (!existing.has(k)) { allRows.push(r);
-                                    existing.add(k);
-                                    added++; }
-                            }
-                        }
-                        if (fi < files.length - 1) await new Promise(r => setTimeout(r, 0));
-                    }
-                    worker.terminate();
-                } catch (err) {
-                    console.warn('Worker gagal, fallback ke main thread:', err);
-                    // Fallback ke main thread untuk semua file
-                    for (let fi = 0; fi < files.length; fi++) {
-                        const file = files[fi];
-                        names.push(file.name.length > 18 ? file.name.slice(0, 16) + '…' : file.name);
-                        loading.textContent = 'Memproses ' + (fi + 1) + '/' + files.length + ': ' + file.name + ' …';
-                        const buf = await file.arrayBuffer();
-                        const wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: true });
-                        const rows = parseWorkbook(wb);
-                        for (const r of rows) {
-                            const k = r.faktur + '|' + r.sheet + '|' + r.section + '|' + r.tagihan;
-                            if (!existing.has(k)) { allRows.push(r);
-                                existing.add(k);
-                                added++; }
-                        }
-                        if (fi < files.length - 1) await new Promise(r => setTimeout(r, 0));
-                    }
-                }
-            } else {
-                // Browser tidak support Worker, jalankan di main thread
-                for (let fi = 0; fi < files.length; fi++) {
-                    const file = files[fi];
-                    names.push(file.name.length > 18 ? file.name.slice(0, 16) + '…' : file.name);
-                    loading.textContent = 'Memproses ' + (fi + 1) + '/' + files.length + ': ' + file.name + ' …';
-                    const buf = await file.arrayBuffer();
-                    const wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: true });
-                    const rows = parseWorkbook(wb);
-                    for (const r of rows) {
-                        const k = r.faktur + '|' + r.sheet + '|' + r.section + '|' + r.tagihan;
-                        if (!existing.has(k)) { allRows.push(r);
-                            existing.add(k);
-                            added++; }
-                    }
-                    if (fi < files.length - 1) await new Promise(r => setTimeout(r, 0));
-                }
-            }
-
-            loading.textContent = '';
-            loading.style.display = 'none';
-            fileNameEl.textContent = names.join(', ');
-            document.getElementById('clearBtn').style.display = 'block';
-            invalidateFakturIndex();
-
-            if (allRows.length === 0) {
-                emptyState.style.display = 'block';
-                emptyState.querySelector('.hint').textContent = 'Tidak ditemukan data faktur. Pastikan format sheet berisi kolom No Faktur.';
-                return;
-            }
-            showSummary();
-            searchBar.classList.add('show');
-            saveRowsToDB(allRows, DB_KEY);
-            document.getElementById('tabsBar').style.display = 'flex';
-        }
-
-        // ---- Invalidate cache ----
-        function invalidateFakturIndex() {
-            fakturIndexDirty = true;
-        }
-
-        // ---- Build LastPayMap ----
-        function buildLastPayMap() {
-            if (!fakturIndexDirty) return fakturLastPayMap;
-            const map = {};
-            const byFaktur = {};
-            for (const r of allRows) {
-                const key = r.faktur;
-                (byFaktur[key] || (byFaktur[key] = [])).push(r);
-                if (!map[key]) {
-                    map[key] = { date: r.date, sheet: r.sheet, sort: dateSortKey(r.date, r.sheet) };
-                } else {
-                    const sk = dateSortKey(r.date, r.sheet);
-                    if (sk >= map[key].sort) {
-                        map[key] = { date: r.date, sheet: r.sheet, sort: sk };
-                    }
-                }
-            }
-            rowsByFaktur = byFaktur;
-            fakturLastPayMap = map;
-            fakturIndexDirty = false;
-            return map;
-        }
-
-        // ---- Show summary & daily ----
-        function latestMonth() {
-            const months = [...new Set(allRows.map(r => r.month).filter(Boolean))];
-            months.sort((a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b));
-            return months.length ? months[months.length - 1] : null;
-        }
-
-        function showSummary() {
-            const months = [...new Set(allRows.map(r => r.month).filter(Boolean))];
-            months.sort((a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b));
-            const sel = document.getElementById('filterMonth');
-            const last = latestMonth();
-            sel.innerHTML = '<option value="all">Semua Bulan</option>' +
-                months.map(m => '<option value="' + m + '"' + (m === last ? ' selected' : '') + '>' + m + (m === last ?
-                    ' (terbaru)' : '') + '</option>').join('');
-            const scope = last ? allRows.filter(r => r.month === last) : allRows;
-            updateCards(scope);
-            buildDailySummary(scope);
-            updateFakturFilterChips();
-            setFilterCount('faktur', scope.length, allRows.length);
-            renderTable(scope);
-        }
-
-        function updateCards(rows) {
-            const data = rows || allRows;
-            const cards = document.getElementById('fakturCards');
-            if (!allRows.length) { cards.classList.remove('show'); return; }
-            cards.classList.add('show');
-            let minyak = 0,
-                rupa = 0;
-            for (const r of data) {
-                minyak += (r.minyakCash || 0) + (r.minyakTf || 0);
-                rupa += (r.rupaCash || 0) + (r.rupaTf || 0);
-            }
-            document.getElementById('fcMinyak').textContent = (minyak + rupa).toLocaleString('id-ID') ? (minyak).toLocaleString(
-                'id-ID') : '0';
-            document.getElementById('fcRupa').textContent = rupa.toLocaleString('id-ID');
-            document.getElementById('fcTotal').textContent = (minyak + rupa).toLocaleString('id-ID');
-        }
-
-        function buildDailySummary(rows) {
-            if (!rows || !rows.length) { dailyPanel.style.display = 'none'; return; }
-            const map = {};
-            for (const r of rows) {
-                const k = r.sheet;
-                if (!map[k]) {
-                    map[k] = { sheet: r.sheet, date: r.date, month: r.month, count: 0, piutang: 0, dropping: 0, tagihan: 0,
-                        cash: 0, tf: 0 };
-                }
-                const g = map[k];
-                g.count++;
-                g.tagihan += r.tagihan || 0;
-                const bayarCash = (r.minyakCash || 0) + (r.rupaCash || 0);
-                const bayarTf = (r.minyakTf || 0) + (r.rupaTf || 0);
-                g.cash += bayarCash;
-                g.tf += bayarTf;
-                if (r.section === 'PIUTANG TEMPO') g.piutang += bayarCash + bayarTf;
-                else g.dropping += bayarCash + bayarTf;
-            }
-            const list = Object.values(map);
-            // Urutkan dari tanggal TERKINI → terlama (teratas = paling baru)
-            list.sort((a, b) => dateSortKey(b.date, b.sheet) - dateSortKey(a.date, a.sheet));
-            let sumC = 0,
-                sumP = 0,
-                sumD = 0,
-                sumT = 0,
-                sumCash = 0,
-                sumTf = 0,
-                sumCnt = 0;
-            dailyBody.innerHTML = list.map(g => {
-                const total = g.cash + g.tf;
-                sumC += g.count;
-                sumP += g.piutang;
-                sumD += g.dropping;
-                sumT += g.tagihan;
-                sumCash += g.cash;
-                sumTf += g.tf;
-                sumCnt += total;
-                return '<tr data-sheet="' + esc(g.sheet) + '" onclick="filterBySheet(\'' + esc(g.sheet).replace(/'/g,
-                    "\\'") + '\')">' +
-                    '<td><strong>' + esc(g.date) + '</strong></td>' +
-                    '<td class="muted">' + esc(g.sheet) + '</td>' +
-                    '<td class="num">' + g.count.toLocaleString('id-ID') + '</td>' +
-                    '<td class="num">' + fmt(g.piutang) + '</td>' +
-                    '<td class="num">' + fmt(g.dropping) + '</td>' +
-                    '<td class="num">' + fmt(g.tagihan) + '</td>' +
-                    '<td class="num">' + fmt(g.cash) + '</td>' +
-                    '<td class="num">' + fmt(g.tf) + '</td>' +
-                    '<td class="num"><strong>' + fmt(total) + '</strong></td>' +
-                    '<td><button title="Download Excel hari ini" onclick="event.stopPropagation(); downloadFakturDay(\'' +
-                    esc(g.sheet).replace(/'/g, "\\'") + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;cursor:pointer;color:var(--accent);font-size:0.85rem;">⬇</button></td>' +
-                    '</tr>';
-            }).join('') +
-                '<tr class="total-row">' +
-                '<td colspan="2">TOTAL (' + list.length + ' hari)</td>' +
-                '<td class="num">' + sumC.toLocaleString('id-ID') + '</td>' +
-                '<td class="num">' + fmt(sumP) + '</td>' +
-                '<td class="num">' + fmt(sumD) + '</td>' +
-                '<td class="num">' + fmt(sumT) + '</td>' +
-                '<td class="num">' + fmt(sumCash) + '</td>' +
-                '<td class="num">' + fmt(sumTf) + '</td>' +
-                '<td class="num">' + fmt(sumCash + sumTf) + '</td>' +
-                '<td></td>' +
-                '</tr>';
-            dailyPanel.style.display = 'block';
-            const monSel = document.getElementById('filterMonth');
-            const monLabel = monSel && monSel.value !== 'all' ? monSel.value : 'Semua Bulan';
-            document.getElementById('dailyHint').textContent =
-                'TOTAL Uang Masuk ' + monLabel + ' ' + (sumCash + sumTf).toLocaleString('id-ID') +
-                '  ·  Klik baris tanggal untuk filter detail faktur';
-        }
-
-        // ---- Render table Uang Masuk ----
-        let lastFakturFiltered = [];
-
-        function renderTable(rows) {
-            // Urutkan dari tanggal TERKINI → terlama agar yang teratas selalu data terbaru
-            const sorted = (rows || []).slice().sort((a, b) => dateSortKey(b.date, b.sheet) - dateSortKey(a.date, a.sheet));
-            lastFakturFiltered = sorted;
-            resultInfo.style.display = 'block';
-            resultInfo.innerHTML = 'Menampilkan <strong>' + sorted.length.toLocaleString('id-ID') + '</strong> dari <strong>' +
-                allRows.length.toLocaleString('id-ID') + '</strong> faktur';
-            setFilterCount('faktur', sorted.length, allRows.length);
-            updateFakturFilterChips();
-            if (!sorted.length) {
-                tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:32px;color:var(--muted)">Tidak ada data yang cocok.</td></tr>';
-                tableWrap.style.display = 'block';
-                fakturVirtual.setData([]);
-                return;
-            }
-            fakturLastPayMap = buildLastPayMap();
-            tableWrap.style.display = 'block';
-            fakturVirtual.setData(sorted);
-        }
-
-        // ---- Search/filter Uang Masuk ----
-        function doSearch() {
-            const q = document.getElementById('searchInput').value.trim().toLowerCase();
-            const mon = document.getElementById('filterMonth').value;
-            const sec = document.getElementById('filterSection').value;
-            const st = document.getElementById('filterStatus').value;
-            let filtered = allRows;
-            if (mon !== 'all') filtered = filtered.filter(r => r.month === mon);
-            if (sec !== 'all') filtered = filtered.filter(r => r.section === sec);
-            if (st !== 'all') filtered = filtered.filter(r => r.status === st);
-            updateCards(filtered);
-            buildDailySummary(filtered);
-            if (q) {
-                filtered = filtered.filter(r => (r._q || (r._q = (r.faktur + ' ' + r.toko + ' ' + r.alamat + ' ' + r.sales +
-                    ' ' + r.sheet + ' ' + r.date + ' ' + (r.month || '')).toLowerCase())).includes(q));
-            }
-            updateFakturFilterChips();
-            setFilterCount('faktur', filtered.length, allRows.length);
-            renderTable(filtered);
-        }
-
-        function resetSearch() {
-            document.getElementById('searchInput').value = '';
-            const last = latestMonth();
-            document.getElementById('filterMonth').value = last || 'all';
-            document.getElementById('filterSection').value = 'all';
-            document.getElementById('filterStatus').value = 'all';
-            const scope = last ? allRows.filter(r => r.month === last) : allRows;
-            updateCards(scope);
-            buildDailySummary(scope);
-            renderTable(scope);
-        }
-
-        function filterBySheet(sheet) {
-            document.getElementById('searchInput').value = '';
-            document.querySelectorAll('#dailyBody tr').forEach(tr => {
-                tr.classList.toggle('active', tr.getAttribute('data-sheet') === sheet);
-            });
-            const filtered = allRows.filter(r => r.sheet === sheet);
-            if (filtered.length && filtered[0].month) {
-                const sel = document.getElementById('filterMonth');
-                if ([...sel.options].some(o => o.value === filtered[0].month)) { sel.value = filtered[0].month; }
-            }
-            document.getElementById('filterSection').value = 'all';
-            document.getElementById('filterStatus').value = 'all';
-            updateCards(filtered);
-            renderTable(filtered);
-            document.getElementById('tableWrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        // ---- Download Excel Uang Masuk ----
-        function buildFakturAoa(rows, periodLabel) {
-            const lpMap = buildLastPayMap();
-            const aoa = [
-                ['DATA UANG MASUK', '', '', '', '', '', '', '', '', '', '', '', periodLabel]
-            ];
-            aoa.push(['Tanggal', 'Sheet', 'Bagian', 'Sales', 'No Faktur', 'Nama Toko', 'Alamat',
-                'Tagihan', 'Minyak Cash', 'Minyak TF', 'Rupa Cash', 'Rupa TF', 'Bayar Terakhir', 'Status'
-            ]);
-            rows.forEach(r => {
-                const lp = lpMap[r.faktur];
-                const lastDate = lp ? lp.date : r.date;
-                aoa.push([
-                    r.date || '', r.sheet || '', r.section || '', r.sales || '', r.faktur || '',
-                    r.toko || '', r.alamat || '',
-                    r.tagihan || 0, r.minyakCash || 0, r.minyakTf || 0, r.rupaCash || 0, r.rupaTf || 0,
-                    lastDate || '', r.status || ''
-                ]);
-            });
-            const totalCash = rows.reduce((s, r) => s + (r.minyakCash || 0) + (r.rupaCash || 0), 0);
-            const totalTf = rows.reduce((s, r) => s + (r.minyakTf || 0) + (r.rupaTf || 0), 0);
-            const totalTagihan = rows.reduce((s, r) => s + (r.tagihan || 0), 0);
-            aoa.push(['', '', '', '', '', '', 'TOTAL', totalTagihan, '', '', '', '', 'Cash+TF', (totalCash + totalTf)]);
-            return aoa;
-        }
-
-        function exportFakturAoa(aoa, sheetName, fileName) {
-            if (typeof XLSX === 'undefined') { alert('Library Excel belum siap'); return; }
-            const ws = XLSX.utils.aoa_to_sheet(aoa);
-            // format numbers
-            const range = XLSX.utils.decode_range(ws['!ref']);
-            for (let R = range.s.r; R <= range.e.r; R++) {
-                for (let C = range.s.c; C <= range.e.c; C++) {
-                    const addr = XLSX.utils.encode_cell({ r: R, c: C });
-                    const cell = ws[addr];
-                    if (cell && cell.t === 'n' && typeof cell.v === 'number') {
-                        cell.z = Number.isInteger(cell.v) ? '#,##0' : '#,##0.##';
-                    }
-                }
-            }
-            if (!ws['!cols']) {
-                const colCount = (aoa[1] || aoa[0] || []).length;
-                ws['!cols'] = Array.from({ length: colCount }, () => ({ wch: 14 }));
-            }
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, sheetName);
-            XLSX.writeFile(wb, fileName);
-        }
-
-        function downloadFakturExcel(scope) {
-            const rows = (scope === 'all') ? allRows : lastFakturFiltered;
-            if (!rows.length) { alert('Tidak ada data untuk diunduh.'); return; }
-            const monSel = document.getElementById('filterMonth');
-            const period = (scope === 'all') ? 'Semua Data' : (monSel && monSel.value !== 'all' ? monSel.value :
-                'Semua Bulan');
-            const safePeriod = period.replace(/\s+/g, '_');
-            const aoa = buildFakturAoa(rows, period);
-            const stamp = new Date();
-            const pad = n => String(n).padStart(2, '0');
-            exportFakturAoa(aoa, 'Uang Masuk', 'UangMasuk_' + safePeriod + '_' +
-                stamp.getFullYear() + pad(stamp.getMonth() + 1) + pad(stamp.getDate()) + '.xlsx');
-        }
-
-        function downloadFakturDay(sheet) {
-            const rows = allRows.filter(r => r.sheet === sheet);
-            if (!rows.length) { alert('Tidak ada data untuk hari ini.'); return; }
-            const dateLabel = rows[0].date || sheet;
-            const aoa = buildFakturAoa(rows, dateLabel);
-            const safeSheet = String(sheet).replace(/[\/\\:*?"<>|]/g, '-');
-            exportFakturAoa(aoa, 'Uang Masuk ' + sheet, 'UangMasuk_Harian_' + safeSheet + '.xlsx');
-        }
-
-        // ---- Modal Faktur ----
-        function openFakturModal(faktur) {
-            buildLastPayMap();
-            const rows = (rowsByFaktur[faktur] || []).slice();
-            if (!rows.length) return;
-            rows.sort((a, b) => {
-                const pa = a.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-                const pb = b.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-                if (pa && pb) {
-                    const da = parseInt(pa[3]) * 10000 + parseInt(pa[2]) * 100 + parseInt(pa[1]);
-                    const db = parseInt(pb[3]) * 10000 + parseInt(pb[2]) * 100 + parseInt(pb[1]);
-                    return da - db;
-                }
-                return a.sheet.localeCompare(b.sheet);
-            });
-            const first = rows[0];
-            const last = rows[rows.length - 1];
-            let totalCash = 0,
-                totalTf = 0,
-                maxTagihan = 0;
-            rows.forEach(r => {
-                totalCash += (r.minyakCash || 0) + (r.rupaCash || 0);
-                totalTf += (r.minyakTf || 0) + (r.rupaTf || 0);
-                if ((r.tagihan || 0) > maxTagihan) maxTagihan = r.tagihan || 0;
-            });
-            const totalBayar = totalCash + totalTf;
-            const sisa = Math.max(0, maxTagihan - totalBayar);
-            document.getElementById('modalTitle').textContent = faktur;
-            document.getElementById('modalSub').textContent =
-                (first.toko || '') + (first.alamat && first.alamat !== '—' ? ' · ' + first.alamat : '');
-            document.getElementById('modalStats').innerHTML =
-                '<div class="modal-stat"><div class="l">Tagihan (max)</div><div class="v">' + fmt(maxTagihan) +
-                '</div></div>' +
-                '<div class="modal-stat"><div class="l">Total Bayar</div><div class="v" style="color:var(--green)">' + fmt(
-                    totalBayar) + '</div></div>' +
-                '<div class="modal-stat"><div class="l">Cash</div><div class="v">' + fmt(totalCash) + '</div></div>' +
-                '<div class="modal-stat"><div class="l">Transfer</div><div class="v">' + fmt(totalTf) + '</div></div>' +
-                '<div class="modal-stat"><div class="l">Sisa</div><div class="v" style="color:' + (sisa > 0 ?
-                    'var(--yellow)' : 'var(--green)') + '">' + (sisa > 0 ? fmt(sisa) : '0 (lunas)') + '</div></div>' +
-                '<div class="modal-stat"><div class="l">x Bayar</div><div class="v">' + rows.length + 'x</div></div>' +
-                '<div class="modal-stat"><div class="l">Bayar pertama</div><div class="v" style="font-size:0.8rem">' + esc(
-                    first.date) + '</div></div>' +
-                '<div class="modal-stat"><div class="l">Bayar terakhir</div><div class="v" style="font-size:0.8rem">' + esc(
-                    last.date) + '</div></div>';
-            document.getElementById('modalHist').innerHTML = rows.map((r, i) => {
-                const bayar = (r.minyakCash || 0) + (r.rupaCash || 0) + (r.minyakTf || 0) + (r.rupaTf || 0);
-                return '<tr>' +
-                    '<td><strong>' + esc(r.date) + '</strong></td>' +
-                    '<td class="muted">' + esc(r.sheet) + '</td>' +
-                    '<td>' + sectionBadge(r.section) + '</td>' +
-                    '<td>' + esc(r.sales) + '</td>' +
-                    '<td class="num">' + fmt(r.tagihan) + '</td>' +
-                    '<td class="num">' + fmt((r.minyakCash || 0) + (r.rupaCash || 0)) + '</td>' +
-                    '<td class="num">' + fmt((r.minyakTf || 0) + (r.rupaTf || 0)) + '</td>' +
-                    '<td class="num"><strong>' + fmt(bayar) + '</strong></td>' +
-                    '<td>' + statusBadge(r.status) + '</td>' +
-                    '</tr>';
-            }).join('');
-            document.getElementById('fakturModal').classList.add('open');
-        }
-
-        function closeFakturModal() { document.getElementById('fakturModal').classList.remove('open'); }
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFakturModal(); });
-
-        // ---- Clear data ----
-        function clearData() {
-            allRows = [];
-            invalidateFakturIndex();
-            saveRowsToDB([], DB_KEY);
-            queueCloudSync();
-            fileNameEl.textContent = 'Belum ada file diupload';
-            document.getElementById('fakturCards').classList.remove('show');
-            searchBar.classList.remove('show');
-            tableWrap.style.display = 'none';
-            resultInfo.style.display = 'none';
-            dailyPanel.style.display = 'none';
-            emptyState.style.display = 'block';
-            document.getElementById('clearBtn').style.display = 'none';
-            fileInput.value = '';
-            fileInputMain.value = '';
-            dailyBody.innerHTML =
-                '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted);cursor:default;">Belum ada data. Upload file Excel untuk mulai melihat ringkasan.</td></tr>';
-            document.getElementById('filterMonth').innerHTML = '<option value="all">Semua Bulan</option>';
-        }
 
         // ================================================================
         //  DATA PENJUALAN (salesRows) – OPTIMASI DENGAN CACHE
@@ -3043,39 +2248,22 @@
 
         
         function openFilterSheet(which) {
-            const barId = which === 'sales' ? 'salesSearchBar' : 'searchBar';
-            const bdId = which === 'sales' ? 'salesSheetBackdrop' : 'fakturSheetBackdrop';
-            const bar = document.getElementById(barId);
-            const bd = document.getElementById(bdId);
+            const barId = which === 'sales' ? 'salesSearchBar' : null;
+            const bdId = which === 'sales' ? 'salesSheetBackdrop' : null;
+            const bar = barId ? document.getElementById(barId) : null;
+            const bd = bdId ? document.getElementById(bdId) : null;
             if (bar) bar.classList.add('filter-open');
             if (bd) bd.classList.add('open');
             document.body.style.overflow = 'hidden';
         }
         function closeFilterSheet(which) {
-            const barId = which === 'sales' ? 'salesSearchBar' : 'searchBar';
-            const bdId = which === 'sales' ? 'salesSheetBackdrop' : 'fakturSheetBackdrop';
-            const bar = document.getElementById(barId);
-            const bd = document.getElementById(bdId);
+            const barId = which === 'sales' ? 'salesSearchBar' : null;
+            const bdId = which === 'sales' ? 'salesSheetBackdrop' : null;
+            const bar = barId ? document.getElementById(barId) : null;
+            const bd = bdId ? document.getElementById(bdId) : null;
             if (bar) bar.classList.remove('filter-open');
             if (bd) bd.classList.remove('open');
             document.body.style.overflow = '';
-        }
-        function updateFakturFilterChips() {
-            const mon = document.getElementById('filterMonth');
-            const sec = document.getElementById('filterSection');
-            const st = document.getElementById('filterStatus');
-            const q = (document.getElementById('searchInput') || {}).value || '';
-            const parts = [];
-            if (mon && mon.value !== 'all') parts.push(mon.options[mon.selectedIndex].text);
-            if (sec && sec.value !== 'all') parts.push(sec.options[sec.selectedIndex].text);
-            if (st && st.value !== 'all') parts.push(st.options[st.selectedIndex].text);
-            if (q.trim()) parts.push('"' + q.trim().slice(0, 16) + (q.trim().length > 16 ? '…' : '') + '"');
-            const el = document.getElementById('fakturFilterChips');
-            if (el) {
-                el.innerHTML = parts.length
-                    ? parts.join(' · ')
-                    : '<span class="muted-chip">Semua filter</span>';
-            }
         }
         function updateSalesFilterChips() {
             const mon = document.getElementById('filterSalesMonth');
@@ -3095,8 +2283,8 @@
             }
         }
         function setFilterCount(which, shown, total) {
-            const id = which === 'sales' ? 'salesFilterCount' : 'fakturFilterCount';
-            const el = document.getElementById(id);
+            const id = which === 'sales' ? 'salesFilterCount' : null;
+            const el = id ? document.getElementById(id) : null;
             if (!el) return;
             if (total == null || total === 0) { el.textContent = ''; el.style.display = 'none'; return; }
             el.style.display = '';
@@ -3329,6 +2517,82 @@
                 });
             }
             document.getElementById('rkRupaBody').innerHTML = html;
+        }
+
+        // ---- Modal perincian penjualan per sales (dari Ringkasan) ----
+        function openRkSalesDetail(salesName, jenis) {
+            const rows = lastSalesFiltered.length ? lastSalesFiltered : salesRows;
+            const wantFitri = (jenis === 'fitri');
+            const labelJenis = wantFitri ? 'FITRI' : 'RUPA RUPA';
+            const detail = [];
+            let totalQty = 0;
+            let totalNom = 0;
+            const fakturSet = new Set();
+
+            for (const r of rows) {
+                const name = (r.produk || '').trim() || '—';
+                const isFitri = name.toUpperCase().includes('FITRI');
+                if (wantFitri !== isFitri) continue;
+                const sales = normalizeSalesName(r.sales);
+                if (sales !== salesName) continue;
+                const qty = Number(r.jumlah) || 0;
+                if (!qty) continue;
+                const tot = Number(r.total) || 0;
+                totalQty += qty;
+                totalNom += tot;
+                if (r.noFaktur) fakturSet.add(String(r.noFaktur).trim());
+                detail.push(r);
+            }
+
+            detail.sort((a, b) => {
+                const ka = salesDateSortKey(a);
+                const kb = salesDateSortKey(b);
+                if (kb !== ka) return kb - ka;
+                return String(a.produk || '').localeCompare(String(b.produk || ''));
+            });
+
+            const monEl = document.getElementById('filterSalesMonth');
+            const mon = monEl ? monEl.value : 'all';
+            const periodLabel = mon === 'all' ? 'Semua Bulan' : mon;
+
+            document.getElementById('rkSalesDetailTitle').textContent = salesName + ' · ' + labelJenis;
+            document.getElementById('rkSalesDetailSub').textContent =
+                'Perincian penjualan · ' + periodLabel + ' · ' + detail.length + ' baris';
+
+            const nomStr = (typeof fmt === 'function') ? fmt(totalNom) : totalNom.toLocaleString('id-ID');
+            document.getElementById('rkSalesDetailStats').innerHTML =
+                '<div class="modal-stat"><div class="l">Total Qty</div><div class="v">' + totalQty.toLocaleString('id-ID') + '</div></div>' +
+                '<div class="modal-stat"><div class="l">Total Nominal</div><div class="v">' + nomStr + '</div></div>' +
+                '<div class="modal-stat"><div class="l">Jumlah Faktur</div><div class="v">' + fakturSet.size.toLocaleString('id-ID') + '</div></div>' +
+                '<div class="modal-stat"><div class="l">Baris</div><div class="v">' + detail.length.toLocaleString('id-ID') + '</div></div>';
+
+            let bodyHtml = '';
+            if (!detail.length) {
+                bodyHtml = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">Tidak ada data penjualan ' +
+                    labelJenis + ' untuk sales ' + salesName + '</td></tr>';
+            } else {
+                detail.forEach(r => {
+                    const qty = Number(r.jumlah) || 0;
+                    const tot = Number(r.total) || 0;
+                    const totStr = (typeof fmt === 'function') ? fmt(tot) : tot.toLocaleString('id-ID');
+                    bodyHtml += '<tr>' +
+                        '<td>' + escapeHtmlSafe(r.tanggal || '') + '</td>' +
+                        '<td class="faktur">' + escapeHtmlSafe(r.noFaktur || '') + '</td>' +
+                        '<td>' + escapeHtmlSafe(r.produk || '') + '</td>' +
+                        '<td class="num">' + (qty ? qty.toLocaleString('id-ID') : '-') + '</td>' +
+                        '<td>' + escapeHtmlSafe(r.satuan || '') + '</td>' +
+                        '<td class="num">' + totStr + '</td>' +
+                        '<td>' + escapeHtmlSafe(r.customer || '') + '</td>' +
+                        '<td>' + escapeHtmlSafe(r.pembayaran || '') + '</td>' +
+                        '</tr>';
+                });
+            }
+            document.getElementById('rkSalesDetailBody').innerHTML = bodyHtml;
+            document.getElementById('rkSalesDetailModal').classList.add('open');
+        }
+
+        function closeRkSalesDetail() {
+            document.getElementById('rkSalesDetailModal').classList.remove('open');
         }
 
         // ---- Profit functions (sama seperti sebelumnya, hanya di-cache) ----
@@ -4530,44 +3794,6 @@
         })();
 
         // ================================================================
-        // AKSES KHUSUS DATA UANG MASUK
-        // Default: tersembunyi. Hanya dibuka setelah PIN benar.
-        // PIN sementara: 1618 — ubah nilai ini bila diperlukan.
-        // ================================================================
-        const UANG_MASUK_ACCESS_PIN = '1618';
-        let uangMasukUnlocked = false;
-
-        function updateUangMasukAccessUI() {
-            const tabBtn = document.getElementById('tabBtnFaktur');
-            const uploadItem = document.getElementById('uangMasukUploadItem');
-            const accessBtn = document.getElementById('uangMasukAccessBtn');
-            if (tabBtn) tabBtn.style.display = uangMasukUnlocked ? '' : 'none';
-            if (uploadItem) uploadItem.style.display = uangMasukUnlocked ? 'flex' : 'none';
-            if (accessBtn) accessBtn.textContent = uangMasukUnlocked ? '🔒 Sembunyikan Data Uang Masuk' : '🔐 Buka Data Uang Masuk';
-        }
-
-        function toggleUangMasukAccess() {
-            if (uangMasukUnlocked) {
-                uangMasukUnlocked = false;
-                updateUangMasukAccessUI();
-                switchTab('penjualan');
-                switchSalesSub('ringkasan');
-                return;
-            }
-            const pin = prompt('Masukkan PIN untuk membuka Data Uang Masuk:');
-            if (pin === null) return;
-            if (pin === UANG_MASUK_ACCESS_PIN) {
-                uangMasukUnlocked = true;
-                updateUangMasukAccessUI();
-                alert('Akses Data Uang Masuk dibuka.');
-            } else {
-                alert('PIN salah. Data Uang Masuk tetap tersembunyi.');
-            }
-        }
-
-        updateUangMasukAccessUI();
-
-        // ================================================================
         // AKSES KHUSUS SUB TAB (Transaksi, Profit Per Produk, Profit Per
         // Produk Per Pembayaran, Profit Per Sales)
         // Default: tersembunyi. Hanya dibuka setelah PIN benar.
@@ -4608,10 +3834,7 @@
         updateSubtabAccessUI();
 
         function switchTab(tab) {
-            if (tab === 'faktur' && !uangMasukUnlocked) {
-                return;
-            }
-            const tabs = ['faktur', 'penjualan', 'rapikan'];
+            const tabs = ['penjualan', 'rapikan'];
             tabs.forEach(t => {
                 const panelName = 'tab' + t.charAt(0).toUpperCase() + t.slice(1);
                 const btnName = 'tabBtn' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -4621,7 +3844,6 @@
                 if (btn) btn.classList.toggle('active', t === tab);
             });
             if (tab === 'rapikan') {
-                document.getElementById('tabBtnFaktur').classList.remove('active');
                 document.getElementById('tabBtnPenjualan').classList.remove('active');
             }
         }
@@ -4640,13 +3862,6 @@
         document.addEventListener('click', function(e) {
             const wrap = document.getElementById('salesMenuWrap');
             if (wrap && !wrap.contains(e.target)) closeSalesMenu();
-        });
-
-        function toggleFakturSaveMenu() { document.getElementById('fakturSaveDd').classList.toggle('open'); }
-        function closeFakturSaveMenu() { document.getElementById('fakturSaveDd').classList.remove('open'); }
-        document.addEventListener('click', function(e) {
-            const wrap = document.getElementById('fakturSaveWrap');
-            if (wrap && !wrap.contains(e.target)) closeFakturSaveMenu();
         });
 
         function toggleSalesSaveMenu() { document.getElementById('salesSaveDd').classList.toggle('open'); }
@@ -4683,29 +3898,14 @@
 
         // ---- Startup: load data dari IndexedDB + Cloud ----
         (async function initFromDB() {
-            let saved = null,
-                savedSales = null;
+            let savedSales = null;
             const cloud = await pullFromSupabase();
-            if (cloud && (Array.isArray(cloud.all_rows) || Array.isArray(cloud.sales_rows))) {
-                saved = Array.isArray(cloud.all_rows) ? cloud.all_rows : [];
-                savedSales = Array.isArray(cloud.sales_rows) ? cloud.sales_rows : [];
-                allRows = saved;
+            if (cloud && Array.isArray(cloud.sales_rows)) {
+                savedSales = cloud.sales_rows;
                 salesRows = savedSales;
-                invalidateFakturIndex();
-                    saveRowsToDB(allRows, DB_KEY);
                 saveRowsToDB(salesRows, DB_KEY_SALES);
             } else {
-                saved = await loadRowsFromDB(DB_KEY);
                 savedSales = await loadRowsFromDB(DB_KEY_SALES);
-            }
-            if (saved && saved.length) {
-                allRows = saved;
-                invalidateFakturIndex();
-                emptyState.style.display = 'none';
-                fileNameEl.textContent = 'Data tersimpan (' + allRows.length.toLocaleString('id-ID') + ' baris)';
-                document.getElementById('clearBtn').style.display = 'block';
-                showSummary();
-                searchBar.classList.add('show');
             }
             if (savedSales && savedSales.length) {
                 salesRows = savedSales.map(r => r.month ? r : Object.assign({}, r, { month: detectMonth(r.sheet, r
@@ -4717,7 +3917,7 @@
                 populateSalesFilters();
                 doSalesSearch();
             }
-            if ((saved && saved.length) || (savedSales && savedSales.length)) {
+            if (savedSales && savedSales.length) {
                 document.getElementById('tabsBar').style.display = 'flex';
             }
             // Rapikan data
@@ -4765,10 +3965,6 @@
         })();
 
         // ---- Event listeners for search ----
-        document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
-        document.getElementById('filterMonth').addEventListener('change', doSearch);
-        document.getElementById('filterSection').addEventListener('change', doSearch);
-        document.getElementById('filterStatus').addEventListener('change', doSearch);
         document.getElementById('salesSearchInput').addEventListener('keydown', e => { if (e.key === 'Enter')
                 doSalesSearch(); });
         document.getElementById('filterSalesMonth').addEventListener('change', doSalesSearch);
@@ -4781,7 +3977,6 @@
         // ================================================================
         switchTab('penjualan');
         switchSalesSub('ringkasan');
-        updateUangMasukAccessUI();
     </script>
 </body>
 </html>
