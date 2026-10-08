@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <script type="module" src="/@vite/client"></script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Laporan — Penjualan, Uang Masuk & Rekonsiliasi Cek Pembayaran</title>
@@ -70,7 +68,7 @@
   :root[data-theme=dark] .hb-t{color:#58a6ff}
   .hb-go{margin-top:12px;text-align:center}
 </style>
-<script src="/_aistudio-iframe.js?v=6634132a"></script></head>
+</head>
 <body>
 <div class="main-tabs">
   <button class="main-tab active" data-tab="penjualan">📈 Penjualan</button>
@@ -308,7 +306,7 @@ $('#hbGo').addEventListener('click', () => {
 </div></div>
 <script>
 (() => {
-const SB = 'https://bgirwwqozezibrwghtla.supabase.co', KEY = 'sb_publishable_iRCAzy0QB7QO8OMAG-dV_Q_2IwvX1Kl';
+const SB = 'https://aatkbxuxvwytkcouzklu.supabase.co', KEY = 'sb_publishable_8aQtC8OCrP8vm_E_95BQ_A_mD3gfvTN';
 const DBS = [
   { k: 'penjualan', db: 'laporan-penjualan-db', st: 'data' },
   { k: 'uangmasuk', db: 'um-fixv1', st: 'um-data' },
@@ -505,7 +503,7 @@ async function autoDown() {
 async function runSync(trigger) {
   if (syncing || !autoOn()) return;
   if (!LS.getItem('syncCode')) { if (trigger === 'start') pill('☁️ Isi Kode Sinkron (Backup/Sync → Upload) untuk sinkron otomatis', 'warn'); return; }
-  const load = trigger === 'start' || trigger === 'visible';
+  const load = trigger === 'start' || trigger === 'visible' || trigger === 'poll';
   syncing = true; lastCheck = Date.now();
   try {
     pill('⏳ Mengecek sinkron...', 'busy');
@@ -513,7 +511,7 @@ async function runSync(trigger) {
     const o = await snap(), h = await hashOf(o), lh = LS.getItem('syncHash'), ll = LS.getItem('syncLast'), empty = isEmpty(o);
     const dirty = lh ? h !== lh : !empty;
     let act = decide(m, ll, dirty, empty, load);
-    if (act === 'conflict' && autoPaused) act = 'warn';
+    if (act === 'conflict' && (autoPaused || trigger === 'poll')) act = 'warn';
     if (act === 'up') await autoUp();
     else if (act === 'down') await autoDown();
     else if (act === 'conflict') {
@@ -553,6 +551,8 @@ document.addEventListener('visibilitychange', () => {
   else if (Date.now() - lastCheck > 60000) runSync('visible');
 });
 setTimeout(() => runSync('start'), 2500);
+/* cek cloud tiap ±90 detik selama halaman terbuka, agar data dari device lain masuk otomatis */
+setInterval(() => { if (document.visibilityState === 'visible' && !syncing && Date.now() - lastCheck > 90000) runSync('poll'); }, 30000);
 
 /* ---------- UI ---------- */
 function msg(t, err) {
