@@ -57,6 +57,20 @@
   .mn-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 12px;border:0;border-radius:7px;background:transparent;color:var(--tx);font:600 .8rem 'Segoe UI',Arial,sans-serif;cursor:pointer;white-space:nowrap}
   .mn-item:hover{background:var(--hv)}
   .mn-sep{height:1px;background:var(--bd);margin:4px 6px}
+  .mn-dd{--mu:#64748b;min-width:min(320px,92vw);max-height:calc(100vh - 60px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+  :root[data-theme=dark] .mn-dd{--mu:#8b949e}
+  .mn-hd{padding:6px 12px 2px;font:700 .68rem 'Segoe UI',Arial,sans-serif;color:var(--mu);text-transform:uppercase;letter-spacing:.03em}
+  .mn-note{padding:3px 12px 5px;font:400 .7rem/1.4 'Segoe UI',Arial,sans-serif;color:var(--mu);white-space:normal}
+  .mn-dd .mn-b{width:calc(100% - 8px);margin:3px 4px;justify-content:center;text-align:center;white-space:normal;border:1px solid var(--bd);border-radius:8px}
+  .mn-dd .mn-b.p{background:#1f4e8c;border-color:#1f4e8c;color:#fff}
+  .mn-dd .mn-b.p:hover{background:#17407a}
+  .mn-dd .mn-b.g{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.4);color:#15803d}
+  .mn-dd .mn-b.y{background:rgba(217,119,6,.12);border-color:rgba(217,119,6,.4);color:#b45309}
+  :root[data-theme=dark] .mn-dd .mn-b.p{background:#2f5fa8;border-color:#2f5fa8}
+  :root[data-theme=dark] .mn-dd .mn-b.g{color:#3fb950}
+  :root[data-theme=dark] .mn-dd .mn-b.y{color:#d29922}
+  .mn-dd .mn-b.g:hover,.mn-dd .mn-b.y:hover{filter:brightness(1.12)}
+  .mn-dd .mn-b:disabled{opacity:.45;cursor:not-allowed}
   /* ===== MODAL RUBAH HARGA BELI ===== */
   .hb-l{display:block;font-size:.72rem;color:var(--mu);margin:8px 0 2px}
   .hb-i{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:7px;background:transparent;color:var(--tx);font:inherit;font-size:.8rem;outline:none}
@@ -80,9 +94,27 @@
     <div class="mn-dd" id="mnDd">
       <button class="mn-item" id="dlSingleHtml" title="Unduh aplikasi utuh sebagai 1 file HTML (bisa dibuka offline tanpa server)">📥 Unduh Single HTML (Offline)</button>
       <div class="mn-sep"></div>
-      <button class="mn-item" id="bkOpen" title="Backup, Restore & Sync antar-device">☁️ Backup / Sync</button>
+      <div class="mn-hd">💾 Backup &amp; Restore</div>
+      <button class="mn-item mn-b" data-ma="pick" data-dir>🔗 Pilih Folder Google Drive (sekali saja)</button>
+      <button class="mn-item mn-b p" data-ma="bkDrive" data-dir>💾 Backup Sekarang ke Google Drive</button>
+      <button class="mn-item mn-b" data-ma="bkFile">⬇️ Unduh File Backup (manual)</button>
+      <button class="mn-item mn-b g" data-ma="rsDrive" data-dir>♻️ Restore dari Folder Google Drive</button>
+      <button class="mn-item mn-b y" data-ma="rsFile">📁 Restore dari File Backup...</button>
+      <div class="mn-note">Backup mencakup: Rekap Penjualan dan Rekap Uang Masuk, termasuk faktur Batal di tab Penjualan. Gunakan "Restore" jika terjadi error atau data hilang.</div>
+      <div class="mn-sep"></div>
+      <div class="mn-hd">☁️ Sync Antar-Device (Cloud)</div>
+      <div class="mn-note" id="mnSyncStat">Memuat status…</div>
+      <button class="mn-item mn-b p" data-ma="up">⬆️ Upload Data Device Ini ke Cloud</button>
+      <button class="mn-item mn-b" data-ma="down">⬇️ Ambil Data Terbaru dari Cloud</button>
+      <button class="mn-item mn-b" data-ma="auto" id="mnAuto">🔄 Sinkron otomatis</button>
+      <button class="mn-item mn-b" data-ma="code">🔑 Ganti Kode Sinkron</button>
+      <div class="mn-note">Gunakan "Upload" setelah selesai kerja di device ini, dan "Ambil" sebelum mulai kerja di device lain.</div>
       <div class="mn-sep"></div>
       <button class="mn-item" id="hbOpen" title="Ubah harga beli massal">✏️ Rubah Harga Beli</button>
+      <button class="mn-item" id="bkOpen" title="Panel Backup / Sync lengkap">⚙️ Panel Backup / Sync</button>
+      <div class="mn-sep"></div>
+      <div class="mn-note">Format sumber mengikuti Excel terbaru: <b>Harga Beli</b> dan <b>Kd Customer</b> ikut dibaca.</div>
+      <div class="mn-note" id="mnDbInfo">Data dari IndexedDB: memuat…</div>
     </div>
   </div>
 </div>
@@ -200,7 +232,7 @@ const NF = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 });
 const dd = $('#mnDd'), mb = $('#mnBtn');
 const closeMenu = () => { dd.classList.remove('show'); mb.classList.remove('on'); };
 mb.addEventListener('click', e => { e.stopPropagation(); mb.classList.toggle('on', dd.classList.toggle('show')); });
-dd.addEventListener('click', closeMenu);
+dd.addEventListener('click', e => { if (e.target.closest('button')) closeMenu(); });
 document.addEventListener('click', e => { if (!e.target.closest('.mn-wrap')) closeMenu(); });
 window.addEventListener('blur', closeMenu);
 
@@ -485,6 +517,7 @@ function pill(t, kind) {
   const bg = { ok: '#047857', busy: '#1f4e8c', warn: '#b45309', err: '#b91c1c' }[kind] || '#1f4e8c';
   p.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:9000;padding:5px 11px;border-radius:14px;font:600 .72rem Segoe UI,Arial,sans-serif;color:#fff;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35);max-width:80vw;background:' + bg + ';opacity:1;transition:opacity .6s';
   p.textContent = t; clearTimeout(pillT);
+  const ms = document.getElementById('mnSyncStat'); if (ms) ms.textContent = t;
   if (kind === 'ok') pillT = setTimeout(() => { p.style.opacity = '.45'; }, 4000);
 }
 function refreshAutoUI() {
@@ -589,6 +622,37 @@ $('#bkFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   try { await restoreFrom(new Uint8Array(await f.arrayBuffer()), 'file ' + f.name); } catch (err) { msg('⚠️ ' + err.message, true); }
 });
+
+/* ---------- tombol Backup / Restore / Sync di MENU pojok kanan atas ---------- */
+let mnBusy = false;
+const mnStat = t => { const e = document.getElementById('mnSyncStat'); if (e) e.textContent = t; };
+async function refreshMenu() {
+  document.querySelectorAll('#mnDd [data-dir]').forEach(b => b.disabled = !HAS_DIR);
+  const au = document.getElementById('mnAuto');
+  if (au) au.textContent = autoOn() ? '🔄 Sinkron otomatis: AKTIF (klik untuk matikan)' : '⏸ Sinkron otomatis: MATI (klik untuk aktifkan)';
+  if (!LS.getItem('syncCode')) mnStat('Kode Sinkron belum diatur (diminta saat Upload / Ambil)');
+  else if (!mnBusy) mnStat('Sync terakhir di device ini: ' + fmtT(LS.getItem('syncLast')));
+  try {
+    const c = cnt(await snap());
+    let pers = false; try { pers = !!(navigator.storage && navigator.storage.persisted && await navigator.storage.persisted()); } catch (e) {}
+    document.getElementById('mnDbInfo').textContent = 'Data dari IndexedDB dimuat: ' + (c.p + c.u).toLocaleString('id-ID') + ' baris (persistensi ' + (pers ? 'aktif' : 'belum aktif') + ').';
+  } catch (e) { document.getElementById('mnDbInfo').textContent = 'Data dari IndexedDB: tidak dapat dibaca.'; }
+}
+document.getElementById('mnBtn').addEventListener('click', () => { if (document.getElementById('mnDd').classList.contains('show')) refreshMenu(); });
+document.getElementById('mnDd').addEventListener('click', async e => {
+  const b = e.target.closest('[data-ma]'); if (!b || b.disabled || mnBusy) return;
+  const f = A[b.dataset.ma]; if (!f) return;
+  const isSync = b.dataset.ma === 'up' || b.dataset.ma === 'down';
+  mnBusy = true; if (isSync) mnStat('Menyinkronkan…');
+  try { await f(); }
+  catch (err) {
+    if (err && err.name === 'AbortError') msg('Dibatalkan.');
+    else msg(err.message === 'TABEL_BELUM_ADA' ? 'Tabel Supabase "laporan_sync" belum dibuat. Jalankan SQL setup di Supabase dulu.' : '⚠️ ' + (err.message || err), true);
+  } finally { mnBusy = false; refreshMenu(); }
+});
+/* minta browser menjaga data IndexedDB agar tidak dihapus otomatis (persistensi) */
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+refreshMenu();
 })();
 </script>
 </body>
