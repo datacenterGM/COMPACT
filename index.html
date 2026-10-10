@@ -362,7 +362,12 @@ async function upload() {
   LS.setItem('syncLast', ver); LS.setItem('syncHash', await hashOf(o)); autoPaused = false; msg('✅ Upload ke cloud berhasil.\n' + sum(o));
 }
 async function download(silent) {
-  const code = getCode(), m = await cloudMeta(code);
+  /* Ambil dari cloud memakai Kode Sinkron yang sudah tersimpan di perangkat.
+     Tombol Ambil tidak lagi memunculkan prompt PIN/Kode. Kode tetap diperlukan
+     untuk membuka enkripsi; atur satu kali melalui Upload / Ganti Kode Sinkron. */
+  const code = LS.getItem('syncCode');
+  if (!code) throw new Error('Kode Sinkron belum disimpan di perangkat ini. Atur satu kali melalui Backup/Sync → Upload atau Ganti Kode Sinkron, lalu klik Ambil Data Terbaru lagi.');
+  const m = await cloudMeta(code);
   if (!m) throw new Error('Belum ada data di cloud untuk Kode Sinkron ini.');
   msg('Mengambil data dari cloud...');
   const rows = await sb(`laporan_sync?select=part,data&ns=eq.${await nsOf(code)}&ver=eq.${encodeURIComponent(m.ver)}&part=gte.0&order=part`);
