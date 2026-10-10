@@ -269,9 +269,22 @@ const fmtT = t => t ? new Date(t).toLocaleString('id-ID', { day: 'numeric', mont
 const rq = r => new Promise((ok, no) => { r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
 const txd = t => new Promise((ok, no) => { t.oncomplete = ok; t.onerror = t.onabort = () => no(t.error); });
 const idb = (d, s, kp) => new Promise((ok, no) => {
-  const r = indexedDB.open(d, 1);
-  r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(s)) r.result.createObjectStore(s, kp ? { keyPath: kp } : undefined); };
-  r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+  /* Pastikan object store 'name' benar-benar ada. Bila database ada tetapi store-nya hilang / belum terbentuk
+     (device baru, pembuatan terputus), database dibuat ulang bersih dengan versi 1 (sama dengan yang dipakai tab). */
+  const open = retry => {
+    const r = indexedDB.open(d, 1);
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(s)) r.result.createObjectStore(s, kp ? { keyPath: kp } : undefined); };
+    r.onsuccess = () => {
+      const db = r.result;
+      if (db.objectStoreNames.contains(s)) return ok(db);
+      db.close();
+      if (retry) return no(new Error('Penyimpanan "' + s + '" tidak dapat dibuat di browser ini.'));
+      const del = indexedDB.deleteDatabase(d);
+      del.onsuccess = () => open(true); del.onerror = () => no(del.error);
+    };
+    r.onerror = () => no(r.error);
+  };
+  open(false);
 });
 const utf8 = s => new TextEncoder().encode(s);
 const enc = o => JSON.stringify(o, function (k, v) { const x = this[k]; return x instanceof Date ? { $d: isNaN(x) ? null : x.getTime() } : v; });
