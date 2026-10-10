@@ -248,7 +248,7 @@ $('#hbGo').addEventListener('click', () => {
 <button class="bk-b p" data-a="up">⬆️ Upload Data Device Ini ke Cloud</button>
 <button class="bk-b" data-a="down">⬇️ Ambil Data Terbaru dari Cloud</button>
 <button class="bk-b" data-a="auto" id="bkAuto"></button>
-<div class="mu"><b>Sinkron otomatis</b> (aktif setelah Kode Sinkron diisi, cukup sekali lewat tombol Upload): perubahan di device ini dikirim ke cloud ±20 detik setelah selesai, dan saat aplikasi dibuka data terbaru dari cloud diambil otomatis bila device ini tidak punya perubahan yang belum terkirim. Jika cloud dan device sama-sama berubah, Anda akan ditanya data mana yang dipakai. Tombol Upload/Ambil manual tetap bisa dipakai (data terbaru MENIMPA data di device tujuan). <button class="bk-lnk" data-a="code">Ganti Kode Sinkron</button></div>
+<div class="mu"><b>Sinkron otomatis</b> (otomatis aktif di semua device, tanpa PIN / kode yang perlu diisi): perubahan di device ini dikirim ke cloud ±20 detik setelah selesai, dan saat aplikasi dibuka data terbaru dari cloud diambil otomatis bila device ini tidak punya perubahan yang belum terkirim. Jika cloud dan device sama-sama berubah, Anda akan ditanya data mana yang dipakai. Tombol Upload/Ambil manual tetap bisa dipakai (data terbaru MENIMPA data di device tujuan). <button class="bk-lnk" data-a="code">Ganti Kode Sinkron</button></div>
 <div id="bkMsg"></div>
 <input type="file" id="bkFile" hidden>
 </div></div>
@@ -260,6 +260,9 @@ const DBS = [
   { k: 'uangmasuk', db: 'um-fixv1', st: 'um-data' },
 ];
 let QUIET = false;
+/* KODE SINKRON BAWAAN: tertanam di aplikasi, jadi semua device otomatis memakai kode yang sama
+   tanpa perlu mengisi / memasukkan PIN. Ganti nilai ini bila ingin kode lain (semua device ikut otomatis). */
+const DEFAULT_CODE = 'yhK0ZtOq7De3kJjokhomkRgD';
 const $ = s => document.querySelector(s), LS = localStorage, CHUNK = 900000, PFX = 'Backup_Laporan_';
 const HAS_DIR = 'showDirectoryPicker' in window, HAS_GZ = typeof CompressionStream !== 'undefined';
 const fmtT = t => t ? new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
@@ -339,9 +342,23 @@ async function ckey(c) {
 async function nsOf(c) { const h = new Uint8Array(await crypto.subtle.digest('SHA-256', utf8('ns:' + c))); return [...h].slice(0, 12).map(x => x.toString(16).padStart(2, '0')).join(''); }
 async function seal(u, c) { const iv = crypto.getRandomValues(new Uint8Array(12)), e = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await ckey(c), u)), o = new Uint8Array(12 + e.length); o.set(iv); o.set(e, 12); return o; }
 async function unseal(u, c) { try { return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.slice(0, 12) }, await ckey(c), u.slice(12))); } catch (e) { throw new Error('Kode Sinkron salah / data rusak.'); } }
+/* Pakai kode bawaan kecuali pengguna sengaja mengganti kode manual (tombol "Ganti Kode Sinkron"). */
+function initCode() {
+  if (LS.getItem('syncCodeManual') === '1') return;
+  if (LS.getItem('syncCode') !== DEFAULT_CODE) {
+    LS.setItem('syncCode', DEFAULT_CODE);
+    LS.removeItem('syncLast'); LS.removeItem('syncHash');   /* kode berubah -> tentukan ulang arah sinkron */
+  }
+}
+initCode();
 function getCode(force) {
   let c = force ? null : LS.getItem('syncCode');
-  if (!c) { c = (prompt('Masukkan KODE SINKRON (rahasia, minimal 6 karakter).\nGunakan kode yang SAMA di semua device. Data di cloud dienkripsi dengan kode ini.') || '').trim(); if (c.length < 6) throw new Error('Kode Sinkron minimal 6 karakter.'); LS.setItem('syncCode', c); }
+  if (!c) {
+    c = (prompt('Ganti KODE SINKRON (minimal 6 karakter).\nGunakan kode yang SAMA di semua device.\nKosongkan lalu OK untuk kembali ke kode bawaan (otomatis).') || '').trim();
+    if (!c) { LS.removeItem('syncCodeManual'); initCode(); return LS.getItem('syncCode'); }
+    if (c.length < 6) throw new Error('Kode Sinkron minimal 6 karakter.');
+    LS.setItem('syncCode', c); LS.setItem('syncCodeManual', '1'); LS.removeItem('syncLast'); LS.removeItem('syncHash');
+  }
   return c;
 }
 async function cloudMeta(c) {
