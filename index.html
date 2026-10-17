@@ -11,9 +11,9 @@
 <meta name="apple-mobile-web-app-title" content="Laporan">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
@@ -34,7 +34,7 @@
   :root[data-theme="dark"] .main-tab { color: #8b949e; }
   :root[data-theme="dark"] .main-tab:hover { background: rgba(255,255,255,.08); color: #e6edf3; }
   :root[data-theme="dark"] .main-tab.active { background: #0d1117; color: #58a6ff; }
-  .theme-btn { margin-left: auto; align-self: center; margin-bottom: 3px; background: rgba(255,255,255,.15); color: #fff; border: none;
+  .theme-btn { margin-left: 6px; align-self: center; margin-bottom: 3px; background: rgba(255,255,255,.15); color: #fff; border: none;
     padding: 3px 12px; font-size: .78rem; font-weight: 600; border-radius: 5px; cursor: pointer; }
   .theme-btn:hover { background: rgba(255,255,255,.3); }
   .bk-ov{--bg:#fff;--tx:#1e293b;--mu:#64748b;--bd:#d6dde8;--pr:#1f4e8c;display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:12px}
@@ -79,7 +79,7 @@
   <button class="main-tab" data-tab="cekpembayaran">🔎 Cek Pembayaran</button>
   <button class="main-tab" data-tab="ar">🧾 AR</button>
   <button class="main-tab" data-tab="rekonsiliasi">🔎 Cek Rekon</button>
-  <button class="theme-btn" id="installBtn" style="display:none;margin-left:auto" title="Pasang sebagai aplikasi">⬇️ Pasang</button><button class="theme-btn" id="themeBtn" title="Ganti mode gelap / terang (semua tab)">☀️ Terang</button>
+  <span aria-hidden="true" style="flex:1 1 auto"></span><button class="theme-btn" id="installBtn" style="display:none" title="Pasang sebagai aplikasi">⬇️ Pasang</button><button class="theme-btn" id="themeBtn" title="Ganti mode gelap / terang (semua tab)">☀️ Terang</button>
   <div class="mn-wrap">
     <button class="mn-btn" id="mnBtn" title="Menu">☰ Menu</button>
     <div class="mn-dd" id="mnDd">
@@ -172,7 +172,7 @@ applyThemeAll(currentTheme());
   if (!btn) return;
   var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   if (standalone) return;
-  function show() { btn.style.display = ''; if (th) th.style.marginLeft = '6px'; }
+  function show() { btn.style.display = ''; }
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); dp = e; show(); });
   window.addEventListener('appinstalled', function () { btn.style.display = 'none'; dp = null; });
   var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
