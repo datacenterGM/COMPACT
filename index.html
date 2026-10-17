@@ -79,7 +79,7 @@
   <button class="main-tab" data-tab="cekpembayaran">🔎 Cek Pembayaran</button>
   <button class="main-tab" data-tab="ar">🧾 AR</button>
   <button class="main-tab" data-tab="rekonsiliasi">🔎 Cek Rekon</button>
-  <button class="theme-btn" id="themeBtn" title="Ganti mode gelap / terang (semua tab)">☀️ Terang</button>
+  <button class="theme-btn" id="installBtn" style="display:none;margin-left:auto" title="Pasang sebagai aplikasi">⬇️ Pasang</button><button class="theme-btn" id="themeBtn" title="Ganti mode gelap / terang (semua tab)">☀️ Terang</button>
   <div class="mn-wrap">
     <button class="mn-btn" id="mnBtn" title="Menu">☰ Menu</button>
     <div class="mn-dd" id="mnDd">
@@ -163,6 +163,23 @@ applyThemeAll(currentTheme());
   document.querySelectorAll('.frames iframe').forEach(function (f) {
     f.addEventListener('load', function () { hook(f); });
     hook(f);
+  });
+})();
+
+/* ===== PWA: tombol Pasang (Android/Chrome/Edge: prompt bawaan; iOS: petunjuk Add to Home Screen) ===== */
+(function () {
+  var btn = document.getElementById('installBtn'), th = document.getElementById('themeBtn'), dp = null;
+  if (!btn) return;
+  var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (standalone) return;
+  function show() { btn.style.display = ''; if (th) th.style.marginLeft = '6px'; }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); dp = e; show(); });
+  window.addEventListener('appinstalled', function () { btn.style.display = 'none'; dp = null; });
+  var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (ios) show();
+  btn.addEventListener('click', function () {
+    if (dp) { dp.prompt(); dp.userChoice.finally(function () { dp = null; btn.style.display = 'none'; }); }
+    else alert('Untuk memasang di iPhone/iPad:\nketuk tombol Bagikan (Share) di Safari, lalu pilih "Tambah ke Layar Utama" (Add to Home Screen).');
   });
 })();
 </script>
@@ -295,7 +312,7 @@ $('#hbGo').addEventListener('click', () => {
 </div></div>
 <script>
 (() => {
-const SB = 'https://bgirwwqozezibrwghtla.supabase.co', KEY = 'sb_publishable_iRCAzy0QB7QO8OMAG-dV_Q_2IwvX1Kl';
+const SB = 'https://jczaqftfhcsckrcesgst.supabase.co', KEY = 'sb_publishable_xqRphhgaUo9qB9VBu5GMMw_WQdjHRUY';
 const DBS = [
   { k: 'penjualan', db: 'laporan-penjualan-db', st: 'data' },
   { k: 'uangmasuk', db: 'um-fixv1', st: 'um-data' },
