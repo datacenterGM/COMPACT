@@ -1,7 +1,7 @@
 /* Service worker — Laporan (PWA). Naikkan VERSION setiap kali index.html diganti agar cache lama dibuang. */
-const VERSION = 'laporan-v1';
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
-  'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png', 'icons/favicon-16.png'];
+const VERSION = 'laporan-v2';
+const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
+  'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png', 'favicon-16.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
