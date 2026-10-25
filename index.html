@@ -318,8 +318,20 @@ async function loadUm(){
   });
   return {count:recs.length,idx};
 }
+/* dd/mm/yy -> yyyymmdd (untuk dibandingkan sebagai teks) */
+function dkS(d){const p=String(d||'').split('/');if(p.length!==3)return '';let y=p[2];if(y.length===2)y='20'+y;return y+p[1].padStart(2,'0')+p[0].padStart(2,'0')}
 function matchOne(s,um,used){
   const a=rowIdentitySales(s);
+  const sk=dkS(a.date);
+  /* Aturan tanggal: (1) uang masuk tidak mungkin tercatat SEBELUM tanggal penjualan;
+     (2) bila UM mencatat tgl faktur, harus sama dengan tanggal penjualan (kalau beda = pembayaran faktur lain) */
+  const dateOk=x=>{
+    if(!sk)return true;
+    if(x._pk===undefined){x._pk=dkS(x.b.date);x._fk=dkS(shortDate(x.b.raw&&x.b.raw.tgl_faktur_str))}
+    if(x._pk&&x._pk<sk)return false;
+    if(x._fk&&x._fk!==sk)return false;
+    return true;
+  };
   /* UM campur (Minyak+Rupa dalam 1 baris): dipakai per produk & nominal dibandingkan per produk */
   const uk=x=>x.b.prod==='CAMPUR'?x.i+':'+a.prod:x.i;
   const ua=x=>x.b.prod==='CAMPUR'?(a.prod==='MINYAK'?x.b.amtM:x.b.amtR):x.b.amt;
@@ -330,7 +342,7 @@ function matchOne(s,um,used){
     if(a.customer){const l=g.by.get(a.customer)||[];base=g.blank.length?l.concat(g.blank):l;}
     else base=g.all;
   }
-  let _cd=null;const getCand=()=>_cd||(_cd=base.filter(x=>!used.has(uk(x))
+  let _cd=null;const getCand=()=>_cd||(_cd=base.filter(x=>!used.has(uk(x))&&dateOk(x)
     &&(!a.alamat||!x.b.alamat||a.alamat===x.b.alamat)
     &&(!a.sales||!x.b.sales||a.sales===x.b.sales)
     &&(x.b.prod==='UNKNOWN'||x.b.prod==='CAMPUR'||x.b.prod===a.prod)));
@@ -346,9 +358,10 @@ function matchOne(s,um,used){
   if(!match.length){
     const _st=getStrict();let c=_st.length?_st:getCand();
     if(c.length>1){const e=c.filter(x=>Math.abs(a.amt-ua(x))<1&&x.b.date===a.date);if(e.length===1)c=e;}
+    if(c.length>1){const e2=c.filter(x=>Math.abs(a.amt-ua(x))<1);if(e2.length===1)c=e2;}
     match=(c.length===1?c:[]);
   }
-  let status='TIDAK DITEMUKAN UM',note='Tidak ada UM yang memenuhi identitas utama dan jenis pembayaran';
+  let status='TIDAK DITEMUKAN UM',note='Tidak ada UM yang memenuhi identitas, jenis pembayaran dan tanggal (UM pada/setelah tanggal penjualan, tgl faktur sama)';
   if(match.length===1){
     const x=match[0];used.add(uk(x));
     const factOk=!a.fact||!x.b.fact||a.fact===x.b.fact;
@@ -450,8 +463,8 @@ function cmCompare(x,um){
    +'</tbody></table>';
 }
 function cmCands(x,list,total){
-  let h='<div class="cm-scroll"><table class="cm-t"><thead><tr><th>Tanggal</th><th>Section</th><th>No Faktur UM</th><th>Toko</th><th>Alamat</th><th>Sales</th><th>Produk</th><th>Nominal</th><th>Status</th></tr></thead><tbody>';
-  list.forEach(c=>{const u=c.raw||{};h+='<tr><td>'+esc(c.date)+'</td><td>'+esc(c.pay)+'</td><td>'+esc(u.no_faktur)+'</td><td>'+esc(u.nama_toko)+'</td><td>'+esc(u.alamat)+'</td><td>'+esc(u.sales||u.dropping)+'</td><td>'+esc(c.prod)+'</td><td class="'+(Math.abs(x.amt-c.amt)<1?'cm-hit':'')+'">'+fmt(c.amt)+'</td><td>'+esc(u.status||'')+'</td></tr>'});
+  let h='<div class="cm-scroll"><table class="cm-t"><thead><tr><th>Tgl UM</th><th>Tgl Faktur</th><th>Section</th><th>No Faktur UM</th><th>Toko</th><th>Alamat</th><th>Sales</th><th>Produk</th><th>Nominal</th><th>Status</th></tr></thead><tbody>';
+  list.forEach(c=>{const u=c.raw||{};const tf=shortDate(u.tgl_faktur_str);h+='<tr><td>'+esc(c.date)+'</td><td class="'+(tf&&tf===x.date?'cm-hit':'')+'">'+esc(tf)+'</td><td>'+esc(c.pay)+'</td><td>'+esc(u.no_faktur)+'</td><td>'+esc(u.nama_toko)+'</td><td>'+esc(u.alamat)+'</td><td>'+esc(u.sales||u.dropping)+'</td><td>'+esc(c.prod)+'</td><td class="'+(Math.abs(x.amt-c.amt)<1?'cm-hit':'')+'">'+fmt(c.amt)+'</td><td>'+esc(u.status||'')+'</td></tr>'});
   h+='</tbody></table></div>';
   if(total>list.length)h+='<div class="cm-more">Menampilkan '+list.length+' dari '+fmt(total)+' kandidat.</div>';
   return h;
