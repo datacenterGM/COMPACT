@@ -118,6 +118,14 @@ td{padding:7px 9px}
 .mchip{padding:4px 13px;font-weight:600}
 #payfilters small{font-weight:600;opacity:.8}
 
+/* ===== toolbar 2 baris ===== */
+.toprow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.toprow .grow{flex:1 1 0}
+.toprow input{min-width:220px;flex:0 1 300px}
+.chipgrp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chipgrp .lbl{font-size:12px;font-weight:700;color:#1f4e79;margin-right:2px;white-space:nowrap}
+#monthChips{display:inline-flex;gap:6px;flex-wrap:wrap}
+.tablebox{max-height:calc(100vh - 250px)}
 /* ===== modal cek manual ===== */
 #rows tr.clk{cursor:pointer}#rows tr.clk:hover td{background:#e8f1fb}
 .tag-man{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:#e0e7ff;color:#3730a3}
@@ -149,27 +157,23 @@ td{padding:7px 9px}
 .cm-toast.show{opacity:1;transform:none}
 @media(max-width:700px){.cm-kv{grid-template-columns:repeat(2,1fr)}}
 </style></head><body>
-<div class="actions">
+<div class="toprow">
   <button class="btn" id="run">🔄 Jalankan Cek</button>
-  <select id="status"><option value="">Semua hasil</option><option>COCOK</option><option>NOMINAL BERBEDA</option><option>TIDAK DITEMUKAN UM</option><option>PERLU CEK MANUAL</option></select>
-  <input id="q" placeholder="Cari customer / alamat / sales / faktur" style="min-width:200px;flex:1">
+  <div class="chipgrp" id="monthBar"><span class="lbl">📅 Bulan penjualan yang dicek:</span><button type="button" class="mchip all active" data-m="ALL" id="chipAll">Semua bulan</button><span id="monthChips"></span></div>
+  <span class="grow"></span>
+  <input id="q" placeholder="Cari customer / alamat / sales / faktur">
   <button class="btn secondary" id="csv">⬇️ Unduh CSV</button>
+  <select id="status" hidden><option value="">Semua hasil</option><option>COCOK</option><option>NOMINAL BERBEDA</option><option>TIDAK DITEMUKAN UM</option><option>PERLU CEK MANUAL</option></select>
 </div>
-<div class="month-bar" id="monthBar">
-  <span class="lbl">📅 Bulan penjualan yang dicek:</span>
-  <button type="button" class="mchip all active" data-m="ALL" id="chipAll">Semua bulan</button>
-  <span id="monthChips"></span>
-  <div id="payfilters" style="width:100%;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;padding-top:8px;border-top:1px dashed #d7e0ea"><span class="lbl">💳 Jenis penjualan:</span><button type="button" class="mchip all active" data-pay="">Semua</button><button type="button" class="mchip" data-pay="CASH">Penjualan CASH <small id="cCash"></small></button><button type="button" class="mchip" data-pay="TEMPO">Penjualan TEMPO <small id="cTempo"></small></button></div>
-  <div class="hint2">Pilih satu atau beberapa bulan (contoh: hanya Oktober, atau September + Oktober). Uang Masuk tetap dibaca semua bulan agar pembayaran di bulan lain tetap ketemu. Klik chip untuk pilih/lepas.</div>
-</div>
+<div class="toprow"><div class="chipgrp" id="payfilters"><span class="lbl">💳 Jenis penjualan:</span><button type="button" class="mchip all active" data-pay="">Semua</button><button type="button" class="mchip" data-pay="CASH">Penjualan CASH <small id="cCash"></small></button><button type="button" class="mchip" data-pay="TEMPO">Penjualan TEMPO <small id="cTempo"></small></button></div></div>
 <div class="cards"><div class="card" data-filter=""><span>Penjualan dicek</span><b id="nAll">0</b><small class="money" id="mAll">Rp 0</small></div><div class="card" data-filter="COCOK"><span>Cocok</span><b id="nOk">0</b><small class="money" id="mOk">Rp 0</small></div><div class="card" data-filter="NOMINAL BERBEDA"><span>Nominal berbeda</span><b id="nDiff">0</b><small class="money" id="mDiff">Rp 0</small></div><div class="card" data-filter="TIDAK DITEMUKAN UM"><span>Belum ditemukan UM</span><b id="nMissing">0</b><small class="money" id="mMissing">Rp 0</small></div><div class="card" data-filter="PERLU CEK MANUAL"><span>Perlu cek manual</span><b id="nManual">0</b><small class="money" id="mManual">Rp 0</small></div></div>
-<div class="quickfilters" id="quickfilters"><button type="button" class="active" data-filter="">Semua hasil</button><button type="button" data-filter="COCOK">✓ Cocok</button><button type="button" data-filter="NOMINAL BERBEDA">≠ Nominal berbeda</button><button type="button" data-filter="TIDAK DITEMUKAN UM">! Belum ditemukan UM</button><button type="button" data-filter="PERLU CEK MANUAL">? Perlu cek manual</button></div>
-<div class="msg" id="msg">Pilih bulan penjualan di atas (atau biarkan Semua bulan), lalu tekan “Jalankan Cek”. Data diambil dari tab Penjualan &amp; Uang Masuk yang sudah tersimpan di browser.</div>
+<div class="msg" id="msg">Pilih bulan penjualan (maksimal 3 bulan terakhir), lalu tekan “Jalankan Cek”. Data diambil dari tab Penjualan &amp; Uang Masuk yang sudah tersimpan di browser.</div>
 <div class="tablebox"><table><thead><tr><th>Status</th><th>Tanggal</th><th>Jenis Bayar</th><th>Produk Penjualan</th><th>Sales</th><th>Customer</th><th>Alamat</th><th>No Faktur Penjualan</th><th>Section UM</th><th>Produk UM</th><th>No Faktur UM</th><th>Nominal Penjualan</th><th>Nominal UM</th><th>Catatan</th></tr></thead><tbody id="rows"></tbody></table></div>
 <div class="cm-ov" id="cmOv"><div class="cm-box"><div class="cm-head"><span id="cmTitle">Detail</span><button type="button" id="cmX" title="Tutup">✕</button></div><div class="cm-body" id="cmBody"></div><div class="cm-foot" id="cmFoot"></div></div></div>
 <div class="cm-toast" id="cmToast"></div>
 <script>
 const $=id=>document.getElementById(id);let results=[];let allSalesCache=null;let selectedMonths=new Set(['ALL']);
+let allowedMonths=new Set();const MAXM=3;
 const BULAN=['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const norm=v=>String(v??'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9]/g,'');
 const num=v=>{if(typeof v==='number')return v;let s=String(v??'').replace(/[^0-9,.-]/g,'');if(s.includes(',')&&!s.includes('.'))s=s.replace(',','.');else s=s.replace(/,/g,'');return Number(s)||0};
@@ -231,9 +235,10 @@ function paintChips(){
 function renderMonthChips(sales){
   const set=new Set();
   sales.forEach(s=>{const k=monthKeyFromDate(field(s,['Tanggal','Tgl']));if(k)set.add(k);});
-  const months=[...set].sort().reverse();
+  const months=[...set].sort().reverse().slice(0,MAXM);
+  allowedMonths=new Set(months);
   if(!selectedMonths.has('ALL')){
-    const keep=[...selectedMonths].filter(m=>set.has(m));
+    const keep=[...selectedMonths].filter(m=>allowedMonths.has(m));
     selectedMonths=keep.length?new Set(keep):new Set(['ALL']);
   }
   $('monthChips').innerHTML=months.map(ym=>'<button type="button" class="mchip" data-m="'+ym+'">'+bulanLabel(ym)+'</button>').join(' ');
@@ -325,12 +330,13 @@ async function run(fresh){
     await loadManual();if(my!==_runToken)return;
     const um=_umCache;
     let sales=salesAll;
-    if(!selectedMonths.has('ALL')){
-      sales=salesAll.filter(s=>{const k=monthKeyFromDate(field(s,['Tanggal','Tgl']));return k&&selectedMonths.has(k);});
+    {
+      const useM=selectedMonths.has('ALL')?allowedMonths:selectedMonths;
+      sales=salesAll.filter(s=>{const k=monthKeyFromDate(field(s,['Tanggal','Tgl']));return k&&useM.has(k);});
     }
     const bm=await batalRead();if(my!==_runToken)return;
     const n0=sales.length;sales=sales.filter(s=>!bm[fkU(s)]&&Math.abs(amountSales(s))>=1);const skipN=n0-sales.length;
-    const monthNote=selectedMonths.has('ALL')?'semua bulan':[...selectedMonths].sort().map(bulanLabel).join(', ');
+    const monthNote=(selectedMonths.has('ALL')?[...allowedMonths]:[...selectedMonths]).sort().map(bulanLabel).join(', ');
     if(!sales.length||!um.count){
       $('msg').textContent='Data belum lengkap. Penjualan (filter: '+monthNote+'): '+sales.length+' baris (total di browser: '+salesAll.length+'); Uang Masuk: '+um.count+' baris. Pastikan kedua tab sudah punya data, dan filter bulan tidak mengosongkan data.';
       results=[];cards();render();return;
