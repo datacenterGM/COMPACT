@@ -211,11 +211,11 @@ td{padding:7px 9px}
   <select id="status" hidden><option value="">Semua hasil</option><option>COCOK</option><option>NOMINAL BERBEDA</option><option>TIDAK DITEMUKAN UM</option><option>PERLU CEK MANUAL</option></select>
 </div>
 <div class="toprow"><div class="chipgrp" id="payfilters"><span class="lbl">💳 Jenis penjualan:</span><button type="button" class="mchip all active" data-pay="">Semua</button><button type="button" class="mchip" data-pay="CASH">Penjualan CASH <small id="cCash"></small></button><button type="button" class="mchip" data-pay="TEMPO">Penjualan TEMPO <small id="cTempo"></small></button></div></div>
-<div class="cards"><div class="card" data-filter=""><span>Penjualan dicek</span><b id="nAll">0</b><small class="money" id="mAll">Rp 0</small></div><div class="card" data-filter="COCOK"><span>Cocok</span><b id="nOk">0</b><small class="money" id="mOk">Rp 0</small></div><div class="card" data-filter="NOMINAL BERBEDA"><span>Nominal berbeda</span><b id="nDiff">0</b><small class="money" id="mDiff">Rp 0</small></div><div class="card" data-filter="TIDAK DITEMUKAN UM"><span>Belum ditemukan UM</span><b id="nMissing">0</b><small class="money" id="mMissing">Rp 0</small></div><div class="card" data-filter="PERLU CEK MANUAL"><span>Perlu cek manual</span><b id="nManual">0</b><small class="money" id="mManual">Rp 0</small></div></div>
+<div class="cards"><div class="card" data-filter=""><span>Penjualan dicek</span><b id="nAll">0</b><small class="money" id="mAll">Rp 0</small></div><div class="card" data-filter="COCOK"><span>Cocok</span><b id="nOk">0</b><small class="money" id="mOk">Rp 0</small></div><div class="card" data-filter="NOMINAL BERBEDA"><span>Nominal berbeda</span><b id="nDiff">0</b><small class="money" id="mDiff">Rp 0</small></div><div class="card" data-filter="TIDAK DITEMUKAN UM"><span>Penjualan Belum Ada UM</span><b id="nMissing">0</b><small class="money" id="mMissing">Rp 0</small></div><div class="card" data-filter="PERLU CEK MANUAL"><span>Perlu cek manual</span><b id="nManual">0</b><small class="money" id="mManual">Rp 0</small></div></div>
 <div class="msg" id="msg">Pilih bulan penjualan (maksimal 3 bulan terakhir), lalu tekan “Jalankan Cek”. Data diambil dari tab Penjualan &amp; Uang Masuk yang sudah tersimpan di browser.</div>
-<div class="recon" id="recon" style="display:none"><span id="reconTxt"></span><span class="grow"></span><button type="button" class="btn secondary" id="reconBtn">📋 Lihat UM belum terpasang</button></div>
+<div class="recon" id="recon" style="display:none"><span id="reconTxt"></span><span class="grow"></span><button type="button" class="btn secondary" id="reconBtn">📋 Lihat UM belum ketemu Data Penjualan</button></div>
 <div class="tablebox" id="resBox"><table><thead><tr><th>Status</th><th>Tanggal</th><th>Jenis Bayar</th><th>Produk Penjualan</th><th>Sales</th><th>Customer</th><th>Alamat</th><th>No Faktur Penjualan</th><th>Section UM</th><th>Produk UM</th><th>No Faktur UM</th><th>Nominal Penjualan</th><th>Nominal UM</th><th>Catatan</th></tr></thead><tbody id="rows"></tbody></table></div>
-<div class="tablebox" id="umBox" style="display:none"><table style="min-width:1000px"><thead><tr><th>Tgl UM</th><th>Section</th><th>Toko</th><th>Alamat</th><th>Sales</th><th>Produk</th><th>No Faktur UM</th><th>Tgl Faktur</th><th>Status</th><th>Nominal belum terpasang</th></tr></thead><tbody id="umRows"></tbody></table></div>
+<div class="tablebox" id="umBox" style="display:none"><table style="min-width:1000px"><thead><tr><th>Tgl UM</th><th>Section</th><th>Toko</th><th>Alamat</th><th>Sales</th><th>Produk</th><th>No Faktur UM</th><th>Tgl Faktur</th><th>Status</th><th>Nominal UM belum ketemu penjualan</th></tr></thead><tbody id="umRows"></tbody></table></div>
 <div class="cm-ov" id="cmOv"><div class="cm-box"><div class="cm-head"><span id="cmTitle">Detail</span><button type="button" id="cmX" title="Tutup">✕</button></div><div class="cm-body" id="cmBody"></div><div class="cm-foot" id="cmFoot"></div></div></div>
 <div class="cm-toast" id="cmToast"></div>
 <script>
@@ -449,8 +449,8 @@ function buildRecon(um,out,months,note){
 function paintRecon(){
   const el=$('recon');if(!reconSum){el.style.display='none';if(umView)setUmView(false);return}
   const r=reconSum;el.style.display='flex';
-  $('reconTxt').innerHTML='💰 <b>Uang Masuk</b> (tgl laporan: '+esc(reconNote)+') &nbsp; Total <b>Rp '+fmt(r.tot)+'</b> ('+fmt(r.nT)+' baris) &nbsp;·&nbsp; Terpasang ke penjualan <b>Rp '+fmt(r.used)+'</b> ('+fmt(r.nU)+') &nbsp;·&nbsp; <span class="warnb">Belum terpasang <b>Rp '+fmt(r.left)+'</b> ('+fmt(r.nL)+' baris)</span>'+(r.nX?' &nbsp;·&nbsp; <small>'+fmt(r.nX)+' baris berstatus selain LUNAS/TITIP (Rp '+fmt(r.aX)+') tidak dihitung</small>':'');
-  $('reconBtn').textContent=umView?'↩ Kembali ke hasil cek':'📋 Lihat UM belum terpasang ('+fmt(r.nL)+')';
+  $('reconTxt').innerHTML='💰 <b>Uang Masuk</b> (tgl laporan: '+esc(reconNote)+') &nbsp; Total <b>Rp '+fmt(r.tot)+'</b> ('+fmt(r.nT)+' baris) &nbsp;·&nbsp; Terpasang ke penjualan <b>Rp '+fmt(r.used)+'</b> ('+fmt(r.nU)+') &nbsp;·&nbsp; <span class="warnb">UM belum ketemu Data Penjualan <b>Rp '+fmt(r.left)+'</b> ('+fmt(r.nL)+' baris)</span>'+(r.nX?' &nbsp;·&nbsp; <small>'+fmt(r.nX)+' baris berstatus selain LUNAS/TITIP (Rp '+fmt(r.aX)+') tidak dihitung</small>':'');
+  $('reconBtn').textContent=umView?'↩ Kembali ke hasil cek':'📋 Lihat UM belum ketemu Data Penjualan ('+fmt(r.nL)+')';
 }
 function setUmView(on){umView=on;$('umBox').style.display=on?'':'none';$('resBox').style.display=on?'none':'';paintRecon();if(on)renderUm()}
 function renderUm(){
@@ -476,7 +476,7 @@ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufef
 const arr=payFiltered();if(!arr.length){alert('Jalankan cek dahulu');return}const cols=['status','date','pay','prod','sales','customer','alamat','fact','amt','section','umFact','umAmt','note'];const lines=[cols.join(';'),...arr.map(x=>[x.status,x.date,x.pay,x.prod,x.salesDisplay||x.sales,x.customerDisplay||x.customer,x.alamatDisplay||x.alamat,x.factDisplay||x.fact,x.amt,x.um&&x.um.pay,x.um&&x.um.raw&&x.um.raw.no_faktur,x.um&&x.um.amt,x.note].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';'))];const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+lines.join('\\r\\n')],{type:'text/csv;charset=utf-8'}));a.download='Hasil_Cek_Penjualan_Uang_Masuk.csv';a.click();URL.revokeObjectURL(a.href)};
 const fkU=s=>String(field(s,['No. Faktur','No Faktur','Faktur'])).trim().toUpperCase();
 function batalRead(){return new Promise(ok=>{try{const q=indexedDB.open('pjbatal-v1',1);q.onupgradeneeded=()=>{if(!q.result.objectStoreNames.contains('pjbatal-data'))q.result.createObjectStore('pjbatal-data')};q.onsuccess=()=>{const db=q.result;db.onversionchange=()=>db.close();const r=db.transaction('pjbatal-data','readonly').objectStore('pjbatal-data').get('latest');r.onsuccess=()=>{db.close();ok((r.result&&r.result.items)||{})};r.onerror=()=>{db.close();ok({})}};q.onerror=()=>ok({})}catch(e){ok({})}})}
-/* ===== CEK MANUAL: modal detail + aksi pindah ke "Belum ditemukan UM" ===== */
+/* ===== CEK MANUAL: modal detail + aksi pindah ke "Penjualan Belum Ada UM" ===== */
 let manualMap={};
 const MAN_DB='cek-v1',MAN_ST='cek-data';
 function manKey(r){return [r.fact,r.customer,r.alamat,r.sales,r.pay,r.prod,r.date].join('|')}
@@ -522,17 +522,17 @@ function openCm(x){
     +cmKV('Customer',x.customerDisplay||x.customer)+cmKV('Alamat',x.alamatDisplay||x.alamat)+cmKV('No Faktur',x.factDisplay||x.fact)+cmKV('Nominal','Rp '+fmt(x.amt))
     +'</div></div>';
   h+='<div class="cm-why"><b>'+(isMan?'Alasan awal perlu cek manual':'Kenapa perlu cek manual')+'</b><br>'+esc(isMan?x.prevNote:x.note)+'</div>';
-  if(isMan)h+='<div class="cm-why ok">✓ Ditandai <b>belum bayar</b> pada '+esc(new Date(x.manual.at).toLocaleString('id-ID'))+' — masuk daftar “Belum ditemukan UM”.</div>';
+  if(isMan)h+='<div class="cm-why ok">✓ Ditandai <b>belum bayar</b> pada '+esc(new Date(x.manual.at).toLocaleString('id-ID'))+' — masuk daftar “Penjualan Belum Ada UM”.</div>';
   if(um)h+='<div class="cm-sec"><h4>Perbandingan dengan Uang Masuk yang terdekat</h4>'+cmCompare(x,um)+'</div>';
   else if(x.cands&&x.cands.length)h+='<div class="cm-sec"><h4>Kandidat Uang Masuk ('+fmt(x.candTotal||x.cands.length)+')</h4>'+cmCands(x,x.cands,x.candTotal||x.cands.length)+'</div>';
   else h+='<div class="cm-sec"><h4>Uang Masuk</h4><div class="cm-empty">Tidak ada kandidat Uang Masuk yang tersimpan untuk baris ini.</div></div>';
   h+='<div class="cm-sec"><label class="cm-lbl" for="cmNote">Catatan hasil pengecekan (opsional)</label><textarea id="cmNote" placeholder="Contoh: sudah telepon toko, belum transfer"></textarea>'
-    +'<div class="cm-hint">Jika setelah dicek ternyata faktur ini <b>memang belum dibayar</b>, klik “Belum bayar”. Baris dipindah ke <b>Belum ditemukan UM</b> dan keputusan tetap tersimpan walau “Jalankan Cek” diulang. Bisa dikembalikan kapan saja.</div></div>';
+    +'<div class="cm-hint">Jika setelah dicek ternyata faktur ini <b>memang belum dibayar</b>, klik “Belum bayar”. Baris dipindah ke <b>Penjualan Belum Ada UM</b> dan keputusan tetap tersimpan walau “Jalankan Cek” diulang. Bisa dikembalikan kapan saja.</div></div>';
   $('cmBody').innerHTML=h;
   $('cmNote').value=(x.manual&&x.manual.note)||'';
   $('cmFoot').innerHTML='<button type="button" class="btn secondary" data-a="close">Tutup</button>'
     +(isMan?'<button type="button" class="btn secondary" data-a="save">💾 Simpan catatan</button><button type="button" class="btn secondary" data-a="undo">↺ Kembalikan ke Perlu cek manual</button>'
-           :'<button type="button" class="btn danger" data-a="move">✖ Belum bayar → pindahkan ke Belum ditemukan UM</button>');
+           :'<button type="button" class="btn danger" data-a="move">✖ Belum bayar → pindahkan ke Penjualan Belum Ada UM</button>');
   $('cmOv').classList.add('show');
 }
 function closeCm(){$('cmOv').classList.remove('show');cmCur=null}
@@ -540,7 +540,7 @@ async function cmAct(a){
   const x=cmCur;if(!x)return;
   if(a==='close'){closeCm();return}
   const note=$('cmNote').value.trim();let msg='';
-  if(a==='move'||a==='save'){const m={at:(x.manual&&x.manual.at)||Date.now(),note:note};manualMap[manKey(x)]=m;Object.assign(x,manFields(x,m));msg=a==='move'?'✓ Dipindahkan ke Belum ditemukan UM':'Catatan disimpan'}
+  if(a==='move'||a==='save'){const m={at:(x.manual&&x.manual.at)||Date.now(),note:note};manualMap[manKey(x)]=m;Object.assign(x,manFields(x,m));msg=a==='move'?'✓ Dipindahkan ke Penjualan Belum Ada UM':'Catatan disimpan'}
   else if(a==='undo'){delete manualMap[manKey(x)];manRestore(x);msg='↺ Dikembalikan ke Perlu cek manual'}
   else return;
   closeCm();cards();render();
