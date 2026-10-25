@@ -128,8 +128,11 @@ td{padding:7px 9px}
 .chipgrp .lbl{font-size:12px;font-weight:700;color:#1f4e79;margin-right:2px;white-space:nowrap}
 #monthChips{display:inline-flex;gap:6px;flex-wrap:wrap}
 .tablebox{max-height:calc(100vh - 250px)}
-.recon{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#fff;border:1px solid #d7e0ea;border-radius:9px;padding:8px 14px;margin-bottom:10px;font-size:13px;color:#334155}
-.recon b{color:#1f4e79}.recon .grow{flex:1}.recon .warnb{color:#b45309}
+.recon{display:flex;flex-wrap:nowrap;gap:12px;align-items:flex-start;background:#fff;border:1px solid #d7e0ea;border-radius:9px;padding:8px 14px;margin-bottom:10px;font-size:13px;color:#334155}
+.recon b{color:#1f4e79}.recon .grow{display:none}.recon .warnb{color:#b45309}
+#reconTxt{flex:1 1 0;min-width:0;line-height:1.7}.recon .seg{display:inline-block;white-space:nowrap;margin-right:12px}#reconBtn{flex:0 0 auto;white-space:nowrap}
+.lnkb{background:none;border:0;padding:0;font:inherit;font-size:12px;color:#1f4e79;text-decoration:underline;cursor:pointer}.lnkb:hover{opacity:.75}
+@media(max-width:760px){.recon{flex-wrap:wrap}#reconTxt{flex:1 1 100%}.recon .seg{white-space:normal}}
 /* ===== modal cek manual ===== */
 #rows tr.clk{cursor:pointer}#rows tr.clk:hover td{background:#e8f1fb}
 .tag-man{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:#e0e7ff;color:#3730a3}
@@ -200,6 +203,7 @@ td{padding:7px 9px}
 :root[data-theme="dark"] .recon{background:#161b22;border-color:#30363d;color:#c9d1d9}
 :root[data-theme="dark"] .recon b{color:#79b8ff}
 :root[data-theme="dark"] .recon .warnb{color:#e3b341}
+:root[data-theme="dark"] .lnkb{color:#79b8ff}
 </style>
 <script>
 (function(){function rd(){var t=null;try{t=localStorage.getItem('theme')}catch(e){}if(t!=='light'&&t!=='dark'){try{t=window.parent.document.documentElement.getAttribute('data-theme')}catch(e){}}return t==='light'?'light':'dark'}function ap(){var t=rd();if(document.documentElement.getAttribute('data-theme')!==t)document.documentElement.setAttribute('data-theme',t)}ap();setInterval(ap,500)})();
@@ -217,7 +221,7 @@ td{padding:7px 9px}
 <div class="msg" id="msg">Pilih bulan penjualan (maksimal 3 bulan terakhir), lalu tekan “Jalankan Cek”. Data diambil dari tab Penjualan &amp; Uang Masuk yang sudah tersimpan di browser.</div>
 <div class="recon" id="recon" style="display:none"><span id="reconTxt"></span><span class="grow"></span><button type="button" class="btn secondary" id="reconBtn">📋 Lihat UM belum ketemu Data Penjualan</button></div>
 <div class="tablebox" id="resBox"><table><thead><tr><th>Status</th><th>Tanggal</th><th>Jenis Bayar</th><th>Produk Penjualan</th><th>Sales</th><th>Customer</th><th>Alamat</th><th>No Faktur Penjualan</th><th>Section UM</th><th>Produk UM</th><th>No Faktur UM</th><th>Nominal Penjualan</th><th>Nominal UM</th><th>Catatan</th></tr></thead><tbody id="rows"></tbody></table></div>
-<div class="tablebox" id="umBox" style="display:none"><table style="min-width:1000px"><thead><tr><th>Tgl UM</th><th>Section</th><th>Toko</th><th>Alamat</th><th>Sales</th><th>Produk</th><th>No Faktur UM</th><th>Tgl Faktur</th><th>Status</th><th>Nominal UM belum ketemu penjualan</th></tr></thead><tbody id="umRows"></tbody></table></div>
+<div class="tablebox" id="umBox" style="display:none"><table style="min-width:1000px"><thead><tr><th>Tgl UM</th><th>Section</th><th>Toko</th><th>Alamat</th><th>Sales</th><th>Produk</th><th>No Faktur UM</th><th>Tgl Faktur</th><th id="umStTh">Status</th><th id="umAmtTh">Nominal UM belum ketemu penjualan</th></tr></thead><tbody id="umRows"></tbody></table></div>
 <div class="cm-ov" id="cmOv"><div class="cm-box"><div class="cm-head"><span id="cmTitle">Detail</span><button type="button" id="cmX" title="Tutup">✕</button></div><div class="cm-body" id="cmBody"></div><div class="cm-foot" id="cmFoot"></div></div></div>
 <div class="cm-toast" id="cmToast"></div>
 <script>
@@ -454,37 +458,45 @@ async function run(fresh){
   }
 }
 /* ===== Rekonsiliasi Uang Masuk: berapa UM (bulan laporan = bulan yang dicek) yang sudah terpasang ke penjualan ===== */
-let reconRows=[],reconSum=null,reconNote='',umView=false;
+let reconRows=[],reconX=[],reconSum=null,reconNote='',umView=false,umMode='belum';
 function buildRecon(um,out,months,note){
   const usedK=new Set();out.forEach(r=>{if(!r.um)return;if(r.umKeys)r.umKeys.forEach(k=>usedK.add(k));else if(r.umIdx!==undefined)usedK.add(r.umIdx)});
   const all=[];['CASH DROPPING','PIUTANG TEMPO'].forEach(k=>{if(um.idx[k])all.push(...um.idx[k].all)});if(um.other)all.push(...um.other);
-  let tot=0,used=0,left=0,nT=0,nU=0,nX=0,aX=0;const rows=[];
+  let tot=0,used=0,left=0,nT=0,nU=0,nX=0,aX=0;const rows=[],xr=[];
   all.forEach(e=>{
     const u=e.b.raw||{};const mk=String(u.tanggal_laporan_str||'').slice(0,7);if(!months.has(mk))return;
     /* sama dengan tab Uang Masuk: hanya status LUNAS & TITIP yang dihitung sebagai uang masuk */
-    const stU=String(u.status||'').toUpperCase();if(stU!=='LUNAS'&&stU!=='TITIP'){nX++;aX+=num(e.b.amt);return}
+    const stU=String(u.status||'').toUpperCase();if(stU!=='LUNAS'&&stU!=='TITIP'){nX++;aX+=num(e.b.amt);xr.push({date:e.b.date,dkey:String(u.tanggal_laporan_str||''),pay:e.b.pay||u.section||'',toko:u.nama_toko||'',alamat:u.alamat||'',sales:u.sales||u.dropping||'',prod:e.b.prod,fact:u.no_faktur||'',tf:shortDate(u.tgl_faktur_str),status:(u.status?String(u.status):'(kosong)')+(u.ket&&String(u.ket).toUpperCase()!==String(u.status||'').toUpperCase()?' · '+u.ket:''),amt:num(e.b.amt)});return}
     const b=e.b;let au=0;
     if(b.prod==='CAMPUR'){if(usedK.has(e.i+':MINYAK'))au+=b.amtM;if(usedK.has(e.i+':RUPA RUPA'))au+=b.amtR}
     else if(usedK.has(e.i))au=b.amt;
     const rest=b.amt-au;tot+=b.amt;used+=au;nT++;if(au>0)nU++;
     if(rest>=1){left+=rest;rows.push({date:b.date,dkey:String(u.tanggal_laporan_str||''),pay:b.pay||u.section||'',toko:u.nama_toko||'',alamat:u.alamat||'',sales:u.sales||u.dropping||'',prod:b.prod,fact:u.no_faktur||'',tf:shortDate(u.tgl_faktur_str),status:u.status||'',amt:rest,partial:au>0})}
   });
-  rows.sort((x,y)=>y.dkey.localeCompare(x.dkey));
-  reconRows=rows;reconSum={tot,used,left,nT,nU,nX,aX,nL:rows.length};reconNote=note;paintRecon();if(umView)renderUm();
+  rows.sort((x,y)=>y.dkey.localeCompare(x.dkey));xr.sort((x,y)=>y.dkey.localeCompare(x.dkey));
+  reconX=xr;reconRows=rows;reconSum={tot,used,left,nT,nU,nX,aX,nL:rows.length};reconNote=note;paintRecon();if(umView)renderUm();
 }
+function curUmRows(){return umMode==='lain'?reconX:reconRows}
 function paintRecon(){
   const el=$('recon');if(!reconSum){el.style.display='none';if(umView)setUmView(false);return}
   const r=reconSum;el.style.display='flex';
-  $('reconTxt').innerHTML='💰 <b>Uang Masuk</b> (tgl laporan: '+esc(reconNote)+') &nbsp; Total <b>Rp '+fmt(r.tot)+'</b> ('+fmt(r.nT)+' baris) &nbsp;·&nbsp; Terpasang ke penjualan <b>Rp '+fmt(r.used)+'</b> ('+fmt(r.nU)+') &nbsp;·&nbsp; <span class="warnb">UM belum ketemu Data Penjualan <b>Rp '+fmt(r.left)+'</b> ('+fmt(r.nL)+' baris)</span>'+(r.nX?' &nbsp;·&nbsp; <small>'+fmt(r.nX)+' baris berstatus selain LUNAS/TITIP (Rp '+fmt(r.aX)+') tidak dihitung</small>':'');
+  $('reconTxt').innerHTML='<span class="seg">💰 <b>Uang Masuk</b> (tgl laporan: '+esc(reconNote)+')</span>'
+    +'<span class="seg">Total <b>Rp '+fmt(r.tot)+'</b> ('+fmt(r.nT)+' baris) ·</span>'
+    +'<span class="seg">Terpasang ke penjualan <b>Rp '+fmt(r.used)+'</b> ('+fmt(r.nU)+') ·</span>'
+    +'<span class="seg warnb">UM belum ketemu Data Penjualan <b>Rp '+fmt(r.left)+'</b> ('+fmt(r.nL)+' baris)</span>'
+    +(r.nX?'<span class="seg">· <button type="button" class="lnkb" data-x="1" title="Klik untuk melihat datanya">'+fmt(r.nX)+' baris berstatus selain LUNAS/TITIP (Rp '+fmt(r.aX)+') tidak dihitung — '+(umView&&umMode==='lain'?'tutup daftar':'lihat datanya')+'</button></span>':'');
   $('reconBtn').textContent=umView?'↩ Kembali ke hasil cek':'📋 Lihat UM belum ketemu Data Penjualan ('+fmt(r.nL)+')';
 }
-function setUmView(on){umView=on;$('umBox').style.display=on?'':'none';$('resBox').style.display=on?'none':'';paintRecon();if(on)renderUm()}
+function setUmView(on,mode){umView=on;if(mode)umMode=mode;$('umBox').style.display=on?'':'none';$('resBox').style.display=on?'none':'';paintRecon();if(on)renderUm()}
 function renderUm(){
-  const q=norm($('q').value);
-  const arr=reconRows.filter(x=>!q||norm([x.toko,x.alamat,x.sales,x.fact].join(' ')).includes(q));
-  $('umRows').innerHTML=arr.map(x=>'<tr><td>'+esc(x.date)+'</td><td>'+esc(x.pay)+'</td><td>'+esc(x.toko)+'</td><td>'+esc(x.alamat)+'</td><td>'+esc(x.sales)+'</td><td>'+esc(x.prod)+'</td><td>'+esc(x.fact)+'</td><td>'+esc(x.tf)+'</td><td>'+esc(x.status)+'</td><td>'+fmt(x.amt)+(x.partial?' <small>(sebagian)</small>':'')+'</td></tr>').join('')||'<tr><td colspan="10" style="text-align:center;padding:12px">Semua uang masuk sudah terpasang 👍</td></tr>';
+  const q=norm($('q').value),lain=umMode==='lain';
+  $('umAmtTh').textContent=lain?'Nominal (tidak dihitung)':'Nominal UM belum ketemu penjualan';
+  $('umStTh').textContent=lain?'Status / Keterangan':'Status';
+  const arr=curUmRows().filter(x=>!q||norm([x.toko,x.alamat,x.sales,x.fact].join(' ')).includes(q));
+  $('umRows').innerHTML=arr.map(x=>'<tr><td>'+esc(x.date)+'</td><td>'+esc(x.pay)+'</td><td>'+esc(x.toko)+'</td><td>'+esc(x.alamat)+'</td><td>'+esc(x.sales)+'</td><td>'+esc(x.prod)+'</td><td>'+esc(x.fact)+'</td><td>'+esc(x.tf)+'</td><td>'+esc(x.status)+'</td><td>'+fmt(x.amt)+(x.partial?' <small>(sebagian)</small>':'')+'</td></tr>').join('')||'<tr><td colspan="10" style="text-align:center;padding:12px">'+(lain?'Tidak ada baris berstatus lain.':'Semua uang masuk sudah terpasang 👍')+'</td></tr>';
 }
-$('reconBtn').onclick=()=>setUmView(!umView);
+$('reconBtn').onclick=()=>{if(umView)setUmView(false);else setUmView(true,'belum')};
+$('recon').addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-x]');if(!t)return;if(umView&&umMode==='lain')setUmView(false);else setUmView(true,'lain')});
 let payFilter='';function payFiltered(){return payFilter?results.filter(x=>x.pay===payFilter):results}
 function cards(){ const R=payFiltered(); if($('cCash')){$('cCash').textContent='('+fmt(results.filter(x=>x.pay==='CASH').length)+')';$('cTempo').textContent='('+fmt(results.filter(x=>x.pay==='TEMPO').length)+')';} const groups={all:R,ok:R.filter(x=>x.status==='COCOK'),diff:R.filter(x=>x.status==='NOMINAL BERBEDA'),missing:R.filter(x=>x.status==='TIDAK DITEMUKAN UM'),manual:R.filter(x=>x.status==='PERLU CEK MANUAL')}; $('nAll').textContent=groups.all.length;$('nOk').textContent=groups.ok.length;$('nDiff').textContent=groups.diff.length;$('nMissing').textContent=groups.missing.length;$('nManual').textContent=groups.manual.length; const sumSales=a=>a.reduce((s,x)=>s+Number(x.amt||0),0); $('mAll').textContent='Penjualan: Rp '+fmt(sumSales(groups.all));$('mOk').textContent='Penjualan: Rp '+fmt(sumSales(groups.ok));$('mDiff').textContent='Penjualan: Rp '+fmt(sumSales(groups.diff));$('mMissing').textContent='Penjualan: Rp '+fmt(sumSales(groups.missing));$('mManual').textContent='Penjualan: Rp '+fmt(sumSales(groups.manual));}
 function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -496,9 +508,9 @@ function setStatusFilter(st){renderLimit=300;$('status').value=st;document.query
 document.querySelectorAll('#quickfilters button').forEach(b=>b.addEventListener('click',()=>setStatusFilter(b.dataset.filter)));document.querySelectorAll('.card[data-filter]').forEach(c=>c.addEventListener('click',()=>setStatusFilter(c.dataset.filter)));
 $('run').onclick=()=>run(true);$('status').onchange=()=>setStatusFilter($('status').value);$('q').oninput=()=>{renderLimit=300;render();if(umView)renderUm()};
 $('csv').onclick=()=>{
-if(umView){const q=norm($('q').value);const ar=reconRows.filter(x=>!q||norm([x.toko,x.alamat,x.sales,x.fact].join(' ')).includes(q));if(!ar.length){alert('Tidak ada data');return}
-const ls=['tgl_um;section;toko;alamat;sales;produk;no_faktur_um;tgl_faktur;status;nominal_belum_terpasang',...ar.map(x=>[x.date,x.pay,x.toko,x.alamat,x.sales,x.prod,x.fact,x.tf,x.status,x.amt].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';'))];
-const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+ls.join('\\r\\n')],{type:'text/csv;charset=utf-8'}));a.download='UM_Belum_Terpasang.csv';a.click();URL.revokeObjectURL(a.href);return}
+if(umView){const q=norm($('q').value);const ar=curUmRows().filter(x=>!q||norm([x.toko,x.alamat,x.sales,x.fact].join(' ')).includes(q));if(!ar.length){alert('Tidak ada data');return}
+const ls=['tgl_um;section;toko;alamat;sales;produk;no_faktur_um;tgl_faktur;status;'+(umMode==='lain'?'nominal_tidak_dihitung':'nominal_belum_terpasang'),...ar.map(x=>[x.date,x.pay,x.toko,x.alamat,x.sales,x.prod,x.fact,x.tf,x.status,x.amt].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';'))];
+const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+ls.join('\\r\\n')],{type:'text/csv;charset=utf-8'}));a.download=(umMode==='lain'?'UM_Status_Lain.csv':'UM_Belum_Ketemu_Penjualan.csv');a.click();URL.revokeObjectURL(a.href);return}
 const arr=payFiltered();if(!arr.length){alert('Jalankan cek dahulu');return}const cols=['status','date','pay','prod','sales','customer','alamat','fact','amt','section','umFact','umAmt','note'];const lines=[cols.join(';'),...arr.map(x=>[x.status,x.date,x.pay,x.prod,x.salesDisplay||x.sales,x.customerDisplay||x.customer,x.alamatDisplay||x.alamat,x.factDisplay||x.fact,x.amt,x.um&&x.um.pay,x.um&&x.um.raw&&x.um.raw.no_faktur,x.um&&x.um.amt,x.note].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';'))];const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+lines.join('\\r\\n')],{type:'text/csv;charset=utf-8'}));a.download='Hasil_Cek_Penjualan_Uang_Masuk.csv';a.click();URL.revokeObjectURL(a.href)};
 const fkU=s=>String(field(s,['No. Faktur','No Faktur','Faktur'])).trim().toUpperCase();
 function batalRead(){return new Promise(ok=>{try{const q=indexedDB.open('pjbatal-v1',1);q.onupgradeneeded=()=>{if(!q.result.objectStoreNames.contains('pjbatal-data'))q.result.createObjectStore('pjbatal-data')};q.onsuccess=()=>{const db=q.result;db.onversionchange=()=>db.close();const r=db.transaction('pjbatal-data','readonly').objectStore('pjbatal-data').get('latest');r.onsuccess=()=>{db.close();ok((r.result&&r.result.items)||{})};r.onerror=()=>{db.close();ok({})}};q.onerror=()=>ok({})}catch(e){ok({})}})}
