@@ -356,21 +356,33 @@ function matchOne(s,um,used){
     &&(!a.sales||!x.b.sales||a.sales===x.b.sales)
     &&(x.b.prod==='UNKNOWN'||x.b.prod==='CAMPUR'||x.b.prod===a.prod)));
   const getStrict=()=>getCand().filter(x=>a.customer&&x.b.customer===a.customer&&a.alamat&&x.b.alamat===a.alamat&&a.sales&&x.b.sales===a.sales);
-  let match=[];
+  let match=[],multi=null;
   if(g&&a.fact){
     let p=(g.byFact.get(a.fact)||[]).filter(x=>!used.has(uk(x)));
     const pc=p.filter(x=>x.b.prod==='UNKNOWN'||x.b.prod==='CAMPUR'||x.b.prod===a.prod);if(pc.length)p=pc;
-    if(p.length>1){const e=p.filter(x=>Math.abs(a.amt-ua(x))<1);if(e.length)p=e;}
-    if(p.length>1){const d=p.filter(x=>x.b.date===a.date);if(d.length)p=d;}
-    if(p.length===1)match=p;
+    /* faktur dibayar bertahap (titip + pelunasan / cicilan): beberapa baris UM untuk 1 faktur yang sama dijumlahkan.
+       Dipakai hanya bila tidak ada satu baris pun yang nominalnya persis sama dan jumlahnya tidak melebihi penjualan. */
+    if(p.length>1){
+      const pm=p.filter(x=>!a.customer||!x.b.customer||a.customer===x.b.customer);
+      if(pm.length>1&&!pm.some(x=>Math.abs(a.amt-ua(x))<1)){const tt=pm.reduce((q,x)=>q+ua(x),0);if(tt>0&&tt<=a.amt+0.99)multi=pm;}
+    }
+    if(!multi&&p.length>1){const e=p.filter(x=>Math.abs(a.amt-ua(x))<1);if(e.length)p=e;}
+    if(!multi&&p.length>1){const d=p.filter(x=>x.b.date===a.date);if(d.length)p=d;}
+    if(!multi&&p.length===1)match=p;
   }
-  if(!match.length){
+  if(!match.length&&!multi){
     const _st=getStrict();let c=_st.length?_st:getCand();
     if(c.length>1){const e=c.filter(x=>Math.abs(a.amt-ua(x))<1&&x.b.date===a.date);if(e.length===1)c=e;}
     if(c.length>1){const e2=c.filter(x=>Math.abs(a.amt-ua(x))<1);if(e2.length===1)c=e2;}
     match=(c.length===1?c:[]);
   }
   let status='TIDAK DITEMUKAN UM',note='Tidak ada UM yang memenuhi identitas, jenis pembayaran dan tanggal (UM pada/setelah tanggal penjualan, tgl faktur sama)';
+  if(multi){
+    multi.forEach(x=>used.add(uk(x)));
+    const tot=multi.reduce((q,x)=>q+ua(x),0),f=multi[0],ok=Math.abs(a.amt-tot)<1;
+    const lst=multi.slice().sort((x,y)=>dkS(x.b.date).localeCompare(dkS(y.b.date))).map(x=>x.b.date+' Rp '+fmt(ua(x))).join(' + ');
+    return {...a,status:ok?'COCOK':'NOMINAL BERBEDA',note:'Dibayar bertahap '+multi.length+'x: '+lst+(ok?' = nominal penjualan':' ; kurang Rp '+fmt(a.amt-tot)),um:{...f.b,amt:tot},umIdx:uk(f),umKeys:multi.map(uk),umProd:f.b.prod,section:f.b.pay};
+  }
   if(match.length===1){
     const x=match[0];used.add(uk(x));
     const factOk=!a.fact||!x.b.fact||a.fact===x.b.fact;
@@ -421,8 +433,20 @@ async function run(fresh){
       if(my!==_runToken)return;
     }
     results=out;renderLimit=300;
-    buildRecon(um,out,(selectedMonths.has('ALL')?allowedMonths:selectedMonths),monthNote);
-    $('msg').textContent='Selesai. Filter penjualan: '+monthNote+' → '+sales.length+' baris (dari '+salesAll.length+' total). Uang Masuk: '+um.count+' baris (semua bulan).'+(skipN?' '+skipN+' baris faktur batal / bernilai Rp 0 tidak ikut dicek.':'')+' Pencocokan mengutamakan identitas, produk dan tipe pembayaran.';
+    /* UM juga dicocokkan ke penjualan BULAN LAIN (hasilnya tidak ditampilkan di tabel), supaya pelunasan faktur lama
+       (mis. faktur September dibayar Oktober) tidak dianggap "UM belum ketemu Data Penjualan" */
+    const useM2=selectedMonths.has('ALL')?allowedMonths:selectedMonths;
+    const others=salesAll.filter(s=>{const k=monthKeyFromDate(field(s,['Tanggal','Tgl']));return !(k&&useM2.has(k))&&!bm[fkU(s)]&&Math.abs(amountSales(s))>=1});
+    const extra=[];
+    for(let s0=0;s0<others.length;s0+=CH){
+      const end=Math.min(others.length,s0+CH);
+      for(let k=s0;k<end;k++){const r=matchOne(others[k],um,used);if(r.um)extra.push(r)}
+      $('msg').textContent='Mencocokkan UM ke penjualan bulan lain '+end+' / '+others.length+' baris…';
+      await tick();
+      if(my!==_runToken)return;
+    }
+    buildRecon(um,out.concat(extra),useM2,monthNote);
+    $('msg').textContent='Selesai. Filter penjualan: '+monthNote+' → '+sales.length+' baris (dari '+salesAll.length+' total). Uang Masuk: '+um.count+' baris (semua bulan).'+(skipN?' '+skipN+' baris faktur batal / bernilai Rp 0 tidak ikut dicek.':'')+' Pencocokan mengutamakan identitas, produk dan tipe pembayaran. Faktur yang dibayar bertahap dijumlahkan; UM juga dicocokkan ke '+fmt(others.length)+' baris penjualan bulan lain untuk rekonsiliasi.';
     cards();render();
   }catch(e){
     if(my!==_runToken)return;
@@ -432,7 +456,7 @@ async function run(fresh){
 /* ===== Rekonsiliasi Uang Masuk: berapa UM (bulan laporan = bulan yang dicek) yang sudah terpasang ke penjualan ===== */
 let reconRows=[],reconSum=null,reconNote='',umView=false;
 function buildRecon(um,out,months,note){
-  const usedK=new Set();out.forEach(r=>{if(r.um&&r.umIdx!==undefined)usedK.add(r.umIdx)});
+  const usedK=new Set();out.forEach(r=>{if(!r.um)return;if(r.umKeys)r.umKeys.forEach(k=>usedK.add(k));else if(r.umIdx!==undefined)usedK.add(r.umIdx)});
   const all=[];['CASH DROPPING','PIUTANG TEMPO'].forEach(k=>{if(um.idx[k])all.push(...um.idx[k].all)});if(um.other)all.push(...um.other);
   let tot=0,used=0,left=0,nT=0,nU=0,nX=0,aX=0;const rows=[];
   all.forEach(e=>{
