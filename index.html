@@ -432,9 +432,11 @@ let reconRows=[],reconSum=null,reconNote='',umView=false;
 function buildRecon(um,out,months,note){
   const usedK=new Set();out.forEach(r=>{if(r.um&&r.umIdx!==undefined)usedK.add(r.umIdx)});
   const all=[];['CASH DROPPING','PIUTANG TEMPO'].forEach(k=>{if(um.idx[k])all.push(...um.idx[k].all)});if(um.other)all.push(...um.other);
-  let tot=0,used=0,left=0,nT=0,nU=0;const rows=[];
+  let tot=0,used=0,left=0,nT=0,nU=0,nX=0,aX=0;const rows=[];
   all.forEach(e=>{
     const u=e.b.raw||{};const mk=String(u.tanggal_laporan_str||'').slice(0,7);if(!months.has(mk))return;
+    /* sama dengan tab Uang Masuk: hanya status LUNAS & TITIP yang dihitung sebagai uang masuk */
+    const stU=String(u.status||'').toUpperCase();if(stU!=='LUNAS'&&stU!=='TITIP'){nX++;aX+=num(e.b.amt);return}
     const b=e.b;let au=0;
     if(b.prod==='CAMPUR'){if(usedK.has(e.i+':MINYAK'))au+=b.amtM;if(usedK.has(e.i+':RUPA RUPA'))au+=b.amtR}
     else if(usedK.has(e.i))au=b.amt;
@@ -442,12 +444,12 @@ function buildRecon(um,out,months,note){
     if(rest>=1){left+=rest;rows.push({date:b.date,dkey:String(u.tanggal_laporan_str||''),pay:b.pay||u.section||'',toko:u.nama_toko||'',alamat:u.alamat||'',sales:u.sales||u.dropping||'',prod:b.prod,fact:u.no_faktur||'',tf:shortDate(u.tgl_faktur_str),status:u.status||'',amt:rest,partial:au>0})}
   });
   rows.sort((x,y)=>y.dkey.localeCompare(x.dkey));
-  reconRows=rows;reconSum={tot,used,left,nT,nU,nL:rows.length};reconNote=note;paintRecon();if(umView)renderUm();
+  reconRows=rows;reconSum={tot,used,left,nT,nU,nX,aX,nL:rows.length};reconNote=note;paintRecon();if(umView)renderUm();
 }
 function paintRecon(){
   const el=$('recon');if(!reconSum){el.style.display='none';if(umView)setUmView(false);return}
   const r=reconSum;el.style.display='flex';
-  $('reconTxt').innerHTML='💰 <b>Uang Masuk</b> (tgl laporan: '+esc(reconNote)+') &nbsp; Total <b>Rp '+fmt(r.tot)+'</b> ('+fmt(r.nT)+' baris) &nbsp;·&nbsp; Terpasang ke penjualan <b>Rp '+fmt(r.used)+'</b> ('+fmt(r.nU)+') &nbsp;·&nbsp; <span class="warnb">Belum terpasang <b>Rp '+fmt(r.left)+'</b> ('+fmt(r.nL)+' baris)</span>';
+  $('reconTxt').innerHTML='💰 <b>Uang Masuk</b> (tgl laporan: '+esc(reconNote)+') &nbsp; Total <b>Rp '+fmt(r.tot)+'</b> ('+fmt(r.nT)+' baris) &nbsp;·&nbsp; Terpasang ke penjualan <b>Rp '+fmt(r.used)+'</b> ('+fmt(r.nU)+') &nbsp;·&nbsp; <span class="warnb">Belum terpasang <b>Rp '+fmt(r.left)+'</b> ('+fmt(r.nL)+' baris)</span>'+(r.nX?' &nbsp;·&nbsp; <small>'+fmt(r.nX)+' baris berstatus selain LUNAS/TITIP (Rp '+fmt(r.aX)+') tidak dihitung</small>':'');
   $('reconBtn').textContent=umView?'↩ Kembali ke hasil cek':'📋 Lihat UM belum terpasang ('+fmt(r.nL)+')';
 }
 function setUmView(on){umView=on;$('umBox').style.display=on?'':'none';$('resBox').style.display=on?'none':'';paintRecon();if(on)renderUm()}
