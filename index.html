@@ -165,6 +165,12 @@ td{padding:7px 9px}
 .cm-toast.show{opacity:1;transform:none}
 @media(max-width:700px){.cm-kv{grid-template-columns:repeat(2,1fr)}}
 
+/* ===== modal Penjualan Belum Ada UM ===== */
+.cm-why.bad{background:#fee2e2;border-color:#fca5a5;color:#7f1d1d}
+.cm-why small{display:block;margin-top:4px;opacity:.85}
+.tag-ok{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:#dcfce7;color:#166534}
+.tag-note{display:block;margin-top:2px;font-size:11px;color:#64748b;white-space:normal;max-width:320px}
+
 /* ===== MODE GELAP (mengikuti tombol tema di shell) ===== */
 :root[data-theme="dark"]{color-scheme:dark}
 :root[data-theme="dark"] body{background:#0d1117;color:#e6edf3}
@@ -192,6 +198,9 @@ td{padding:7px 9px}
 :root[data-theme="dark"] .warn{background:#3a2e12;color:#e3b341}
 :root[data-theme="dark"] .bad{background:#3b1a1f;color:#ff7b72}
 :root[data-theme="dark"] .tag-man{background:#26305a;color:#a5b4fc}
+:root[data-theme="dark"] .cm-why.bad{background:#3b1a1f;border-color:#7a2a2a;color:#ffb4ac}
+:root[data-theme="dark"] .tag-ok{background:#12351f;color:#56d364}
+:root[data-theme="dark"] .tag-note{color:#8b949e}
 :root[data-theme="dark"] .cm-box{background:#161b22;color:#e6edf3}
 :root[data-theme="dark"] .cm-foot{border-top-color:#30363d}
 :root[data-theme="dark"] .cm-why{background:#3a2e12;border-color:#7a5c14;color:#f0d98c}
@@ -506,7 +515,7 @@ let payFilter='';function payFiltered(){return payFilter?results.filter(x=>x.pay
 function cards(){ const R=payFiltered(); if($('cCash')){$('cCash').textContent='('+fmt(results.filter(x=>x.pay==='CASH').length)+')';$('cTempo').textContent='('+fmt(results.filter(x=>x.pay==='TEMPO').length)+')';} const groups={all:R,ok:R.filter(x=>x.status==='COCOK'),diff:R.filter(x=>x.status==='NOMINAL BERBEDA'),missing:R.filter(x=>x.status==='TIDAK DITEMUKAN UM'),manual:R.filter(x=>x.status==='PERLU CEK MANUAL')}; $('nAll').textContent=groups.all.length;$('nOk').textContent=groups.ok.length;$('nDiff').textContent=groups.diff.length;$('nMissing').textContent=groups.missing.length;$('nManual').textContent=groups.manual.length; const sumSales=a=>a.reduce((s,x)=>s+Number(x.amt||0),0); $('mAll').textContent='Penjualan: Rp '+fmt(sumSales(groups.all));$('mOk').textContent='Penjualan: Rp '+fmt(sumSales(groups.ok));$('mDiff').textContent='Penjualan: Rp '+fmt(sumSales(groups.diff));$('mMissing').textContent='Penjualan: Rp '+fmt(sumSales(groups.missing));$('mManual').textContent='Penjualan: Rp '+fmt(sumSales(groups.manual));}
 function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 let renderLimit=300;
-function render(){const st=$('status').value,q=norm($('q').value);const arr=payFiltered().filter(x=>(!st||x.status===st)&&(!q||norm([x.customerDisplay||x.customer,x.alamat,x.sales,x.fact,x.um&&x.um.fact].join(' ')).includes(q)));const shown=arr.slice(0,renderLimit);window._shown=shown;let html=shown.map((x,i)=>{const cls=x.status==='COCOK'?'ok':x.status==='NOMINAL BERBEDA'||x.status==='PERLU CEK MANUAL'?'warn':'bad';const clk=x.status==='PERLU CEK MANUAL'||x.manual;return '<tr'+(clk?' class="clk" data-i="'+i+'" title="Klik untuk detail &amp; aksi"':'')+'><td><span class="status '+cls+'">'+esc(x.status)+'</span>'+(x.manual?'<span class="tag-man" title="Dipindahkan setelah dicek manual">✓ dicek manual</span>':'')+'</td><td>'+esc(x.date)+'</td><td>'+esc(x.pay)+'</td><td>'+esc(x.prod)+'</td><td>'+esc(x.salesDisplay||x.sales)+'</td><td>'+esc(x.customerDisplay||x.customer)+'</td><td>'+esc(x.alamatDisplay||x.alamat)+'</td><td>'+esc(x.factDisplay||x.fact)+'</td><td>'+esc(x.um?x.um.pay:x.section||'')+'</td><td>'+esc(x.um?x.um.prod:'')+'</td><td>'+esc(x.um?(x.um.raw&&x.um.raw.no_faktur||x.um.fact):'')+'</td><td>'+fmt(x.amt)+'</td><td>'+fmt(x.um?x.um.amt:0)+'</td><td>'+esc(x.note)+'</td></tr>'}).join('');if(arr.length>shown.length)html+='<tr><td colspan="14" style="text-align:center;padding:10px"><button type="button" class="btn secondary" id="moreRows">Tampilkan lebih banyak ('+fmt(arr.length-shown.length)+' baris lagi)</button></td></tr>';$('rows').innerHTML=html;}
+function render(){const st=$('status').value,q=norm($('q').value);const arr=payFiltered().filter(x=>(!st||x.status===st)&&(!q||norm([x.customerDisplay||x.customer,x.alamat,x.sales,x.fact,x.um&&x.um.fact].join(' ')).includes(q)));const shown=arr.slice(0,renderLimit);window._shown=shown;let html=shown.map((x,i)=>{const cls=x.status==='COCOK'?'ok':x.status==='NOMINAL BERBEDA'||x.status==='PERLU CEK MANUAL'?'warn':'bad';const clk=x.status==='PERLU CEK MANUAL'||x.status==='TIDAK DITEMUKAN UM'||x.status==='NOMINAL BERBEDA'||x.manual;return '<tr'+(clk?' class="clk" data-i="'+i+'" title="Klik untuk detail &amp; aksi"':'')+'><td><span class="status '+cls+'">'+esc(x.status)+'</span>'+(x.manual?'<span class="tag-man" title="Dipindahkan setelah dicek manual">✓ dicek manual</span>':'')+missTag(x)+'</td><td>'+esc(x.date)+'</td><td>'+esc(x.pay)+'</td><td>'+esc(x.prod)+'</td><td>'+esc(x.salesDisplay||x.sales)+'</td><td>'+esc(x.customerDisplay||x.customer)+'</td><td>'+esc(x.alamatDisplay||x.alamat)+'</td><td>'+esc(x.factDisplay||x.fact)+'</td><td>'+esc(x.um?x.um.pay:x.section||'')+'</td><td>'+esc(x.um?x.um.prod:'')+'</td><td>'+esc(x.um?(x.um.raw&&x.um.raw.no_faktur||x.um.fact):'')+'</td><td>'+fmt(x.amt)+'</td><td>'+fmt(x.um?x.um.amt:0)+'</td><td>'+esc(x.note)+noteTxt(x)+'</td></tr>'}).join('');if(arr.length>shown.length)html+='<tr><td colspan="14" style="text-align:center;padding:10px"><button type="button" class="btn secondary" id="moreRows">Tampilkan lebih banyak ('+fmt(arr.length-shown.length)+' baris lagi)</button></td></tr>';$('rows').innerHTML=html;}
 document.querySelectorAll('#payfilters button').forEach(b=>b.addEventListener('click',()=>{payFilter=b.dataset.pay;renderLimit=300;document.querySelectorAll('#payfilters button').forEach(x=>x.classList.toggle('active',x.dataset.pay===payFilter));cards();render();}));
 $('rows').addEventListener('click',e=>{if(e.target&&e.target.id==='moreRows'){renderLimit+=500;render();}});
 function setStatusFilter(st){renderLimit=300;$('status').value=st;document.querySelectorAll('#quickfilters button').forEach(b=>b.classList.toggle('active',b.dataset.filter===st));document.querySelectorAll('.card[data-filter]').forEach(c=>c.classList.toggle('selected',c.dataset.filter===st));render()}
@@ -516,16 +525,16 @@ $('csv').onclick=()=>{
 if(umView){const q=norm($('q').value);const ar=curUmRows().filter(x=>!q||norm([x.toko,x.alamat,x.sales,x.fact].join(' ')).includes(q));if(!ar.length){alert('Tidak ada data');return}
 const ls=['tgl_um;section;toko;alamat;sales;produk;no_faktur_um;tgl_faktur;status;'+(umMode==='lain'?'nominal_tidak_dihitung':'nominal_belum_terpasang'),...ar.map(x=>[x.date,x.pay,x.toko,x.alamat,x.sales,x.prod,x.fact,x.tf,x.status,x.amt].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';'))];
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+ls.join('\\r\\n')],{type:'text/csv;charset=utf-8'}));a.download=(umMode==='lain'?'UM_Status_Lain.csv':'UM_Belum_Ketemu_Penjualan.csv');a.click();URL.revokeObjectURL(a.href);return}
-const arr=payFiltered();if(!arr.length){alert('Jalankan cek dahulu');return}const cols=['status','date','pay','prod','sales','customer','alamat','fact','amt','section','umFact','umAmt','note'];const lines=[cols.join(';'),...arr.map(x=>[x.status,x.date,x.pay,x.prod,x.salesDisplay||x.sales,x.customerDisplay||x.customer,x.alamatDisplay||x.alamat,x.factDisplay||x.fact,x.amt,x.um&&x.um.pay,x.um&&x.um.raw&&x.um.raw.no_faktur,x.um&&x.um.amt,x.note].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';'))];const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+lines.join('\\r\\n')],{type:'text/csv;charset=utf-8'}));a.download='Hasil_Cek_Penjualan_Uang_Masuk.csv';a.click();URL.revokeObjectURL(a.href)};
+const arr=payFiltered();if(!arr.length){alert('Jalankan cek dahulu');return}const cols=['status','date','pay','prod','sales','customer','alamat','fact','amt','section','umFact','umAmt','note'];const lines=[cols.join(';'),...arr.map(x=>[x.status,x.date,x.pay,x.prod,x.salesDisplay||x.sales,x.customerDisplay||x.customer,x.alamatDisplay||x.alamat,x.factDisplay||x.fact,x.amt,x.um&&x.um.pay,x.um&&x.um.raw&&x.um.raw.no_faktur,x.um&&x.um.amt,x.note+notePlain(x)].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';'))];const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+lines.join('\\r\\n')],{type:'text/csv;charset=utf-8'}));a.download='Hasil_Cek_Penjualan_Uang_Masuk.csv';a.click();URL.revokeObjectURL(a.href)};
 const fkU=s=>String(field(s,['No. Faktur','No Faktur','Faktur'])).trim().toUpperCase();
 function batalRead(){return new Promise(ok=>{try{const q=indexedDB.open('pjbatal-v1',1);q.onupgradeneeded=()=>{if(!q.result.objectStoreNames.contains('pjbatal-data'))q.result.createObjectStore('pjbatal-data')};q.onsuccess=()=>{const db=q.result;db.onversionchange=()=>db.close();const r=db.transaction('pjbatal-data','readonly').objectStore('pjbatal-data').get('latest');r.onsuccess=()=>{db.close();ok((r.result&&r.result.items)||{})};r.onerror=()=>{db.close();ok({})}};q.onerror=()=>ok({})}catch(e){ok({})}})}
 /* ===== CEK MANUAL: modal detail + aksi pindah ke "Penjualan Belum Ada UM" ===== */
-let manualMap={};
+let manualMap={},noteMap={};
 const MAN_DB='cek-v1',MAN_ST='cek-data';
 function manKey(r){return [r.fact,r.customer,r.alamat,r.sales,r.pay,r.prod,r.date].join('|')}
 function manOpen(){return new Promise((ok,no)=>{const q=indexedDB.open(MAN_DB,1);q.onupgradeneeded=()=>{if(!q.result.objectStoreNames.contains(MAN_ST))q.result.createObjectStore(MAN_ST)};q.onsuccess=()=>{const db=q.result;db.onversionchange=()=>db.close();ok(db)};q.onerror=()=>no(q.error)})}
-async function loadManual(){try{const db=await manOpen();const v=await new Promise((ok,no)=>{const q=db.transaction(MAN_ST,'readonly').objectStore(MAN_ST).get('latest');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)});db.close();manualMap=(v&&v.items)||{}}catch(e){console.warn('Gagal membaca keputusan cek manual',e)}}
-async function saveManual(){const db=await manOpen();try{await new Promise((ok,no)=>{const tx=db.transaction(MAN_ST,'readwrite');tx.objectStore(MAN_ST).put({items:manualMap},'latest');tx.oncomplete=ok;tx.onerror=tx.onabort=()=>no(tx.error)})}finally{db.close()}try{const bc=new BroadcastChannel('laporan-data');bc.postMessage('cekmanual');bc.close()}catch(e){}}
+async function loadManual(){try{const db=await manOpen();const v=await new Promise((ok,no)=>{const q=db.transaction(MAN_ST,'readonly').objectStore(MAN_ST).get('latest');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)});db.close();manualMap=(v&&v.items)||{};noteMap=(v&&v.notes)||{}}catch(e){console.warn('Gagal membaca keputusan cek manual',e)}}
+async function saveManual(){const db=await manOpen();try{await new Promise((ok,no)=>{const tx=db.transaction(MAN_ST,'readwrite');tx.objectStore(MAN_ST).put({items:manualMap,notes:noteMap},'latest');tx.oncomplete=ok;tx.onerror=tx.onabort=()=>no(tx.error)})}finally{db.close()}try{const bc=new BroadcastChannel('laporan-data');bc.postMessage('cekmanual');bc.close()}catch(e){}}
 function manFields(r,m){return {status:'TIDAK DITEMUKAN UM',note:'Dicek manual: benar belum dibayar'+(m.note?' — '+m.note:''),manual:m,prevNote:r.manual?r.prevNote:r.note,prevUm:r.manual?r.prevUm:r.um,um:null,umProd:''}}
 function manRestore(x){x.status='PERLU CEK MANUAL';x.note=x.prevNote||'Perlu diperiksa manual';x.um=x.prevUm||null;x.umProd=x.um?x.um.prod:'';delete x.manual;delete x.prevNote;delete x.prevUm}
 /* hanya baris yang hasil hitungnya masih "PERLU CEK MANUAL" yang dipindah; bila data berubah dan sudah cocok, hasil hitung dipakai */
@@ -557,7 +566,7 @@ function cmCands(x,list,total){
   return h;
 }
 function openCm(x){
-  if(!x)return;cmCur=x;
+  if(!x)return;if(x.status==='TIDAK DITEMUKAN UM'&&!x.manual){openMissing(x);return}if(x.status==='NOMINAL BERBEDA'&&!x.manual){openDiff(x);return}cmCur=x;
   const isMan=!!x.manual,um=x.um||x.prevUm||null;
   $('cmTitle').textContent=(isMan?'Sudah dicek manual':'Perlu cek manual')+' · Faktur '+(x.factDisplay||x.fact||'-');
   let h='<div class="cm-sec"><h4>Data Penjualan</h4><div class="cm-kv">'
@@ -578,9 +587,10 @@ function openCm(x){
            :'<button type="button" class="btn danger" data-a="move">✖ Belum bayar → pindahkan ke Penjualan Belum Ada UM</button>');
   $('cmOv').classList.add('show');
 }
-function closeCm(){$('cmOv').classList.remove('show');cmCur=null;umCur=null}
+function closeCm(){$('cmOv').classList.remove('show');cmCur=null;umCur=null;msCur=null}
 async function cmAct(a){
   if(a.slice(0,3)==='um-')return umAct(a);
+  if(a.slice(0,3)==='ms-')return msAct(a);
   if(a==='close'){closeCm();return}
   const x=cmCur;if(!x)return;
   const note=$('cmNote').value.trim();let msg='';
@@ -590,6 +600,104 @@ async function cmAct(a){
   closeCm();cards();render();
   try{await saveManual();cmToast(msg)}catch(e){console.error(e);cmToast('Tersimpan sementara, tapi gagal disimpan permanen: '+e.message)}
 }
+/* ===== PENJUALAN BELUM ADA UM: modal detail + keterangan + aksi ===== */
+let msCur=null;
+function noteOk(x){return !x.manual&&(x.status==='TIDAK DITEMUKAN UM'||x.status==='NOMINAL BERBEDA')}
+function missTag(x){const n=noteOk(x)&&noteMap[manKey(x)];return n&&n.confirmed?'<span class="tag-ok" title="Sudah dikonfirmasi">'+(x.status==='NOMINAL BERBEDA'?'✓ sudah dicek':'✓ dikonfirmasi')+'</span>':''}
+function noteTxt(x){const n=noteOk(x)&&noteMap[manKey(x)];return n&&n.note?'<span class="tag-note">📝 '+esc(n.note)+'</span>':''}
+function notePlain(x){const n=noteOk(x)&&noteMap[manKey(x)];return n&&n.note?' | Catatan: '+n.note:''}
+/* UM yang belum terpasang ke penjualan mana pun, tapi tokonya / fakturnya mirip */
+function msSimilar(x){
+  if(!reconRows||!reconRows.length)return [];
+  const c=x.customer,f=x.fact;
+  return reconRows.filter(u=>{
+    const t=norm(u.toko);
+    if(f&&norm(u.fact)===f)return true;
+    return !!(c&&t&&(t===c||(c.length>=5&&t.length>=5&&(t.includes(c)||c.includes(t)))));
+  }).slice(0,10);
+}
+function msTable(x,list){
+  let h='<div class="cm-scroll"><table class="cm-t"><thead><tr><th>Tgl UM</th><th>Section</th><th>Toko</th><th>Alamat</th><th>Sales</th><th>Produk</th><th>No Faktur UM</th><th>Nominal</th></tr></thead><tbody>';
+  list.forEach(u=>{h+='<tr><td>'+esc(u.date)+'</td><td>'+esc(u.pay)+'</td><td>'+esc(u.toko)+'</td><td>'+esc(u.alamat)+'</td><td>'+esc(u.sales)+'</td><td>'+esc(u.prod)+'</td><td class="'+(x.fact&&norm(u.fact)===x.fact?'cm-hit':'')+'">'+esc(u.fact)+'</td><td class="'+(Math.abs(x.amt-u.amt)<1?'cm-hit':'')+'">'+fmt(u.amt)+'</td></tr>'});
+  return h+'</tbody></table></div>';
+}
+function openMissing(x){
+  msCur=x;cmCur=null;umCur=null;
+  const n=noteMap[manKey(x)]||{},conf=!!n.confirmed,sim=msSimilar(x);
+  $('cmTitle').textContent='Penjualan Belum Ada UM · Faktur '+(x.factDisplay||x.fact||'-');
+  let h='<div class="cm-sec"><h4>Data Penjualan</h4><div class="cm-kv">'
+    +cmKV('Tanggal',x.date)+cmKV('Jenis bayar',x.pay)+cmKV('Produk',x.prod)+cmKV('Sales',x.salesDisplay||x.sales)
+    +cmKV('Customer',x.customerDisplay||x.customer)+cmKV('Alamat',x.alamatDisplay||x.alamat)+cmKV('No Faktur',x.factDisplay||x.fact)+cmKV('Nominal','Rp '+fmt(x.amt))
+    +'</div></div>';
+  h+='<div class="cm-why bad"><b>⚠ Belum ditemukan di Data Uang Masuk</b><br>Penjualan '+esc(x.pay||'-')+' sebesar <b>Rp '+fmt(x.amt)+'</b> belum punya pasangan di tab Uang Masuk'+(x.section?' (section '+esc(x.section)+')':'')+'.<small>'+esc(x.note)+'</small></div>';
+  if(conf)h+='<div class="cm-why ok">✓ Sudah dikonfirmasi <b>belum bayar</b> pada '+esc(new Date(n.cat||n.at||Date.now()).toLocaleString('id-ID'))+'.</div>';
+  h+='<div class="cm-sec"><h4>Uang Masuk belum terpasang dengan toko / faktur serupa ('+fmt(sim.length)+')</h4>'
+    +(sim.length?msTable(x,sim):'<div class="cm-empty">Tidak ada Uang Masuk yang belum terpasang dengan nama toko atau No Faktur serupa. Kemungkinan memang belum dibayar, atau belum diinput di Uang Masuk.</div>')+'</div>';
+  h+='<div class="cm-sec"><label class="cm-lbl" for="cmNote">Catatan tindak lanjut (opsional)</label><textarea id="cmNote" placeholder="Contoh: sudah ditagih ke sales, janji bayar Jumat"></textarea>'
+    +'<div class="cm-hint">Cek dulu apakah uangnya sebenarnya sudah diterima tetapi belum diinput di Uang Masuk (atau diinput dengan nama toko / faktur berbeda). Kalau sudah diinput, upload datanya lalu tekan “Jalankan Cek” ulang. Kalau sudah dipastikan <b>memang belum bayar</b>, klik “Konfirmasi belum bayar”; keputusan dan catatan tetap tersimpan walau cek diulang.</div></div>';
+  $('cmBody').innerHTML=h;
+  $('cmNote').value=n.note||'';
+  $('cmFoot').innerHTML='<button type="button" class="btn secondary" data-a="close">Tutup</button>'
+    +'<button type="button" class="btn secondary" data-a="ms-find">🔎 Cari di UM belum ketemu</button>'
+    +'<button type="button" class="btn secondary" data-a="ms-copy">📋 Salin ringkasan</button>'
+    +'<button type="button" class="btn secondary" data-a="ms-save">💾 Simpan catatan</button>'
+    +(conf?'<button type="button" class="btn secondary" data-a="ms-unconf">↺ Batalkan konfirmasi</button>'
+          :'<button type="button" class="btn danger" data-a="ms-conf">✖ Konfirmasi belum bayar</button>');
+  $('cmOv').classList.add('show');
+}
+function openDiff(x){
+  msCur=x;cmCur=null;umCur=null;
+  const n=noteMap[manKey(x)]||{},conf=!!n.confirmed,um=x.um||null;
+  const sel=um?x.amt-um.amt:0;
+  $('cmTitle').textContent='Nominal Berbeda · Faktur '+(x.factDisplay||x.fact||'-');
+  let h='<div class="cm-sec"><h4>Data Penjualan</h4><div class="cm-kv">'
+    +cmKV('Tanggal',x.date)+cmKV('Jenis bayar',x.pay)+cmKV('Produk',x.prod)+cmKV('Sales',x.salesDisplay||x.sales)
+    +cmKV('Customer',x.customerDisplay||x.customer)+cmKV('Alamat',x.alamatDisplay||x.alamat)+cmKV('No Faktur',x.factDisplay||x.fact)+cmKV('Nominal','Rp '+fmt(x.amt))
+    +'</div></div>';
+  h+='<div class="cm-why bad"><b>⚠ Nominal penjualan berbeda dengan Uang Masuk</b><br>'
+    +(um?'Penjualan <b>Rp '+fmt(x.amt)+'</b> · Uang Masuk <b>Rp '+fmt(um.amt)+'</b> · '+(sel>0?'UM kurang <b>Rp '+fmt(sel)+'</b>':'UM lebih <b>Rp '+fmt(-sel)+'</b>')+'.':'Nominal tidak sama dengan Uang Masuk.')
+    +'<small>'+esc(x.note)+'</small></div>';
+  if(conf)h+='<div class="cm-why ok">✓ Selisih sudah <b>dicek</b> pada '+esc(new Date(n.cat||n.at||Date.now()).toLocaleString('id-ID'))+'.</div>';
+  if(um)h+='<div class="cm-sec"><h4>Perbandingan dengan Uang Masuk</h4>'+cmCompare(x,um)+'</div>';
+  h+='<div class="cm-sec"><label class="cm-lbl" for="cmNote">Catatan hasil pengecekan (opsional)</label><textarea id="cmNote" placeholder="Contoh: toko potong retur Rp 50.000, sisa ditagih minggu depan"></textarea>'
+    +'<div class="cm-hint">Cek penyebab selisih (retur, potongan, bayar kurang, salah input). Setelah selisih dipastikan dan ditindaklanjuti, klik “Selisih sudah dicek”; tanda dan catatan tetap tersimpan walau cek diulang.</div></div>';
+  $('cmBody').innerHTML=h;
+  $('cmNote').value=n.note||'';
+  $('cmFoot').innerHTML='<button type="button" class="btn secondary" data-a="close">Tutup</button>'
+    +'<button type="button" class="btn secondary" data-a="ms-copy">📋 Salin ringkasan</button>'
+    +'<button type="button" class="btn secondary" data-a="ms-save">💾 Simpan catatan</button>'
+    +(conf?'<button type="button" class="btn secondary" data-a="ms-unconf">↺ Batalkan tanda dicek</button>'
+          :'<button type="button" class="btn good" data-a="ms-conf">✓ Selisih sudah dicek</button>');
+  $('cmOv').classList.add('show');
+}
+function msCopy(t){
+  try{if(navigator.clipboard&&window.isSecureContext)return navigator.clipboard.writeText(t)}catch(e){}
+  return new Promise((ok,no)=>{try{const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();const r=document.execCommand('copy');ta.remove();r?ok():no(new Error('copy gagal'))}catch(e){no(e)}});
+}
+async function msAct(a){
+  const x=msCur;if(!x)return;
+  const k=manKey(x),note=$('cmNote')?$('cmNote').value.trim():'',cur=noteMap[k]||{};
+  if(a==='ms-copy'){
+    const NL=String.fromCharCode(10);
+    const t=[x.status==='NOMINAL BERBEDA'?'NOMINAL PENJUALAN BERBEDA DENGAN UM':'PENJUALAN BELUM ADA UM','Tanggal: '+x.date,'Customer: '+(x.customerDisplay||x.customer),'Alamat: '+(x.alamatDisplay||x.alamat),'Sales: '+(x.salesDisplay||x.sales),'No Faktur: '+(x.factDisplay||x.fact),'Jenis bayar: '+x.pay+' / '+x.prod,'Nominal penjualan: Rp '+fmt(x.amt)].concat(x.status==='NOMINAL BERBEDA'&&x.um?['Nominal UM: Rp '+fmt(x.um.amt),'Selisih: Rp '+fmt(x.amt-x.um.amt)]:[]).concat(note?['Catatan: '+note]:[]).join(NL);
+    try{await msCopy(t);cmToast('📋 Ringkasan disalin')}catch(e){cmToast('Gagal menyalin: '+e.message)}
+    return;
+  }
+  if(a==='ms-find'){
+    const nm=x.customerDisplay||x.customer;
+    closeCm();$('q').value=nm;renderLimit=300;render();setUmView(true,'belum');
+    cmToast('UM belum terpasang difilter: '+nm+'. Kosongkan kolom cari untuk melihat semua.');
+    return;
+  }
+  let msg='';
+  if(a==='ms-conf'){noteMap[k]={at:cur.at||Date.now(),cat:Date.now(),note:note,confirmed:true};msg=x.status==='NOMINAL BERBEDA'?'✓ Ditandai sudah dicek':'✓ Dikonfirmasi belum bayar'}
+  else if(a==='ms-unconf'){if(note)noteMap[k]={at:cur.at||Date.now(),note:note,confirmed:false};else delete noteMap[k];msg='↺ Konfirmasi dibatalkan'}
+  else if(a==='ms-save'){if(note||cur.confirmed)noteMap[k]={at:cur.at||Date.now(),cat:cur.cat,note:note,confirmed:!!cur.confirmed};else delete noteMap[k];msg='Catatan disimpan'}
+  else return;
+  closeCm();cards();render();
+  try{await saveManual();cmToast(msg)}catch(e){console.error(e);cmToast('Tersimpan sementara, tapi gagal disimpan permanen: '+e.message)}
+}
+
 /* ===== UM berstatus selain LUNAS/TITIP: modal pengecekan + aksi "Data Lunas" ===== */
 const UM_DB='um-fixv1',UM_ST='um-data',UM_KEY='latest';
 function umSig(u){return [u.no_faktur,u.tanggal_laporan_str,u.section,u.nama_toko,u.alamat,u.sales,u.dropping,u.tagihan,u.minyak_cash,u.minyak_tf,u.rupa_cash,u.rupa_tf,u.total_bayar,u.ket].map(v=>String(v==null?'':v)).join('|')}
