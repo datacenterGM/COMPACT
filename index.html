@@ -171,6 +171,10 @@ td{padding:7px 9px}
 .tag-ok{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:#dcfce7;color:#166534}
 .tag-note{display:block;margin-top:2px;font-size:11px;color:#64748b;white-space:normal;max-width:320px}
 
+.tag-titip{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:#fef08a;color:#854d0e;border:1px solid #eab308}
+.tr-head{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #d7e0ea;font-size:12.5px;line-height:1.6}
+.tr-head small{display:block;color:#64748b}
+.tr-ok{color:#166534;font-weight:700}.tr-bad{color:#b91c1c;font-weight:700}
 /* ===== MODE GELAP (mengikuti tombol tema di shell) ===== */
 :root[data-theme="dark"]{color-scheme:dark}
 :root[data-theme="dark"] body{background:#0d1117;color:#e6edf3}
@@ -200,6 +204,10 @@ td{padding:7px 9px}
 :root[data-theme="dark"] .tag-man{background:#26305a;color:#a5b4fc}
 :root[data-theme="dark"] .cm-why.bad{background:#3b1a1f;border-color:#7a2a2a;color:#ffb4ac}
 :root[data-theme="dark"] .tag-ok{background:#12351f;color:#56d364}
+:root[data-theme="dark"] .tag-titip{background:#3a2e12;color:#e3b341;border-color:#7a5c14}
+:root[data-theme="dark"] .tr-head{border-bottom-color:#30363d}
+:root[data-theme="dark"] .tr-head small{color:#8b949e}
+:root[data-theme="dark"] .tr-ok{color:#56d364}:root[data-theme="dark"] .tr-bad{color:#ff7b72}
 :root[data-theme="dark"] .tag-note{color:#8b949e}
 :root[data-theme="dark"] .cm-box{background:#161b22;color:#e6edf3}
 :root[data-theme="dark"] .cm-foot{border-top-color:#30363d}
@@ -227,12 +235,13 @@ td{padding:7px 9px}
   <button class="btn secondary" id="csv">⬇️ Unduh CSV</button>
   <select id="status" hidden><option value="">Semua hasil</option><option>COCOK</option><option>NOMINAL BERBEDA</option><option>TIDAK DITEMUKAN UM</option><option>PERLU CEK MANUAL</option></select>
 </div>
-<div class="toprow"><div class="chipgrp" id="payfilters"><span class="lbl">💳 Jenis penjualan:</span><button type="button" class="mchip all active" data-pay="">Semua</button><button type="button" class="mchip" data-pay="CASH">Penjualan CASH <small id="cCash"></small></button><button type="button" class="mchip" data-pay="TEMPO">Penjualan TEMPO <small id="cTempo"></small></button></div></div>
+<div class="toprow"><div class="chipgrp" id="payfilters"><span class="lbl">💳 Jenis penjualan:</span><button type="button" class="mchip all active" data-pay="">Semua</button><button type="button" class="mchip" data-pay="CASH">Penjualan CASH <small id="cCash"></small></button><button type="button" class="mchip" data-pay="TEMPO">Penjualan TEMPO <small id="cTempo"></small></button></div><span class="grow"></span><button type="button" class="btn secondary" id="titipRecBtn">🔍 Rekonsiliasi Titip</button></div>
 <div class="cards"><div class="card" data-filter=""><span>Penjualan dicek</span><b id="nAll">0</b><small class="money" id="mAll">Rp 0</small></div><div class="card" data-filter="COCOK"><span>Cocok</span><b id="nOk">0</b><small class="money" id="mOk">Rp 0</small></div><div class="card" data-filter="NOMINAL BERBEDA"><span>Nominal berbeda</span><b id="nDiff">0</b><small class="money" id="mDiff">Rp 0</small></div><div class="card" data-filter="TIDAK DITEMUKAN UM"><span>Penjualan Belum Ada UM</span><b id="nMissing">0</b><small class="money" id="mMissing">Rp 0</small></div><div class="card" data-filter="PERLU CEK MANUAL"><span>Perlu cek manual</span><b id="nManual">0</b><small class="money" id="mManual">Rp 0</small></div></div>
 <div class="msg" id="msg">Pilih bulan penjualan (maksimal 3 bulan terakhir), lalu tekan “Jalankan Cek”. Data diambil dari tab Penjualan &amp; Uang Masuk yang sudah tersimpan di browser.</div>
 <div class="recon" id="recon" style="display:none"><span id="reconTxt"></span><span class="grow"></span><button type="button" class="btn secondary" id="reconBtn">📋 Lihat UM belum ketemu Data Penjualan</button></div>
 <div class="tablebox" id="resBox"><table><thead><tr><th>Status</th><th>Tanggal</th><th>Jenis Bayar</th><th>Produk Penjualan</th><th>Sales</th><th>Customer</th><th>Alamat</th><th>No Faktur Penjualan</th><th>Section UM</th><th>Produk UM</th><th>No Faktur UM</th><th>Nominal Penjualan</th><th>Nominal UM</th><th>Catatan</th></tr></thead><tbody id="rows"></tbody></table></div>
 <div class="tablebox" id="umBox" style="display:none"><table style="min-width:1000px"><thead><tr><th>Tgl UM</th><th>Section</th><th>Toko</th><th>Alamat</th><th>Sales</th><th>Produk</th><th>No Faktur UM</th><th>Tgl Faktur</th><th id="umStTh">Status</th><th id="umAmtTh">Nominal UM belum ketemu penjualan</th></tr></thead><tbody id="umRows"></tbody></table></div>
+<div class="tablebox" id="titipBox" style="display:none"><div class="tr-head"><div id="titipSum"></div><select id="titipFil"><option value="BELUM">Titip belum lunas</option><option value="DIFF">Hanya yang ada di Nominal berbeda</option><option value="NODIFF">Belum lunas tapi TIDAK di Nominal berbeda</option><option value="ALL">Semua titip</option></select></div><table style="min-width:1350px"><thead><tr><th>Tgl UM titip</th><th>Toko</th><th>No Faktur</th><th>Section</th><th>UM titip</th><th>Total UM masuk</th><th>Nominal faktur (data UM)</th><th>Sisa (versi Cek Data Titip)</th><th>Status Titip</th><th>Nominal penjualan (Cek)</th><th>Status di tab Cek</th><th>Keterangan</th></tr></thead><tbody id="titipRows"></tbody></table></div>
 <div class="cm-ov" id="cmOv"><div class="cm-box"><div class="cm-head"><span id="cmTitle">Detail</span><button type="button" id="cmX" title="Tutup">✕</button></div><div class="cm-body" id="cmBody"></div><div class="cm-foot" id="cmFoot"></div></div></div>
 <div class="cm-toast" id="cmToast"></div>
 <script>
@@ -488,7 +497,7 @@ function buildRecon(um,out,months,note){
     if(rest>=1){left+=rest;rows.push({date:b.date,dkey:String(u.tanggal_laporan_str||''),pay:b.pay||u.section||'',toko:u.nama_toko||'',alamat:u.alamat||'',sales:u.sales||u.dropping||'',prod:b.prod,fact:u.no_faktur||'',tf:shortDate(u.tgl_faktur_str),status:u.status||'',amt:rest,partial:au>0})}
   });
   rows.sort((x,y)=>y.dkey.localeCompare(x.dkey));xr.sort((x,y)=>y.dkey.localeCompare(x.dkey));mr.sort((x,y)=>y.dkey.localeCompare(x.dkey));
-  reconX=xr;reconM=mr;reconRows=rows;reconSum={tot,used,left,nT,nU,nX,aX,nM,aM,nL:rows.length};reconNote=note;paintRecon();if(umView)renderUm();
+  reconX=xr;reconM=mr;reconRows=rows;reconSum={tot,used,left,nT,nU,nX,aX,nM,aM,nL:rows.length};reconNote=note;paintRecon();if(umView)renderUm();if(titipView)renderTitipRec();
 }
 function curUmRows(){return umMode==='lain'?reconX.concat(reconM):reconRows}
 function paintRecon(){
@@ -501,7 +510,7 @@ function paintRecon(){
     +((r.nX||r.nM)?'<span class="seg">· <button type="button" class="lnkb" data-x="1" title="Klik untuk melihat datanya">'+(r.nX?fmt(r.nX)+' baris berstatus selain LUNAS/TITIP (Rp '+fmt(r.aX)+') tidak dihitung':'')+(r.nX&&r.nM?' · ':'')+(r.nM?fmt(r.nM)+' sudah dilunaskan manual (Rp '+fmt(r.aM)+', dihitung)':'')+' — '+(umView&&umMode==='lain'?'tutup daftar':'lihat datanya')+'</button></span>':'');
   $('reconBtn').textContent=umView?'↩ Kembali ke hasil cek':'📋 Lihat UM belum ketemu Data Penjualan ('+fmt(r.nL)+')';
 }
-function setUmView(on,mode){umView=on;if(mode)umMode=mode;$('umBox').style.display=on?'':'none';$('resBox').style.display=on?'none':'';paintRecon();if(on)renderUm()}
+function setUmView(on,mode){if(titipView){titipView=false;$('titipBox').style.display='none';$('titipRecBtn').textContent='🔍 Rekonsiliasi Titip'}umView=on;if(mode)umMode=mode;$('umBox').style.display=on?'':'none';$('resBox').style.display=on?'none':'';paintRecon();if(on)renderUm()}
 function renderUm(){
   const q=norm($('q').value),lain=umMode==='lain';
   $('umAmtTh').textContent=lain?'Nominal (tidak dihitung)':'Nominal UM belum ketemu penjualan';
@@ -520,7 +529,7 @@ document.querySelectorAll('#payfilters button').forEach(b=>b.addEventListener('c
 $('rows').addEventListener('click',e=>{if(e.target&&e.target.id==='moreRows'){renderLimit+=500;render();}});
 function setStatusFilter(st){renderLimit=300;$('status').value=st;document.querySelectorAll('#quickfilters button').forEach(b=>b.classList.toggle('active',b.dataset.filter===st));document.querySelectorAll('.card[data-filter]').forEach(c=>c.classList.toggle('selected',c.dataset.filter===st));render()}
 document.querySelectorAll('#quickfilters button').forEach(b=>b.addEventListener('click',()=>setStatusFilter(b.dataset.filter)));document.querySelectorAll('.card[data-filter]').forEach(c=>c.addEventListener('click',()=>setStatusFilter(c.dataset.filter)));
-$('run').onclick=()=>run(true);$('status').onchange=()=>setStatusFilter($('status').value);$('q').oninput=()=>{renderLimit=300;render();if(umView)renderUm()};
+$('run').onclick=()=>run(true);$('status').onchange=()=>setStatusFilter($('status').value);$('q').oninput=()=>{renderLimit=300;render();if(umView)renderUm();if(titipView)renderTitipRec()};
 $('csv').onclick=()=>{
 if(umView){const q=norm($('q').value);const ar=curUmRows().filter(x=>!q||norm([x.toko,x.alamat,x.sales,x.fact].join(' ')).includes(q));if(!ar.length){alert('Tidak ada data');return}
 const ls=['tgl_um;section;toko;alamat;sales;produk;no_faktur_um;tgl_faktur;status;'+(umMode==='lain'?'nominal_tidak_dihitung':'nominal_belum_terpasang'),...ar.map(x=>[x.date,x.pay,x.toko,x.alamat,x.sales,x.prod,x.fact,x.tf,x.status,x.amt].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';'))];
@@ -600,10 +609,80 @@ async function cmAct(a){
   closeCm();cards();render();
   try{await saveManual();cmToast(msg)}catch(e){console.error(e);cmToast('Tersimpan sementara, tapi gagal disimpan permanen: '+e.message)}
 }
+/* ===== Rekonsiliasi Titip: titip di Data UM vs hasil cek ===== */
+let titipView=false;
+function umEntriesByFact(f){const um=_umCache;if(!um||!f)return [];let r=[];['CASH DROPPING','PIUTANG TEMPO'].forEach(k=>{const g=um.idx[k];if(g){const l=g.byFact.get(f);if(l)r=r.concat(l)}});if(um.other)r=r.concat(um.other.filter(e=>e.b.fact===f));return r}
+function titipInfo(x){
+  const es=umEntriesByFact(x.fact);if(!es.length)return null;
+  return {n:es.length,paid:es.reduce((s,e)=>s+num(e.b.amt),0),hasT:es.some(e=>String((e.b.raw||{}).status||'').toUpperCase()==='TITIP')};
+}
+function titipRecData(){
+  const um=_umCache;if(!um)return null;
+  const months=selectedMonths.has('ALL')?allowedMonths:selectedMonths;
+  const g=new Map();
+  const add=e=>{const f=e.b.fact;if(!f)return;let a=g.get(f);if(!a){a=[];g.set(f,a)}a.push(e)};
+  ['CASH DROPPING','PIUTANG TEMPO'].forEach(k=>{if(um.idx[k])um.idx[k].all.forEach(add)});
+  (um.other||[]).forEach(add);
+  const byRes=new Map();results.forEach(r=>{if(!r.fact)return;let a=byRes.get(r.fact);if(!a){a=[];byRes.set(r.fact,a)}a.push(r)});
+  const salesBy=new Map();(allSalesCache||[]).forEach(s=>{const k=norm(field(s,['No. Faktur','No Faktur','Faktur']));if(k&&!salesBy.has(k))salesBy.set(k,s)});
+  const st=e=>String((e.b.raw||{}).status||'').toUpperCase(),ds=e=>String((e.b.raw||{}).tanggal_laporan_str||'');
+  const rows=[];
+  g.forEach((es,f)=>{
+    const orig=es.filter(e=>st(e)==='TITIP'&&months.has(ds(e).slice(0,7))).sort((a,b)=>ds(a).localeCompare(ds(b)));
+    if(!orig.length)return;
+    const o=orig[0],ou=o.b.raw||{};
+    const paid=es.reduce((s,e)=>s+num(e.b.amt),0);
+    const nom=Math.max(0,...es.map(e=>num((e.b.raw||{}).tagihan)));
+    const lunasFlag=ou.titip_aksi==='LUNAS'||es.some(e=>(st(e)==='LUNAS'||(e.b.raw||{}).lunas_manual===true)&&ds(e)>ds(o));
+    let sisa=nom>0?Math.max(0,nom-paid):num(o.b.amt);
+    const lunas=lunasFlag||(nom>0&&sisa<=0);if(lunas)sisa=0;
+    const rs=byRes.get(f)||[],stSet=[...new Set(rs.map(r=>r.status))],jual=rs.reduce((s,r)=>s+num(r.amt),0);
+    let cekSt='—',ket='';
+    if(rs.length){
+      cekSt=stSet.join(' + ');
+      if(stSet.includes('NOMINAL BERBEDA'))ket='Masuk Nominal berbeda';
+      else if(stSet.includes('TIDAK DITEMUKAN UM'))ket='UM titip ada, tapi tidak terpasang ke penjualan (cek identitas toko, tanggal faktur, jenis bayar)';
+      else if(stSet.includes('PERLU CEK MANUAL'))ket='Perlu cek manual';
+      else ket='Cocok: total UM sudah sama dengan nominal penjualan';
+    }else{
+      const s=salesBy.get(f);
+      if(s){const mk=monthKeyFromDate(field(s,['Tanggal','Tgl']));ket=months.has(mk)?'Penjualan ada tapi faktur batal / bernilai Rp 0 (tidak dicek)':'Penjualan ada di bulan '+bulanLabel(mk)+' (di luar filter bulan penjualan)'}
+      else ket='Tidak ada data penjualan dengan No Faktur ini';
+    }
+    rows.push({dkey:ds(o),date:shortDate(ds(o)),toko:ou.nama_toko||'',fact:ou.no_faktur||'',pay:o.b.pay||ou.section||'',titipAmt:num(o.b.amt),paid,nom,sisa,lunas,jual,cekSt,ket,isDiff:stSet.includes('NOMINAL BERBEDA')});
+  });
+  rows.sort((a,b)=>(a.lunas-b.lunas)||b.dkey.localeCompare(a.dkey));
+  return {rows,months};
+}
+function renderTitipRec(){
+  const d=titipRecData();
+  if(!d){$('titipRows').innerHTML='<tr><td colspan="12" style="text-align:center;padding:12px">Jalankan cek dahulu.</td></tr>';$('titipSum').innerHTML='';return}
+  const fil=$('titipFil').value,q=norm($('q').value);
+  const R=d.rows,belum=R.filter(r=>!r.lunas),diff=R.filter(r=>r.isDiff),bnd=belum.filter(r=>!r.isDiff);
+  const sum=a=>a.reduce((s,r)=>s+r.sisa,0);
+  $('titipSum').innerHTML='<b>Titip di Data Uang Masuk</b> (bulan laporan: '+esc([...d.months].sort().map(bulanLabel).join(', '))+') — <b>'+fmt(R.length)+'</b> faktur<br>'
+    +'Belum lunas: <b>'+fmt(belum.length)+'</b> (sisa Rp '+fmt(sum(belum))+') · Masuk Nominal berbeda: <b>'+fmt(diff.length)+'</b> · Belum lunas tapi <b>tidak</b> di Nominal berbeda: <b class="'+(bnd.length?'tr-bad':'tr-ok')+'">'+fmt(bnd.length)+'</b>'
+    +'<small>Sisa = nominal faktur (data UM) − total UM masuk. Nominal berbeda = nominal penjualan − UM. Dua angka ini memang bisa tidak sama. Satu baris = satu faktur.</small>';
+  let L=fil==='BELUM'?belum:fil==='DIFF'?diff:fil==='NODIFF'?bnd:R;
+  L=L.filter(r=>!q||norm([r.toko,r.fact,r.ket].join(' ')).includes(q));
+  $('titipRows').innerHTML=L.map(r=>'<tr><td>'+esc(r.date)+'</td><td>'+esc(r.toko)+'</td><td>'+esc(r.fact)+'</td><td>'+esc(r.pay)+'</td><td>'+fmt(r.titipAmt)+'</td><td>'+fmt(r.paid)+'</td><td>'+fmt(r.nom)+'</td><td>'+fmt(r.sisa)+'</td><td>'+(r.lunas?'<span class="tr-ok">SUDAH LUNAS</span>':'<span class="tag-titip" style="margin:0">BELUM LUNAS</span>')+'</td><td>'+(r.jual?fmt(r.jual):'-')+'</td><td>'+esc(r.cekSt)+'</td><td style="white-space:normal;min-width:260px">'+esc(r.ket)+'</td></tr>').join('')||'<tr><td colspan="12" style="text-align:center;padding:12px">Tidak ada data pada tampilan ini.</td></tr>';
+}
+function setTitipView(on){
+  if(on&&!_umCache){cmToast('Jalankan cek dahulu');return}
+  titipView=on;
+  $('resBox').style.display=on?'none':(umView?'none':'');
+  $('umBox').style.display=on?'none':(umView?'':'none');
+  $('titipBox').style.display=on?'':'none';
+  $('titipRecBtn').textContent=on?'↩ Kembali ke hasil cek':'🔍 Rekonsiliasi Titip';
+  if(on)renderTitipRec();
+}
+$('titipRecBtn').onclick=()=>setTitipView(!titipView);
+$('titipFil').onchange=renderTitipRec;
+
 /* ===== PENJUALAN BELUM ADA UM: modal detail + keterangan + aksi ===== */
 let msCur=null;
 function noteOk(x){return !x.manual&&(x.status==='TIDAK DITEMUKAN UM'||x.status==='NOMINAL BERBEDA')}
-function missTag(x){const n=noteOk(x)&&noteMap[manKey(x)];return n&&n.confirmed?'<span class="tag-ok" title="Sudah dikonfirmasi">'+(x.status==='NOMINAL BERBEDA'?'✓ sudah dicek':'✓ dikonfirmasi')+'</span>':''}
+function missTag(x){let s='';if(x.status==='NOMINAL BERBEDA'&&!x.manual){const t=titipInfo(x);if(t&&t.hasT)s='<span class="tag-titip" title="UM faktur ini berstatus TITIP">TITIP</span>'}const n=noteOk(x)&&noteMap[manKey(x)];return s+(n&&n.confirmed?'<span class="tag-ok" title="Sudah dikonfirmasi">'+(x.status==='NOMINAL BERBEDA'?'✓ sudah dicek':'✓ dikonfirmasi')+'</span>':'')}
 function noteTxt(x){const n=noteOk(x)&&noteMap[manKey(x)];return n&&n.note?'<span class="tag-note">📝 '+esc(n.note)+'</span>':''}
 function notePlain(x){const n=noteOk(x)&&noteMap[manKey(x)];return n&&n.note?' | Catatan: '+n.note:''}
 /* UM yang belum terpasang ke penjualan mana pun, tapi tokonya / fakturnya mirip */
@@ -657,6 +736,8 @@ function openDiff(x){
   h+='<div class="cm-why bad"><b>⚠ Nominal penjualan berbeda dengan Uang Masuk</b><br>'
     +(um?'Penjualan <b>Rp '+fmt(x.amt)+'</b> · Uang Masuk <b>Rp '+fmt(um.amt)+'</b> · '+(sel>0?'UM kurang <b>Rp '+fmt(sel)+'</b>':'UM lebih <b>Rp '+fmt(-sel)+'</b>')+'.':'Nominal tidak sama dengan Uang Masuk.')
     +'<small>'+esc(x.note)+'</small></div>';
+  const ti=titipInfo(x);
+  if(ti&&ti.hasT)h+='<div class="cm-why"><span class="tag-titip" style="margin:0 6px 0 0">TITIP</span><b>Uang Masuk faktur ini berstatus TITIP</b> — '+fmt(ti.n)+' catatan UM, total masuk <b>Rp '+fmt(ti.paid)+'</b> dari penjualan Rp '+fmt(x.amt)+', sisa <b>Rp '+fmt(Math.max(0,x.amt-ti.paid))+'</b>.<small>Faktur ini juga muncul di tab Uang Masuk → Cek Data Titip. Angka sisa di sana dihitung dari nominal faktur di data UM, sedangkan di sini dari nominal penjualan, jadi bisa sedikit berbeda.</small></div>';
   if(conf)h+='<div class="cm-why ok">✓ Selisih sudah <b>dicek</b> pada '+esc(new Date(n.cat||n.at||Date.now()).toLocaleString('id-ID'))+'.</div>';
   if(um)h+='<div class="cm-sec"><h4>Perbandingan dengan Uang Masuk</h4>'+cmCompare(x,um)+'</div>';
   h+='<div class="cm-sec"><label class="cm-lbl" for="cmNote">Catatan hasil pengecekan (opsional)</label><textarea id="cmNote" placeholder="Contoh: toko potong retur Rp 50.000, sisa ditagih minggu depan"></textarea>'
