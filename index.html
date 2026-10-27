@@ -255,7 +255,7 @@ const BULAN=['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustu
 const norm=v=>String(v??'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9]/g,'');
 const num=v=>{if(typeof v==='number')return v;let s=String(v??'').replace(/[^0-9,.-]/g,'');if(s.includes(',')&&!s.includes('.'))s=s.replace(',','.');else s=s.replace(/,/g,'');return Number(s)||0};
 const fmt=n=>Number(n||0).toLocaleString('id-ID');
-const dbRead=(name,store,key)=>new Promise((resolve,reject)=>{const req=indexedDB.open(name,1);req.onerror=()=>reject(req.error);req.onsuccess=()=>{const db=req.result;if(!db.objectStoreNames.contains(store)){db.close();resolve(null);return}const r=db.transaction(store,'readonly').objectStore(store).get(key);r.onsuccess=()=>{db.close();resolve(r.result||null)};r.onerror=()=>{db.close();reject(r.error)}}});
+const dbRead=(name,store,key)=>new Promise((resolve,reject)=>{const req=indexedDB.open(name);req.onerror=()=>reject(req.error);req.onsuccess=()=>{const db=req.result;if(!db.objectStoreNames.contains(store)){db.close();resolve(null);return}const r=db.transaction(store,'readonly').objectStore(store).get(key);r.onsuccess=()=>{db.close();resolve(r.result||null)};r.onerror=()=>{db.close();reject(r.error)}}});
 function field(o,keys){for(const k of keys){if(o[k]!==undefined&&o[k]!==null&&String(o[k]).trim()!=='')return o[k]}const map={};Object.keys(o||{}).forEach(k=>map[norm(k)]=o[k]);for(const k of keys){const v=map[norm(k)];if(v!==undefined&&v!==null&&String(v).trim()!=='')return v}return ''}
 function isFitri(r){return /fitri/i.test(String(field(r,['Produk','product','kategori','jenis produk'])))}function product(r){return isFitri(r)?'MINYAK':'RUPA RUPA'}
 function pay(r){let p=norm(field(r,['Pembayaran','jenis pembayaran','payment']));return p.includes('cash')?'CASH':p.includes('tempo')?'TEMPO':''}
@@ -1049,20 +1049,34 @@ const fmtT = t => t ? new Date(t).toLocaleString('id-ID', { day: 'numeric', mont
 const rq = r => new Promise((ok, no) => { r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
 const txd = t => new Promise((ok, no) => { t.oncomplete = ok; t.onerror = t.onabort = () => no(t.error); });
 const idb = (d, s, kp) => new Promise((ok, no) => {
-  /* Pastikan object store 's' ada. Bila database ada tetapi store-nya hilang, database kosong itu dibuat ulang (versi 1). */
+  /* Pastikan object store 's' ada TANPA menghapus data.
+     - Dibuka tanpa nomor versi -> tidak ada VersionError bila halaman lain sudah menaikkan versi.
+     - Database belum ada -> dibuat (v1) beserta store-nya.
+     - Database ada tapi TANPA satupun store (sisa pembuatan kosong) -> aman dihapus & dibuat ulang v1 (kompatibel dengan halaman lain).
+     - Database ada, punya store lain tapi tidak punya 's' -> naikkan versi & tambah store (data lain tidak disentuh). */
   let done = false;
   const tm = setTimeout(() => { if (!done) { done = true; no(new Error('Penyimpanan browser sedang dipakai tab lain. Tutup tab lain aplikasi ini, lalu muat ulang.')); } }, 10000);
   const fin = (f, v) => { if (done) { if (f === ok && v && v.close) v.close(); return; } done = true; clearTimeout(tm); f(v); };
+  const mk = db => { if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, kp ? { keyPath: kp } : undefined); };
+  const good = db => { db.onversionchange = () => db.close(); return db; };
   const open = retry => {
-    const r = indexedDB.open(d, 1);
-    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(s)) r.result.createObjectStore(s, kp ? { keyPath: kp } : undefined); };
+    const r = indexedDB.open(d);
+    r.onupgradeneeded = () => mk(r.result);
     r.onsuccess = () => {
-      const db = r.result; db.onversionchange = () => db.close();
-      if (db.objectStoreNames.contains(s)) return fin(ok, db);
+      const db = r.result;
+      if (db.objectStoreNames.contains(s)) return fin(ok, good(db));
+      const empty = db.objectStoreNames.length === 0, nv = db.version + 1;
       db.close();
       if (retry) return fin(no, new Error('Penyimpanan "' + s + '" tidak dapat dibuat di browser ini.'));
-      const del = indexedDB.deleteDatabase(d);
-      del.onsuccess = () => open(true); del.onerror = () => fin(no, del.error);
+      if (empty) {
+        const del = indexedDB.deleteDatabase(d);
+        del.onsuccess = () => open(true); del.onerror = () => fin(no, del.error);
+      } else {
+        const u = indexedDB.open(d, nv);
+        u.onupgradeneeded = () => mk(u.result);
+        u.onsuccess = () => fin(ok, good(u.result));
+        u.onerror = () => fin(no, u.error);
+      }
     };
     r.onerror = () => fin(no, r.error);
   };
@@ -1076,33 +1090,123 @@ const b64 = u => new Promise(r => { const f = new FileReader(); f.onload = () =>
 const unb64 = async s => new Uint8Array(await (await fetch('data:application/octet-stream;base64,' + s)).arrayBuffer());
 
 /* ---------- snapshot / apply ---------- */
+async function readOne(c) {
+  const db = await idb(c.db, c.st, c.kp);
+  try { const s = db.transaction(c.st).objectStore(c.st); return await rq(c.kp ? s.getAll() : s.get('latest')); }
+  finally { db.close(); }
+}
 async function snap() {
   const o = { v: 1, at: new Date().toISOString(), d: {} };
-  for (const c of DBS) {
-    const db = await idb(c.db, c.st, c.kp), s = db.transaction(c.st).objectStore(c.st);
-    o.d[c.k] = await rq(c.kp ? s.getAll() : s.get('latest')); db.close();
-  }
+  for (const c of DBS) o.d[c.k] = await readOne(c);
   return o;
 }
+/* ---------- sidik jari ringan ----------
+   Pengganti JSON.stringify + SHA-256 atas seluruh isi (puluhan MB base64) yang dulu dijalankan tiap siklus sinkron.
+   Cukup satu putaran hash 2 jalur (FNV-1a + pencampur kedua) langsung pada data hasil baca, tanpa membuat string JSON
+   raksasa / TextEncoder / digest, dan memberi kesempatan UI bernapas tiap ±1 juta karakter. Seluruh byte tetap ikut
+   dihitung, jadi perubahan sekecil apa pun terdeteksi (tidak memakai sampling). */
+const tick = () => new Promise(r => setTimeout(r, 0));
+async function fpWalk(v, st) {
+  const mixc = c => { st.a = Math.imul(st.a ^ c, 16777619) >>> 0; st.b = Math.imul(st.b ^ c, 2654435761); st.b = (st.b ^ (st.b >>> 15)) >>> 0; };
+  const small = t => { for (let i = 0; i < t.length; i++) mixc(t.charCodeAt(i)); };
+  if (v == null) { mixc(0); return; }
+  const t = typeof v;
+  if (t === 'string') {
+    mixc(1); mixc(v.length & 0xffff); mixc(v.length >>> 16);
+    for (let i = 0; i < v.length; i += 65536) {
+      const e = Math.min(v.length, i + 65536);
+      let a = st.a, b = st.b;
+      for (let j = i; j < e; j++) { const c = v.charCodeAt(j); a = Math.imul(a ^ c, 16777619); b = Math.imul(b ^ c, 2654435761); b ^= b >>> 15; }
+      st.a = a >>> 0; st.b = b >>> 0;
+      if ((st.w += e - i) >= 1000000) { st.w = 0; await tick(); }
+    }
+    return;
+  }
+  if (t === 'number' || t === 'boolean' || t === 'bigint') { mixc(2); small(String(v)); return; }
+  if (v instanceof Date) { mixc(3); small(String(v.getTime())); return; }
+  if (v instanceof ArrayBuffer || ArrayBuffer.isView(v)) {
+    const u = v instanceof ArrayBuffer ? new Uint8Array(v) : new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+    mixc(4); small(String(u.length));
+    for (let i = 0; i < u.length; i++) { mixc(u[i]); if ((++st.w) >= 1000000) { st.w = 0; await tick(); } }
+    return;
+  }
+  if (Array.isArray(v)) { mixc(5); small(String(v.length)); for (const x of v) await fpWalk(x, st); return; }
+  if (t === 'object') {
+    mixc(6);
+    for (const k of Object.keys(v)) { mixc(7); small(k); await fpWalk(v[k], st); }
+    return;
+  }
+  mixc(8);
+}
+const fpNew = () => ({ a: 2166136261, b: 40503, w: 0 });
+const fpEnd = st => st.a.toString(36) + '.' + st.b.toString(36);
+const lenOf = x => Array.isArray(x) ? x.length : (x && typeof x === 'object' ? Object.keys(x).length : 0);
+const cntOf = (k, v) => {
+  if (v == null) return 0;
+  if (k === 'penjualan') return v.files ? v.files.length : 0;
+  if (k === 'uangmasuk') return v.records ? v.records.length : 0;
+  if (k === 'ar') return Array.isArray(v) ? v.length : 0;
+  /* pjbatal / pjharga / cekmanual = keputusan manual (faktur batal, perubahan harga beli, konfirmasi cek):
+     hitung semua entri di dalamnya, karena ini data berharga yang tidak bisa dibuat ulang dari Excel. */
+  if (typeof v !== 'object') return 0;
+  let n = 0; for (const f of Object.keys(v)) n += lenOf(v[f]); return n;
+};
+/* Baca tiap database satu per satu, hitung sidik jari, lalu lepaskan datanya (tidak ditahan di memori). */
+async function quick() {
+  const st = fpNew(); let n = 0;
+  for (const c of DBS) {
+    let v = await readOne(c);
+    await fpWalk(c.k, st); await fpWalk(v, st);
+    n += cntOf(c.k, v); v = null;
+  }
+  return { fp: fpEnd(st), empty: !n };
+}
+/* Sidik jari dari snapshot yang SUDAH ada (dipakai setelah upload; tidak membaca ulang database). */
+async function fpOfSnap(o) {
+  const st = fpNew();
+  for (const c of DBS) { await fpWalk(c.k, st); await fpWalk(o.d[c.k], st); }
+  return fpEnd(st);
+}
+
+function validBackup(c, v) {
+  if (v == null) return true;
+  if (c.kp) return Array.isArray(v) && v.every(x => x && typeof x === 'object' && x[c.kp] != null);
+  return typeof v === 'object';
+}
 async function apply(o) {
+  /* 1) Validasi SEMUA bagian dulu, sebelum ada data yang disentuh. */
+  for (const c of DBS) {
+    if (!(c.k in o.d)) continue;
+    if (!validBackup(c, o.d[c.k])) throw new Error('Backup tidak valid pada bagian "' + c.k + '". Restore dibatalkan, data tidak diubah.');
+  }
+  /* 2) Tulis per database: satu transaksi, di-abort bila ada error, db selalu ditutup. */
   for (const c of DBS) {
     if (!(c.k in o.d)) continue;                              /* backup lama (sebelum ada tab ini): jangan hapus data yang ada */
-    const db = await idb(c.db, c.st, c.kp), tx = db.transaction(c.st, 'readwrite'), s = tx.objectStore(c.st), v = o.d[c.k];
-    s.clear();
-    if (c.kp) (v || []).forEach(x => s.put(x)); else if (v) s.put(v, 'latest');
-    await txd(tx); db.close();
+    const db = await idb(c.db, c.st, c.kp);
+    try {
+      const tx = db.transaction(c.st, 'readwrite'), s = tx.objectStore(c.st), v = o.d[c.k];
+      try {
+        if (c.kp && s.keyPath !== c.kp) throw new Error('Struktur penyimpanan "' + c.db + '" berbeda dari yang diharapkan. Restore bagian ini dibatalkan.');
+        s.clear();
+        if (c.kp) (v || []).forEach(x => s.put(x)); else if (v) s.put(v, 'latest');
+      } catch (e) { try { tx.abort(); } catch (_) {} throw e; }
+      await txd(tx);
+    } finally { db.close(); }
   }
 }
 function cnt(o) {
-  const d = o.d, n = (x, k) => (x && x[k] ? x[k].length : 0);
-  return {
-    p: n(d.penjualan, 'files'),
-    u: n(d.uangmasuk, 'records'),
-    a: Array.isArray(d.ar) ? d.ar.length : 0,
-  };
+  const d = o.d || {};
+  return { p: cntOf('penjualan', d.penjualan), u: cntOf('uangmasuk', d.uangmasuk), a: cntOf('ar', d.ar),
+    b: cntOf('pjbatal', d.pjbatal), h: cntOf('pjharga', d.pjharga), m: cntOf('cekmanual', d.cekmanual) };
 }
-const sum = o => { const c = cnt(o); return `Penjualan: ${c.p.toLocaleString("id-ID")} file • Uang Masuk: ${c.u.toLocaleString("id-ID")} baris • AR: ${c.a.toLocaleString("id-ID")} file`; };
-const isEmpty = o => { const c = cnt(o); return !c.p && !c.u && !c.a; };
+const sum = o => {
+  const c = cnt(o), f = x => x.toLocaleString("id-ID"), man = c.b + c.h + c.m;
+  return `Penjualan: ${f(c.p)} file • Uang Masuk: ${f(c.u)} baris • AR: ${f(c.a)} file` + (man ? ` • Keputusan manual: ${f(man)} (batal ${f(c.b)}, harga ${f(c.h)}, cek ${f(c.m)})` : '');
+};
+/* Kosong = TIDAK ADA data apa pun, termasuk keputusan manual. */
+const isEmpty = o => { const c = cnt(o); return !(c.p || c.u || c.a || c.b || c.h || c.m); };
+/* Data inti (hasil upload Excel/AR). Device yang hanya punya keputusan manual tidak boleh diam-diam menimpa cloud. */
+const coreEmpty = o => { const c = cnt(o); return !(c.p || c.u || c.a); };
 async function pack(o) { const u = utf8(enc(o)); return HAS_GZ ? pipe(u, CompressionStream) : u; }
 async function unpack(u) {
   if (u[0] === 0x1f && u[1] === 0x8b) u = await pipe(u, DecompressionStream);
@@ -1142,17 +1246,19 @@ function initCode() {
   if (LS.getItem('syncCodeManual') === '1') return;
   if (LS.getItem('syncCode') !== DEFAULT_CODE) {
     LS.setItem('syncCode', DEFAULT_CODE);
-    LS.removeItem('syncLast'); LS.removeItem('syncHash');   /* kode berubah -> tentukan ulang arah sinkron */
+    LS.removeItem('syncLast'); LS.removeItem('syncHash'); LS.removeItem('syncFp');   /* kode berubah -> tentukan ulang arah sinkron */
   }
 }
 initCode();
 function getCode(force) {
   let c = force ? null : LS.getItem('syncCode');
   if (!c) {
-    c = (prompt('Ganti KODE SINKRON (minimal 6 karakter).\nGunakan kode yang SAMA di semua device.\nKosongkan lalu OK untuk kembali ke kode bawaan (otomatis).') || '').trim();
+    const ans = prompt('Ganti KODE SINKRON (minimal 6 karakter).\nGunakan kode yang SAMA di semua device.\nKosongkan lalu OK untuk kembali ke kode bawaan (otomatis).');
+    if (ans === null) return LS.getItem('syncCode');   /* Cancel = tidak berubah */
+    c = ans.trim();
     if (!c) { LS.removeItem('syncCodeManual'); initCode(); return LS.getItem('syncCode'); }
     if (c.length < 6) throw new Error('Kode Sinkron minimal 6 karakter.');
-    LS.setItem('syncCode', c); LS.setItem('syncCodeManual', '1'); LS.removeItem('syncLast'); LS.removeItem('syncHash');
+    LS.setItem('syncCode', c); LS.setItem('syncCodeManual', '1'); LS.removeItem('syncLast'); LS.removeItem('syncHash'); LS.removeItem('syncFp');
   }
   return c;
 }
@@ -1161,8 +1267,13 @@ async function cloudMeta(c) {
   return r && r[0] ? { ver: r[0].ver, ...JSON.parse(r[0].data) } : null;
 }
 async function upload() {
-  const code = getCode(), o = await snap();
+  const code = getCode(), o = await snap();   /* hanya satu kali baca penuh per upload */
   if (isEmpty(o)) throw new Error('Device ini belum punya data. Upload dibatalkan supaya data di cloud tidak tertimpa kosong.');
+  if (coreEmpty(o)) {
+    /* Hanya ada keputusan manual (batal/harga/cek), belum ada data Penjualan / Uang Masuk / AR. */
+    const m0 = await cloudMeta(code).catch(() => null);
+    if (m0 && !confirm('Device ini baru punya keputusan manual (' + sum(o).split(' • ').pop() + '), belum ada data Penjualan / Uang Masuk / AR.\n\nUpload akan MENIMPA data di cloud (' + fmtT(m0.ver) + ') dengan isi yang hampir kosong.\n\nSaran: batalkan, lalu pilih "Ambil Data Terbaru" dulu.\n\nTetap upload?')) throw new Error('Upload dibatalkan.');
+  }
   msg('Menyiapkan data...');
   const s = await b64(await seal(await pack(o), code)), ns = await nsOf(code), ver = new Date().toISOString(), n = Math.ceil(s.length / CHUNK);
   for (let i = 0; i < n; i++) {
@@ -1171,7 +1282,7 @@ async function upload() {
   }
   await sb('laporan_sync', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify([{ ns, ver, part: -1, data: JSON.stringify({ n, at: ver }) }]) });
   await sb(`laporan_sync?ns=eq.${ns}&ver=lt.${encodeURIComponent(ver)}`, { method: 'DELETE' }).catch(() => {});
-  LS.setItem('syncLast', ver); LS.setItem('syncHash', await hashOf(o)); autoPaused = false; msg('✅ Upload ke cloud berhasil.\n' + sum(o));
+  LS.setItem('syncLast', ver); LS.setItem('syncFp', await fpOfSnap(o)); LS.removeItem('syncHash'); autoPaused = false; msg('✅ Upload ke cloud berhasil.\n' + sum(o));
 }
 async function download(silent) {
   /* Ambil dari cloud memakai Kode Sinkron yang sudah tersimpan di perangkat.
@@ -1186,7 +1297,7 @@ async function download(silent) {
   if (!rows || rows.length !== m.n) throw new Error('Data cloud belum lengkap, coba lagi.');
   const o = await unpack(await unseal(await unb64(rows.map(r => r.data).join('')), code));
   if (!silent && !confirm(`Ambil data dari cloud (${fmtT(m.ver)})?\n\n${sum(o)}\n\nData di device ini akan DITIMPA.`)) return msg('Dibatalkan.');
-  await apply(o); LS.setItem('syncLast', m.ver); LS.setItem('syncHash', await hashOf(await snap())); msg('✅ Selesai. Memuat ulang...'); setTimeout(() => location.reload(), 700);
+  await apply(o); LS.setItem('syncLast', m.ver); LS.setItem('syncFp', (await quick()).fp); LS.removeItem('syncHash'); msg('✅ Selesai. Memuat ulang...'); setTimeout(() => location.reload(), 700);
 }
 
 /* ---------- aksi backup ---------- */
@@ -1221,7 +1332,7 @@ const A = {
   },
   rsFile() { $('#bkFile').value = ''; $('#bkFile').click(); },
   up: upload, down: download,
-  async code() { const c = getCode(true); msg('Kode Sinkron disimpan.'); }
+  async code() { const before = LS.getItem('syncCode'), c = getCode(true); msg(c === before ? 'Kode Sinkron tidak diubah.' : 'Kode Sinkron disimpan.'); }
 };
 
 
@@ -1277,7 +1388,13 @@ async function runSync(trigger) {
   try {
     pill('⏳ Mengecek sinkron...', 'busy');
     const code = LS.getItem('syncCode'), m = await cloudMeta(code);
-    const o = await snap(), h = await hashOf(o), lh = LS.getItem('syncHash'), ll = LS.getItem('syncLast'), empty = isEmpty(o);
+    const q = await quick(), h = q.fp, empty = q.empty, ll = LS.getItem('syncLast');
+    let lh = LS.getItem('syncFp');
+    if (!lh && LS.getItem('syncHash')) {   /* migrasi sekali dari format hash lama (isi penuh) */
+      const same = (await hashOf(await snap())) === LS.getItem('syncHash');
+      lh = same ? h : 'legacy-mismatch'; if (same) LS.setItem('syncFp', h);
+      LS.removeItem('syncHash');
+    }
     const dirty = lh ? h !== lh : !empty;
     let act = decide(m, ll, dirty, empty, load);
     if (act === 'conflict' && autoPaused) act = 'warn';
