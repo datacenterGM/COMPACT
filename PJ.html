@@ -817,15 +817,14 @@
         try { const bc = new BroadcastChannel('laporan-data'); bc.postMessage('penjualan'); bc.close(); } catch (e) {}
       } catch (e) { console.warn('Cache parse penjualan gagal disimpan:', e); }
     }
-    /* Pangkas rentang sheet (!ref) ke sel yang benar-benar berisi.
-       File export sering menyimpan dimensi sampai baris 1.048.576 / kolom XFD walau isinya hanya beberapa ribu baris;
-       sheet_to_json lalu mencoba membuat array raksasa dan gagal ("Invalid array length"). Titik awal rentang tidak diubah. */
+    /* Pangkas rentang sheet (!ref) ke sel yang benar-benar berisi . */
     function trimSheetRange(sheet) {
-      const ref = sheet && sheet['!ref']; if (!ref) return;
+      if (!sheet) return;
+      const ref = sheet['!ref']; if (!ref) return;
       const rg = XLSX.utils.decode_range(ref);
       let mr = -1, mc = -1;
       for (const k in sheet) {
-        if (k.charCodeAt(0) === 33) continue;               // lewati kunci '!ref', '!merges', dst.
+        if (k.charCodeAt(0) === 33) continue;             // lewati kunci '!ref', '!merges', dst.
         const a = XLSX.utils.decode_cell(k);
         if (a.r > mr) mr = a.r; if (a.c > mc) mc = a.c;
       }
@@ -833,6 +832,23 @@
       if (mr < rg.e.r) rg.e.r = Math.max(mr, rg.s.r);
       if (mc < rg.e.c) rg.e.c = Math.max(mc, rg.s.c);
       sheet['!ref'] = XLSX.utils.encode_range(rg);
+    }
+    /* Baca sheet pertama jadi baris. Bila gagal ("Invalid array length" dsb), coba cara lain secara berurutan. */
+    function readFirstSheetRows(buffer) {
+      const tries = [
+        ['normal', { type: 'array', cellDates: true }],
+        ['batas-baris', { type: 'array', cellDates: true, sheetRows: 300000 }]
+      ];
+      const errs = [];
+      for (const [label, opt] of tries) {
+        try {
+          const wb = XLSX.read(buffer, opt);
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          trimSheetRange(sheet);
+          return XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
+        } catch (e) { errs.push(label + ': ' + ((e && e.message) || e)); console.warn('[PJ] baca Excel cara "' + label + '" gagal:', e); }
+      }
+      throw new Error(errs.join(' | ') + ' | ukuran ' + (buffer.byteLength / 1048576).toFixed(1) + ' MB');
     }
     function bufFp(buf) {
       const u = new Uint8Array(buf); let h = 2166136261;
@@ -880,11 +896,7 @@
             continue;
           }
           const fileRows = [];
-          const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
-          const sheetName = wb.SheetNames[0];
-          const sheet = wb.Sheets[sheetName];
-          trimSheetRange(sheet);   // file Excel dengan format sel sampai baris terakhir -> "Invalid array length"
-          const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
+          const rows = readFirstSheetRows(buffer);   // bertahap + pangkas rentang sheet (cegah "Invalid array length")
 
           rows.forEach(r => {
             let prodName = String(r['Produk'] || '').trim();

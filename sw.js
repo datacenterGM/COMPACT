@@ -1,5 +1,5 @@
 /* Service worker — Laporan (PWA). Naikkan VERSION setiap kali salah satu file HTML diganti agar cache lama dibuang. */
-const VERSION = 'laporan-v7';
+const VERSION = 'laporan-v8';
 
 /* File aplikasi sendiri (di-cache saat pertama kali dipasang) */
 const SHELL = ['./', 'index.html', 'UM.html', 'PJ.html', 'CEK.html', 'AR.html', 'backup.js', 'theme.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
