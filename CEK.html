@@ -227,6 +227,8 @@ function umProds(recs) {
   return U;
 }
 const firstOf = (recs, f) => recs.map(f).find(v => v && String(v).trim()) || '';
+/* Sales di Uang Masuk: "ALIM(RAJU)" = penerima uang ALIM, sales di faktur RAJU -> yang dibandingkan hanya isi kurung */
+const salesOf = v => { const t = String(v || '').trim(), m = t.match(/\(([^()]*)\)/); return m && m[1].trim() ? m[1].trim() : t; };
 const wantSec = pay => /^tempo$/i.test(pay) ? 'PIUTANG' : /^cash$/i.test(pay) ? 'CASH' : '';
 
 function build() {
@@ -270,7 +272,7 @@ function build() {
   orph.forEach(o => {
     const f0 = o.recs[0], paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0);
     const tg = Math.max(0, ...o.recs.map(r => Number(r.tagihan) || 0));
-    const toko = firstOf(o.recs, r => r.nama_toko), alm = firstOf(o.recs, r => r.alamat), sls = firstOf(o.recs, r => r.sales);
+    const toko = firstOf(o.recs, r => r.nama_toko), alm = firstOf(o.recs, r => r.alamat), sls = salesOf(firstOf(o.recs, r => r.sales));
     const U = umProds(o.recs), sec = f0.section;
     const d0 = days(String(o.recs.map(r => r.tanggal_laporan_str).sort()[0] || '').replace(/-/g, ''));
     const kn = norm(o.k);
@@ -311,7 +313,7 @@ function build() {
   orph.filter(o => !o.taken && !o.from).forEach(o => {
     const f = o.recs[0], paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0), U = umProds(o.recs);
     const d0 = o.recs.map(r => r.tanggal_laporan_str).filter(Boolean).sort()[0] || '';
-    const toko = firstOf(o.recs, r => r.nama_toko), alm = firstOf(o.recs, r => r.alamat), sls = firstOf(o.recs, r => r.sales);
+    const toko = firstOf(o.recs, r => r.nama_toko), alm = firstOf(o.recs, r => r.alamat), sls = salesOf(firstOf(o.recs, r => r.sales));
     INV.push({
       orph: true, fk: o.k, tanggal: dmy(d0), faktur: f.no_faktur, total: paid, sales: sls, customer: toko, alamat: alm,
       prod: U.size ? setLabel(U) : '-', pay: f.section === 'PIUTANG' ? 'Tempo' : f.section === 'CASH' ? 'Cash' : '', month: d0.slice(0, 7), sk: d0.replace(/-/g, ''),
@@ -339,7 +341,7 @@ function evaluate(rec, S) {
   c = textCmp(rec.alamat, alamat); if (alamat && (c === 'NEAR' || c === 'DIFF')) issues.push(lbl(c, 'Alamat', rec.alamat, alamat));
   const sUm = [...new Set(um.map(r => String(r.sales || '').trim()).filter(Boolean))];
   if (sUm.length) {
-    const res = sUm.map(x => salesCmp(rec.sales, x));
+    const res = sUm.map(x => salesCmp(rec.sales, salesOf(x)));
     if (!res.includes('OK')) issues.push(lbl(res.includes('NEAR') ? 'NEAR' : 'DIFF', 'Sales', rec.sales, sUm.join(', ')));
   }
   const U = umProds(um);
