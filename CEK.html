@@ -75,8 +75,9 @@
 </head>
 <body>
 <div class="bar">
-  <span class="ttl">CEK PENJUALAN → UANG MASUK <small style="font-weight:400;color:var(--muted)">v5</small></span>
-  <select id="fMonth" title="Bulan faktur penjualan"></select>
+  <span class="ttl">CEK PENJUALAN → UANG MASUK <small style="font-weight:400;color:var(--muted)">v6</small></span>
+  <select id="fBasis" title="Bulan dihitung berdasarkan apa"><option value="F">Bulan: tanggal faktur</option><option value="U">Bulan: tanggal uang masuk</option></select>
+  <select id="fMonth" title="Bulan"></select>
   <select id="fSales" title="Sales"><option value="">Semua Sales</option></select>
   <select id="fPay" title="Pembayaran"><option value="">Semua Pembayaran</option><option value="Tempo">Tempo</option><option value="Cash">Cash</option></select>
   <select id="fProd" title="Produk"><option value="">Semua Produk</option><option value="MINYAK">Minyak</option><option value="RUPA">Rupa Rupa</option><option value="CAMPUR">Campur</option></select>
@@ -357,7 +358,9 @@ function evaluate(rec, S) {
 /* ===== filter & tampilan ===== */
 let state = { f: 'ALL', page: 1, size: 100, monthDone: false };
 function populate() {
-  const mset = new Set(INV.map(r => r.month).filter(Boolean)), months = [...mset].sort().reverse();
+  const mset = new Set(INV.map(r => r.month).filter(Boolean));
+  UM_ROWS.forEach(u => { if (u.titip_aksi !== 'BATAL' && u.bulan) mset.add(u.bulan); });
+  const months = [...mset].sort().reverse();
   const sm = $('fMonth'), prev = sm.value;
   sm.innerHTML = '<option value="">Semua Bulan</option>' + months.map(m => '<option value="' + m + '">' + MON[+m.slice(5) - 1] + ' ' + m.slice(0, 4) + '</option>').join('');
   if (!state.monthDone && months.length) { sm.value = months[0]; state.monthDone = true; } else sm.value = mset.has(prev) ? prev : '';
@@ -366,9 +369,13 @@ function populate() {
   ss.innerHTML = '<option value="">Semua Sales</option>' + [...mp.entries()].sort((a, b) => a[1].localeCompare(b[1], 'id')).map(e => '<option value="' + esc(e[0]) + '">' + esc(e[1]) + '</option>').join('');
   ss.value = mp.has(pv) ? pv : '';
 }
+function inMonth(r, m) {
+  if ($('fBasis').value === 'U') return r.orph ? r.month === m : r.um.some(u => String(u.tanggal_laporan_str || '').slice(0, 7) === m);
+  return r.month === m;
+}
 function baseRows() {
   const m = $('fMonth').value, s = $('fSales').value, p = $('fPay').value, pr = $('fProd').value, q = $('fQ').value.trim().toLowerCase();
-  return INV.filter(r => (!m || r.month === m) && (!s || String(r.sales).trim().toUpperCase() === s) && (!p || r.pay === p)
+  return INV.filter(r => (!m || inMonth(r, m)) && (!s || String(r.sales).trim().toUpperCase() === s) && (!p || r.pay === p)
     && (!pr || (pr === 'MINYAK' ? r.prod === 'MINYAK' : pr === 'RUPA' ? r.prod === 'RUPA RUPA' : r.prod === 'CAMPUR'))
     && (!q || (r.faktur + ' ' + r.customer + ' ' + r.sales + ' ' + r.alamat).toLowerCase().includes(q)));
 }
@@ -411,7 +418,7 @@ function render() {
     ' <button ' + (state.page >= pages ? 'disabled' : '') + ' data-p="' + (state.page + 1) + '">›</button></span><span>Baris/hal <select id="pgSize">' + opts + '</select></span>';
 }
 
-['fMonth','fSales','fPay','fProd'].forEach(id => $(id).addEventListener('change', () => { state.page = 1; if (id === 'fMonth') {} render(); }));
+['fBasis','fMonth','fSales','fPay','fProd'].forEach(id => $(id).addEventListener('change', () => { state.page = 1; if (id === 'fMonth') {} render(); }));
 $('fQ').addEventListener('input', () => { state.page = 1; render(); });
 document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { state.f = c.dataset.f; state.page = 1; render(); }));
 $('pg').addEventListener('click', e => { const b = e.target.closest('button[data-p]'); if (b && !b.disabled) { state.page = +b.dataset.p; render(); document.querySelector('.wrap').scrollTop = 0; } });
