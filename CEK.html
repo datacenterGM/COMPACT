@@ -46,6 +46,8 @@
   tr.r-df td:first-child { box-shadow:3px 0 0 var(--df-tx) inset; } tr.r-no td:first-child { box-shadow:3px 0 0 var(--no-tx) inset; } tr.r-ok td:first-child { box-shadow:3px 0 0 var(--ok-tx) inset; }
   .st { display:inline-block; padding:1px 8px; border-radius:5px; font-weight:700; font-size:.7rem; }
   .st.lunas { background:#2563eb; color:#fff; } .st.titip { background:#fef08a; color:#854d0e; border:1px solid #eab308; }
+  .st.orph { background:var(--df-bg); color:var(--df-tx); border:1px solid var(--df-tx); }
+  tr.r-or td:first-child { box-shadow:3px 0 0 #a855f7 inset; }
   .st.none { background:var(--no-bg); color:var(--no-tx); border:1px solid #fcd34d; }
   .bad { color:var(--df-tx); font-weight:600; } .good { color:var(--ok-tx); font-weight:600; } .dim { color:var(--muted); }
   .x { display:inline-block; margin:1px 3px 1px 0; padding:0 6px; border-radius:4px; background:var(--df-bg); color:var(--df-tx); font-weight:600; font-size:.72rem; }
@@ -72,8 +74,9 @@
   <div class="chip c-ok" data-f="OK"><span>✓ Sesuai</span><span class="v" id="nOk">0</span></div>
   <div class="chip c-df" data-f="DIFF"><span>⚠ Ada Selisih</span><span class="v" id="nDf">0</span></div>
   <div class="chip c-no" data-f="NONE"><span>● Belum Masuk</span><span class="v" id="nNo">0</span></div>
+  <div class="chip c-df" data-f="ORPH" title="Uang Masuk yang No Fakturnya tidak ditemukan / salah ketik"><span>✎ UM Tanpa Faktur</span><span class="v" id="nOr">0</span></div>
 </div>
-<div class="rule">Aturan pencocokan: No Faktur → Nama Toko = Customer · Alamat · Sales · Produk (FITRI = MINYAK, selain itu RUPA RUPA) · Pembayaran (Tempo → Piutang Tempo, Cash → Cash Dropping).</div>
+<div class="rule">Aturan pencocokan: No Faktur → Nama Toko = Customer · Alamat · Sales · Produk (FITRI = MINYAK, selain itu RUPA RUPA) · Pembayaran (Tempo → Piutang Tempo, Cash → Cash Dropping). Karena Uang Masuk sering salah ketik, perbedaan ejaan ditandai, dan Uang Masuk yang No Fakturnya salah tetap dicocokkan lewat Customer/Alamat/Sales/Produk/Pembayaran/nominal.</div>
 <div class="wrap"><table id="tb"><thead></thead><tbody></tbody></table></div>
 <div class="pager" id="pg"></div>
 
@@ -153,19 +156,43 @@ function monthOf(t) { const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\
 function sortKey(t) { const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if (!m) return ''; return (m[3].length === 2 ? '20' + m[3] : m[3]) + m[2].padStart(2, '0') + m[1].padStart(2, '0'); }
 function prodOfName(n) { return /FITRI/i.test(n || '') ? 'MINYAK' : 'RUPA'; }
 function setLabel(s) { const a = [...s].sort(); if (a.length === 2) return 'CAMPUR'; return a[0] === 'MINYAK' ? 'MINYAK' : a[0] === 'RUPA' ? 'RUPA RUPA' : '-'; }
-function textMatch(a, b) {            /* true/false, null = tidak bisa dibandingkan */
+function lev(a, b) {
+  if (a === b) return 0;
+  const n = a.length, m = b.length; if (!n) return m; if (!m) return n;
+  let p = new Array(m + 1), c = new Array(m + 1);
+  for (let j = 0; j <= m; j++) p[j] = j;
+  for (let i = 1; i <= n; i++) {
+    c[0] = i;
+    for (let j = 1; j <= m; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1));
+    const t = p; p = c; c = t;
+  }
+  return p[m];
+}
+const sim = (a, b) => { const l = Math.max(a.length, b.length); return l ? 1 - lev(a, b) / l : 1; };
+/* 'OK' sama | 'NEAR' mirip tapi tidak sama (kemungkinan salah ketik) | 'DIFF' beda | null tidak bisa dibandingkan */
+function textCmp(a, b) {
   const x = norm(a), y = norm(b);
   if (!x || !y) return null;
-  if (x === y || x.includes(y) || y.includes(x)) return true;
+  if (x === y) return 'OK';
+  if (sim(x, y) >= 0.8) return 'NEAR';
+  if (x.includes(y) || y.includes(x)) return 'OK';
   const t1 = toks(a), t2 = toks(b);
-  if (!t1.length || !t2.length) return false;
-  const s2 = new Set(t2); let k = 0; t1.forEach(w => { if (s2.has(w)) k++; });
-  return k / Math.min(t1.length, t2.length) >= 0.6;
+  if (t1.length && t2.length) { const s2 = new Set(t2); let k = 0; t1.forEach(w => { if (s2.has(w)) k++; }); if (k / Math.min(t1.length, t2.length) >= 0.6) return 'OK'; }
+  return 'DIFF';
 }
-function salesMatch(a, b) {
-  const r = textMatch(a, b); if (r !== false) return r;
-  const x = toks(a)[0], y = toks(b)[0]; return !!(x && y && x === y);
+function salesCmp(a, b) {
+  const r = textCmp(a, b);
+  if (r === 'DIFF') { const x = toks(a)[0], y = toks(b)[0]; if (x && y && x === y) return 'OK'; }
+  return r;
 }
+const days = k => { const m = String(k).match(/^(\d{4})(\d{2})(\d{2})$/); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 864e5 : NaN; };
+function umProds(recs) {
+  const U = new Set();
+  recs.forEach(r => { if ((Number(r.minyak_cash) || 0) + (Number(r.minyak_tf) || 0) > 0) U.add('MINYAK'); if ((Number(r.rupa_cash) || 0) + (Number(r.rupa_tf) || 0) > 0) U.add('RUPA'); });
+  return U;
+}
+const firstOf = (recs, f) => recs.map(f).find(v => v && String(v).trim()) || '';
+const wantSec = pay => /^tempo$/i.test(pay) ? 'PIUTANG' : /^cash$/i.test(pay) ? 'CASH' : '';
 
 function build() {
   const g = new Map();
@@ -173,7 +200,7 @@ function build() {
   const umBy = new Map();
   UM_ROWS.forEach(r => { if (r.titip_aksi === 'BATAL') return; const k = fk(r.no_faktur); if (!k) return; let l = umBy.get(k); if (!l) umBy.set(k, l = []); l.push(r); });
 
-  INV = [];
+  INV = []; const used = new Set();
   g.forEach((lines, k) => {
     if (BATAL[k]) return;                                   /* faktur dibatalkan di tab Penjualan */
     const total = lines.reduce((s, r) => s + (Number(r.Total) || 0), 0);
@@ -184,10 +211,61 @@ function build() {
     const S = new Set(); net.forEach((v, p) => { if (Math.abs(v) >= 1) S.add(p); });
     const rec = {
       fk: k, tanggal: f.Tanggal || '', faktur: f['No. Faktur'] || k, total, sales: f.Sales || '', customer: f.Customer || '',
-      alamat: f.Alamat || '', prod: S.size ? setLabel(S) : '-', pay, month: monthOf(f.Tanggal), sk: sortKey(f.Tanggal), um: umBy.get(k) || []
+      alamat: f.Alamat || '', prod: S.size ? setLabel(S) : '-', pay, month: monthOf(f.Tanggal), sk: sortKey(f.Tanggal), um: umBy.get(k) || [], S
     };
-    evaluate(rec, S);
+    if (rec.um.length) used.add(k);
     INV.push(rec);
+  });
+
+  /* ---- Tahap 2: Uang Masuk yang No Fakturnya tidak ada di penjualan (kemungkinan salah ketik) ----
+     dicocokkan ke faktur yang belum ada uang masuknya, lewat Customer, Alamat, Sales, Produk, Pembayaran, nominal & kemiripan No Faktur. */
+  const orph = []; umBy.forEach((recs, k) => { if (!used.has(k)) orph.push({ k, recs, taken: false }); });
+  const cands = [];
+  const open = INV.filter(r => !r.um.length);
+  orph.forEach(o => {
+    const f0 = o.recs[0], paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0);
+    const tg = Math.max(0, ...o.recs.map(r => Number(r.tagihan) || 0));
+    const toko = firstOf(o.recs, r => r.nama_toko), alm = firstOf(o.recs, r => r.alamat), sls = firstOf(o.recs, r => r.sales);
+    const U = umProds(o.recs), sec = f0.section;
+    const d0 = days(String(o.recs.map(r => r.tanggal_laporan_str).sort()[0] || '').replace(/-/g, ''));
+    const kn = norm(o.k);
+    open.forEach(r => {
+      if (d0 === d0 && days(r.sk) === days(r.sk) && d0 < days(r.sk) - 3) return;          /* uang masuk jauh sebelum faktur: bukan pasangannya */
+      const rk = norm(r.fk), dk = (kn.length >= 4 && rk.length >= 4 && Math.abs(kn.length - rk.length) <= 2) ? lev(kn, rk) : 99;
+      const amt = (Math.abs(paid - r.total) <= 1) || (tg > 0 && Math.abs(tg - r.total) <= 1);
+      const c = textCmp(r.customer, toko), custOk = c === 'OK' || c === 'NEAR';
+      if (dk > 2 && !(custOk && amt)) return;
+      let sc = dk <= 2 ? 4 : 0;
+      if (custOk) sc += 2;
+      const a = textCmp(r.alamat, alm); if (a === 'OK' || a === 'NEAR') sc += 1;
+      const sa = salesCmp(r.sales, sls); if (sa === 'OK' || sa === 'NEAR') sc += 1;
+      if (wantSec(r.pay) && wantSec(r.pay) === sec) sc += 1;
+      if (amt) sc += 2;
+      if (U.size && [...U].every(p => r.S.has(p))) sc += 1;
+      if (sc >= 5) cands.push({ r, o, sc });
+    });
+  });
+  cands.sort((x, y) => y.sc - x.sc);
+  cands.forEach(c => {
+    if (c.o.taken || c.r.um.length) return;
+    c.o.taken = true; c.r.um = c.o.recs; c.r.typoFaktur = firstOf(c.o.recs, r => r.no_faktur) || c.o.k;
+  });
+
+  INV.forEach(r => evaluate(r, r.S));
+
+  /* Uang Masuk yang tetap tidak menemukan faktur */
+  orph.filter(o => !o.taken).forEach(o => {
+    const f = o.recs[0], paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0), U = umProds(o.recs);
+    const d0 = o.recs.map(r => r.tanggal_laporan_str).filter(Boolean).sort()[0] || '';
+    const toko = firstOf(o.recs, r => r.nama_toko), alm = firstOf(o.recs, r => r.alamat), sls = firstOf(o.recs, r => r.sales);
+    INV.push({
+      orph: true, fk: o.k, tanggal: dmy(d0), faktur: f.no_faktur, total: paid, sales: sls, customer: toko, alamat: alm,
+      prod: U.size ? setLabel(U) : '-', pay: f.section === 'PIUTANG' ? 'Tempo' : f.section === 'CASH' ? 'Cash' : '', month: d0.slice(0, 7), sk: d0.replace(/-/g, ''),
+      um: o.recs, status: 'TANPA FAKTUR', cat: 'ORPH',
+      issues: [g.has(o.k) ? 'No Faktur "' + f.no_faktur + '" ada di penjualan tetapi dibatalkan / bernilai nol' : 'No Faktur "' + f.no_faktur + '" tidak ditemukan di data penjualan (salah ketik?)'],
+      info: [toko, alm, sls].filter(Boolean).join(' · ') + ' — ' + o.recs.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || ''))
+        .map(r => dmy(r.tanggal_laporan_str) + ' ' + (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop') + ' ' + fmt(r.total_bayar)).join(' · ')
+    });
   });
   INV.sort((a, b) => a.sk === b.sk ? a.fk.localeCompare(b.fk) : (a.sk < b.sk ? 1 : -1));
 }
@@ -200,18 +278,22 @@ function evaluate(rec, S) {
   rec.paid = paid;
   rec.status = (manual || paid >= rec.total - 1) ? 'LUNAS' : 'TITIP';
   const issues = [];
-  const first = (f) => um.map(f).find(v => v && String(v).trim());
-  const toko = first(r => r.nama_toko), alamat = first(r => r.alamat);
-  if (textMatch(rec.customer, toko) === false) issues.push('Customer ≠ Nama Toko: "' + rec.customer + '" vs "' + toko + '"');
-  if (alamat && textMatch(rec.alamat, alamat) === false) issues.push('Alamat berbeda: "' + rec.alamat + '" vs "' + alamat + '"');
+  const lbl = (r, nama, a, b) => nama + (r === 'NEAR' ? ' mirip tapi beda (kemungkinan salah ketik): faktur "' : ' berbeda: faktur "') + a + '" vs uang masuk "' + b + '"';
+  if (rec.typoFaktur) issues.push('No Faktur di uang masuk "' + rec.typoFaktur + '" ≠ faktur "' + rec.faktur + '" (kemungkinan salah ketik, dicocokkan lewat customer/nominal)');
+  const toko = firstOf(um, r => r.nama_toko), alamat = firstOf(um, r => r.alamat);
+  let c = textCmp(rec.customer, toko); if (c === 'NEAR' || c === 'DIFF') issues.push(lbl(c, 'Customer / Nama Toko', rec.customer, toko));
+  c = textCmp(rec.alamat, alamat); if (alamat && (c === 'NEAR' || c === 'DIFF')) issues.push(lbl(c, 'Alamat', rec.alamat, alamat));
   const sUm = [...new Set(um.map(r => String(r.sales || '').trim()).filter(Boolean))];
-  if (sUm.length && !sUm.some(s => salesMatch(rec.sales, s))) issues.push('Sales berbeda: ' + rec.sales + ' vs ' + sUm.join(', '));
-  const U = new Set();
-  um.forEach(r => { if ((Number(r.minyak_cash) || 0) + (Number(r.minyak_tf) || 0) > 0) U.add('MINYAK'); if ((Number(r.rupa_cash) || 0) + (Number(r.rupa_tf) || 0) > 0) U.add('RUPA'); });
+  if (sUm.length) {
+    const res = sUm.map(x => salesCmp(rec.sales, x));
+    if (!res.includes('OK')) issues.push(lbl(res.includes('NEAR') ? 'NEAR' : 'DIFF', 'Sales', rec.sales, sUm.join(', ')));
+  }
+  const U = umProds(um);
   const extra = [...U].filter(p => !S.has(p)), miss = rec.status === 'LUNAS' ? [...S].filter(p => !U.has(p)) : [];
-  if (extra.length) issues.push('Produk: faktur ' + rec.prod + ', uang masuk di kolom ' + extra.map(p => p === 'MINYAK' ? 'Minyak' : 'Rupa Rupa').join(' + '));
-  if (miss.length) issues.push('Produk ' + miss.map(p => p === 'MINYAK' ? 'Minyak' : 'Rupa Rupa').join(' + ') + ' tidak tercatat di uang masuk');
-  const want = /^tempo$/i.test(rec.pay) ? 'PIUTANG' : /^cash$/i.test(rec.pay) ? 'CASH' : '';
+  const pn = p => p === 'MINYAK' ? 'Minyak' : 'Rupa Rupa';
+  if (extra.length) issues.push('Produk: faktur ' + rec.prod + ', uang masuk tercatat di kolom ' + extra.map(pn).join(' + '));
+  if (miss.length) issues.push('Produk ' + miss.map(pn).join(' + ') + ' tidak tercatat di uang masuk');
+  const want = wantSec(rec.pay);
   if (want) {
     const wrong = um.filter(r => r.section && r.section !== want);
     if (wrong.length) issues.push('Pembayaran ' + rec.pay + ' seharusnya ' + (want === 'PIUTANG' ? 'Piutang Tempo' : 'Cash Dropping') + ', tercatat di ' + (wrong[0].section === 'PIUTANG' ? 'Piutang Tempo' : 'Cash Dropping'));
@@ -222,9 +304,8 @@ function evaluate(rec, S) {
   rec.issues = issues;
   rec.info = um.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || ''))
     .map(r => dmy(r.tanggal_laporan_str) + ' ' + (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop') + ' ' + fmt(r.total_bayar)).join(' · ');
-  /* TITIP murni (hanya belum lunas) bukan salah catat: hitung selisih hanya bila ada isu selain TITIP */
-  const real = issues.filter(i => !/^Baru dibayar/.test(i));
-  rec.cat = real.length ? 'DIFF' : 'OK';
+  /* TITIP murni (hanya belum lunas) bukan salah catat */
+  rec.cat = issues.filter(i => !/^Baru dibayar/.test(i)).length ? 'DIFF' : 'OK';
 }
 
 /* ===== filter & tampilan ===== */
@@ -252,6 +333,7 @@ function render() {
   $('nOk').textContent = fmt(base.filter(r => r.cat === 'OK').length);
   $('nDf').textContent = fmt(base.filter(r => r.cat === 'DIFF').length);
   $('nNo').textContent = fmt(base.filter(r => r.cat === 'NONE').length);
+  $('nOr').textContent = fmt(base.filter(r => r.cat === 'ORPH').length);
   document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === state.f));
   VIEW = state.f === 'ALL' ? base : base.filter(r => r.cat === state.f);
   const pages = Math.max(1, Math.ceil(VIEW.length / state.size));
@@ -264,13 +346,15 @@ function render() {
   if (!SALES_ROWS.length) body.innerHTML = '<tr><td class="empty" colspan="10">Belum ada data Penjualan. Upload dulu di tab PENJUALAN (Menu → Upload File Excel), lalu klik ↻ Muat Ulang.</td></tr>';
   else if (!rows.length) body.innerHTML = '<tr><td class="empty" colspan="10">Tidak ada faktur pada filter ini</td></tr>';
   else body.innerHTML = rows.map(r => {
-    const stc = r.status === 'LUNAS' ? 'lunas' : r.status === 'TITIP' ? 'titip' : 'none';
+    const stc = r.status === 'LUNAS' ? 'lunas' : r.status === 'TITIP' ? 'titip' : r.orph ? 'orph' : 'none';
     const ket = r.cat === 'NONE' ? '<span class="dim">' + esc(r.info) + '</span>'
       : (r.issues.length ? r.issues.map(i => '<span class="x">' + esc(i) + '</span>').join('') + '<br>' : '<span class="good">Sesuai</span> ') + '<span class="dim">' + esc(r.info) + '</span>';
-    return '<tr class="r-' + r.cat.toLowerCase().replace('diff', 'df').replace('none', 'no').replace('ok', 'ok') + '">' +
-      '<td class="ctr">' + esc(r.tanggal) + '</td><td class="ctr">' + esc(r.faktur) + '</td><td class="num">' + fmt(r.total) + '</td>' +
-      '<td class="ctr">' + esc(r.sales) + '</td><td>' + esc(r.customer) + '</td><td>' + esc(r.alamat) + '</td>' +
-      '<td class="ctr">' + esc(r.prod) + '</td><td class="ctr">' + esc(r.pay) + '</td>' +
+    const cls = r.cat === 'ORPH' ? 'or' : r.cat === 'DIFF' ? 'df' : r.cat === 'NONE' ? 'no' : 'ok';
+    const L = r.orph ? ['', '', '', '', '', '', '', ''] : [esc(r.tanggal), esc(r.faktur), fmt(r.total), esc(r.sales), esc(r.customer), esc(r.alamat), esc(r.prod), esc(r.pay)];
+    return '<tr class="r-' + cls + '">' +
+      '<td class="ctr">' + L[0] + '</td><td class="ctr">' + L[1] + '</td><td class="num">' + L[2] + '</td>' +
+      '<td class="ctr">' + L[3] + '</td><td>' + L[4] + '</td><td>' + L[5] + '</td>' +
+      '<td class="ctr">' + L[6] + '</td><td class="ctr">' + L[7] + '</td>' +
       '<td class="ctr"><span class="st ' + stc + '">' + r.status + '</span></td><td class="ket">' + ket + '</td></tr>';
   }).join('');
   const opts = [50, 100, 200, 500].map(n => '<option value="' + n + '"' + (n === state.size ? ' selected' : '') + '>' + n + '</option>').join('');
@@ -290,7 +374,7 @@ $('bXls').addEventListener('click', () => {
   if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat (cek koneksi internet).'); return; }
   const head = ['Tanggal','No. Faktur','Total Faktur','Sales','Customer','Alamat','Produk','Pembayaran','Status','Ket'];
   const aoa = [['DATA PENJUALAN','','','','','','','','DATA UANG MASUK',''], head].concat(VIEW.map(r =>
-    [r.tanggal, r.faktur, r.total, r.sales, r.customer, r.alamat, r.prod, r.pay, r.status, (r.issues.length ? r.issues.join(' | ') + ' || ' : (r.cat === 'OK' ? 'Sesuai || ' : '')) + r.info]));
+    (r.orph ? ['', '', '', '', '', '', '', ''] : [r.tanggal, r.faktur, r.total, r.sales, r.customer, r.alamat, r.prod, r.pay]).concat([r.status, (r.issues.length ? r.issues.join(' | ') + ' || ' : (r.cat === 'OK' ? 'Sesuai || ' : '')) + r.info])));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, { s: { r: 0, c: 8 }, e: { r: 0, c: 9 } }];
   ws['!cols'] = [10,14,14,12,26,30,12,12,14,80].map(w => ({ wch: w }));
