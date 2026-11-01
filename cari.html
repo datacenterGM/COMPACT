@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <script src="theme.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <title>Pencarian Toko / Customer — Penjualan &amp; Uang Masuk</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    :root, html[data-theme="dark"] {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card2: #334155;
+      --border: #475569;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent2: #2563eb;
+      --green: #22c55e;
+      --orange: #f59e0b;
+      --red: #ef4444;
+      --pj: #3b82f6;
+      --um: #22c55e;
+      --thead: #0f172a;
+      --row-hover: rgba(59,130,246,0.08);
+      --shadow: rgba(0,0,0,0.4);
+    }
+    html[data-theme="light"] {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --card2: #e2e8f0;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent2: #1d4ed8;
+      --green: #16a34a;
+      --orange: #d97706;
+      --red: #dc2626;
+      --pj: #2563eb;
+      --um: #16a34a;
+      --thead: #e2e8f0;
+      --row-hover: rgba(37,99,235,0.06);
+      --shadow: rgba(15,23,42,0.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.45;
+    }
+    .container { max-width: 100%; padding: 12px 14px 24px; }
+
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 10px; margin-bottom: 14px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 1.05rem; font-weight: 650; }
+    header h1 span { color: var(--accent); font-weight: 500; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+
+    .theme-btn, .nav-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      height: 32px; padding: 0 12px; border-radius: 8px;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); font-size: 0.82rem; cursor: pointer;
+      text-decoration: none; transition: all 0.15s;
+    }
+    .theme-btn:hover, .nav-btn:hover { border-color: var(--accent); background: var(--card2); }
+
+    /* SEARCH BAR */
+    .search-bar {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;
+    }
+    .search-bar label {
+      font-size: 0.72rem; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.04em; display: block; margin-bottom: 4px;
+    }
+    .field { display: flex; flex-direction: column; min-width: 0; }
+    .field.grow { flex: 1 1 220px; }
+    .field select, .field input[type="search"] {
+      background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 9px 12px; font-size: 0.9rem; outline: none;
+      width: 100%; min-width: 160px;
+    }
+    .field select:focus, .field input:focus { border-color: var(--accent); }
+    .btn-search {
+      align-self: flex-end; padding: 9px 20px; border: none; border-radius: 8px;
+      background: var(--accent); color: #fff; font-weight: 600; font-size: 0.9rem;
+      cursor: pointer; transition: background 0.15s; white-space: nowrap;
+    }
+    .btn-search:hover { background: var(--accent2); }
+    .btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .status-line {
+      font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    }
+    .status-line .dot {
+      width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px;
+    }
+    .dot.ok { background: var(--green); }
+    .dot.warn { background: var(--orange); }
+    .dot.err { background: var(--red); }
+
+    /* TWO COLUMNS */
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    @media (max-width: 1100px) {
+      .panels { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      min-height: 200px;
+    }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      gap: 8px; flex-wrap: wrap;
+    }
+    .panel-head h2 {
+      font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; display: flex; align-items: center; gap: 8px;
+    }
+    .panel.pj .panel-head h2::before {
+      content: ''; width: 4px; height: 16px; border-radius: 2px; background: var(--pj);
+    }
+    .panel.um .panel-head h2::before {
+      content: ''; width: 4px; height: 16px; border-radius: 2px; background: var(--um);
+    }
+    .panel-meta { font-size: 0.78rem; color: var(--muted); }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 280px);
+      min-height: 180px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    thead { position: sticky; top: 0; z-index: 2; }
+    th {
+      background: var(--thead); color: var(--muted);
+      font-weight: 600; font-size: 0.68rem; text-transform: uppercase;
+      letter-spacing: 0.03em; padding: 8px 8px; text-align: left;
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    th.num, td.num { text-align: right; }
+    th.center, td.center { text-align: center; }
+    td {
+      padding: 7px 8px; border-bottom: 1px solid rgba(71,85,105,0.35);
+      white-space: nowrap; vertical-align: top;
+    }
+    tr:hover td { background: var(--row-hover); }
+    tr.total-row td {
+      background: rgba(59,130,246,0.1); font-weight: 700;
+      border-top: 2px solid var(--accent);
+    }
+    .empty-msg {
+      padding: 40px 16px; text-align: center; color: var(--muted); font-size: 0.9rem;
+    }
+    .empty-msg .icon { font-size: 2rem; opacity: 0.45; margin-bottom: 8px; }
+
+    .badge {
+      display: inline-block; padding: 1px 7px; border-radius: 5px;
+      font-size: 0.68rem; font-weight: 600;
+    }
+    .badge-lunas { background: rgba(34,197,94,0.2); color: #86efac; }
+    .badge-titip { background: rgba(245,158,11,0.2); color: #fcd34d; }
+    .badge-tf { background: rgba(59,130,246,0.2); color: #93c5fd; }
+    .badge-cash { background: rgba(34,197,94,0.18); color: #86efac; }
+    .badge-tempo { background: rgba(245,158,11,0.18); color: #fcd34d; }
+
+    .hint {
+      background: var(--card); border: 1px dashed var(--border);
+      border-radius: 12px; padding: 28px 20px; text-align: center;
+      color: var(--muted); margin-top: 8px;
+    }
+    .hint strong { color: var(--text); }
+
+    .toast {
+      position: fixed; bottom: 20px; right: 20px;
+      background: var(--card2); color: var(--text);
+      padding: 12px 18px; border-radius: 10px;
+      border: 1px solid var(--border); box-shadow: 0 8px 28px var(--shadow);
+      z-index: 100; transform: translateY(100px); opacity: 0;
+      transition: all 0.28s ease; max-width: 340px; font-size: 0.88rem;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.ok { border-left: 4px solid var(--green); }
+    .toast.err { border-left: 4px solid var(--red); }
+
+    .loading-overlay {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.55);
+      display: none; align-items: center; justify-content: center; z-index: 80;
+    }
+    .loading-overlay.show { display: flex; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('um_theme') || localStorage.getItem('theme') || 'dark';
+        if (t !== 'light' && t !== 'dark') t = 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔍 Pencarian Toko / Customer <span>— Penjualan &amp; Uang Masuk</span></h1>
+      <div class="header-actions">
+        <a class="nav-btn" href="index.html" title="Dashboard">🏠 Dashboard</a>
+        <a class="nav-btn" href="PJ.html" title="Laporan Penjualan">📦 PJ</a>
+        <a class="nav-btn" href="UM.html" title="Laporan Uang Masuk">💰 UM</a>
+        <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Mode gelap / terang">🌙</button>
+      </div>
+    </header>
+
+    <div class="search-bar">
+      <div class="field grow">
+        <label for="qToko">Cari toko / customer</label>
+        <input type="search" id="qToko" placeholder="Ketik nama toko atau customer..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="qMonth">Filter bulan</label>
+        <select id="qMonth">
+          <option value="">Semua Bulan</option>
+        </select>
+      </div>
+      <button type="button" class="btn-search" id="btnCari" onclick="doSearch()">Cari</button>
+    </div>
+
+    <div class="status-line" id="statusLine">
+      <span><span class="dot warn" id="dotPJ"></span> Penjualan: memuat...</span>
+      <span><span class="dot warn" id="dotUM"></span> Uang Masuk: memuat...</span>
+    </div>
+
+    <div id="hintBox" class="hint">
+      <div style="font-size:1.6rem;margin-bottom:8px;opacity:.5">🔎</div>
+      <p>Ketik nama <strong>toko / customer</strong> lalu tekan <strong>Cari</strong> (atau Enter).<br>
+         Hasil dari <strong>Data Penjualan</strong> dan <strong>Data Uang Masuk</strong> akan muncul berdampingan.</p>
+    </div>
+
+    <div class="panels" id="panels" style="display:none">
+      <!-- DATA PENJUALAN -->
+      <div class="panel pj">
+        <div class="panel-head">
+          <h2>Data Penjualan</h2>
+          <span class="panel-meta" id="metaPJ">—</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tgl</th>
+                <th>No. Faktur</th>
+                <th>Produk</th>
+                <th class="num">Jumlah</th>
+                <th class="num">Total Faktur</th>
+                <th>Customer</th>
+                <th>Alamat</th>
+                <th>Pembayaran</th>
+                <th>Sales</th>
+              </tr>
+            </thead>
+            <tbody id="bodyPJ"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DATA UANG MASUK -->
+      <div class="panel um">
+        <div class="panel-head">
+          <h2>Data Uang Masuk</h2>
+          <span class="panel-meta" id="metaUM">—</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tgl</th>
+                <th>Ket</th>
+                <th>Sales</th>
+                <th>Nama Toko</th>
+                <th>Alamat</th>
+                <th class="num">Tagihan</th>
+                <th class="num">Minyak Cash</th>
+                <th class="num">Minyak TF</th>
+                <th class="num">Rupa Cash</th>
+                <th class="num">Rupa TF</th>
+                <th>Section</th>
+                <th>No Faktur</th>
+              </tr>
+            </thead>
+            <tbody id="bodyUM"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    /* ========== THEME ========== */
+    function toggleTheme() {
+      const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('um_theme', next); } catch (e) {}
+      document.getElementById('themeBtn').textContent = next === 'dark' ? '🌙' : '☀️';
+    }
+    document.getElementById('themeBtn').textContent =
+      (document.documentElement.getAttribute('data-theme') === 'light') ? '☀️' : '🌙';
+
+    /* ========== HELPERS ========== */
+    function toast(msg, type) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show ' + (type || 'ok');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove('show'), 2800);
+    }
+    function fmt(n) {
+      if (n == null || n === '' || isNaN(n)) return '—';
+      return Number(n).toLocaleString('id-ID');
+    }
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function norm(s) {
+      return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+    function monthKeyFromDate(t) {
+      // support DD/MM/YYYY, D/M/YY, YYYY-MM-DD
+      const s = String(t || '').trim();
+      let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      if (m) {
+        const y = m[3].length === 2 ? '20' + m[3] : m[3];
+        return y + '-' + m[2].padStart(2, '0');
+      }
+      m = s.match(/^(\d{4})-(\d{2})/);
+      if (m) return m[1] + '-' + m[2];
+      return '';
+    }
+    function monthLabel(ym) {
+      if (!ym) return '';
+      const [y, m] = ym.split('-');
+      const names = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      return (names[parseInt(m, 10)] || m) + ' ' + y;
+    }
+    function setLoading(on) {
+      document.getElementById('loading').classList.toggle('show', !!on);
+    }
+
+    /* ========== DATA HOLDERS ========== */
+    let pjRows = [];   // penjualan
+    let umRows = [];   // uang masuk (flat)
+    let monthsSet = new Set();
+    let pjReady = false, umReady = false;
+
+    /* ========== LOAD PENJUALAN (dari IndexedDB pj-v1 + parse cache) ========== */
+    const PJ_DB = 'pj-v1', PJ_ST = 'pj-data';
+    const PC_DB = 'pj-parse-v1', PC_ST = 'c', PC_VER = 'p1';
+
+    function openIDB(name, storeName) {
+      return new Promise((ok, no) => {
+        const r = indexedDB.open(name, 1);
+        r.onupgradeneeded = () => {
+          if (!r.result.objectStoreNames.contains(storeName)) r.result.createObjectStore(storeName);
+        };
+        r.onsuccess = () => { const db = r.result; db.onversionchange = () => db.close(); ok(db); };
+        r.onerror = () => no(r.error);
+      });
+    }
+
+    function toNum(v) {
+      if (typeof v === 'number') return isFinite(v) ? v : 0;
+      const s = String(v || '').replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.');
+      const n = parseFloat(s);
+      return isNaN(n) ? 0 : n;
+    }
+
+    function parseDatePJ(val) {
+      if (val instanceof Date && !isNaN(val)) {
+        const d = val.getDate(), m = val.getMonth() + 1, y = val.getFullYear();
+        return String(d).padStart(2,'0') + '/' + String(m).padStart(2,'0') + '/' + y;
+      }
+      if (typeof val === 'number' && val > 20000 && val < 60000) {
+        const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+        if (!isNaN(d.getTime())) {
+          return String(d.getUTCDate()).padStart(2,'0') + '/' +
+            String(d.getUTCMonth()+1).padStart(2,'0') + '/' + d.getUTCFullYear();
+        }
+      }
+      return String(val || '').trim();
+    }
+
+    function trimSheetRange(sheet) {
+      if (!sheet) return;
+      const ref = sheet['!ref']; if (!ref) return;
+      const rg = XLSX.utils.decode_range(ref);
+      let mr = -1, mc = -1;
+      for (const k in sheet) {
+        if (k.charCodeAt(0) === 33) continue;
+        const a = XLSX.utils.decode_cell(k);
+        if (a.r > mr) mr = a.r; if (a.c > mc) mc = a.c;
+      }
+      if (mr < 0) { sheet['!ref'] = XLSX.utils.encode_cell(rg.s); return; }
+      if (mr < rg.e.r) rg.e.r = Math.max(mr, rg.s.r);
+      if (mc < rg.e.c) rg.e.c = Math.max(mc, rg.s.c);
+      sheet['!ref'] = XLSX.utils.encode_range(rg);
+    }
+
+    function readFirstSheetRows(buffer) {
+      const tries = [
+        { type: 'array', cellDates: true },
+        { type: 'array', cellDates: true, sheetRows: 300000 }
+      ];
+      for (const opt of tries) {
+        try {
+          const wb = XLSX.read(buffer, opt);
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          trimSheetRange(sheet);
+          return XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
+        } catch (e) { /* try next */ }
+      }
+      return [];
+    }
+
+    async function loadPenjualan() {
+      const dot = document.getElementById('dotPJ');
+      try {
+        // 1) Coba cache parse dulu (lebih cepat)
+        let cache = {};
+        try {
+          const db = await openIDB(PC_DB, PC_ST);
+          const v = await new Promise((ok, no) => {
+            const r = db.transaction(PC_ST).objectStore(PC_ST).get('parsed');
+            r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+          });
+          db.close();
+          if (v && v.ver === PC_VER && v.files) cache = v.files;
+        } catch (e) {}
+
+        // 2) Ambil daftar file dari pj-v1
+        const db = await openIDB(PJ_DB, PJ_ST);
+        const pack = await new Promise((ok, no) => {
+          const r = db.transaction(PJ_ST).objectStore(PJ_ST).get('latest');
+          r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+        });
+        db.close();
+
+        const rows = [];
+        if (pack && Array.isArray(pack.files) && pack.files.length) {
+          for (const f of pack.files) {
+            const name = f.name || '';
+            // pakai cache jika ada
+            if (cache[name] && Array.isArray(cache[name].rows)) {
+              for (const rw of cache[name].rows) rows.push(rw);
+              continue;
+            }
+            // parse dari buffer
+            let buf = f.buf;
+            if (!buf && typeof f.b64 === 'string') {
+              const s = atob(f.b64);
+              const u = new Uint8Array(s.length);
+              for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+              buf = u.buffer;
+            }
+            if (!buf || !(buf instanceof ArrayBuffer || ArrayBuffer.isView(buf))) continue;   // file tersimpan rusak: lewati
+            const raw = readFirstSheetRows(buf);
+            for (const r of raw) {
+              let prodName = String(r['Produk'] || '').trim()
+                .replace(/\bBOTOL\b/gi, '').replace(/\bBTL\b/gi, '').replace(/\s+/g, ' ').trim();
+              const row = {
+                Tanggal: parseDatePJ(r['Tanggal'] || r['tanggal'] || ''),
+                'No. Faktur': String(r['No. Faktur'] || r['No Faktur'] || r['No.Faktur'] || '').trim(),
+                Produk: prodName,
+                Jumlah: toNum(r['Jumlah']),
+                Satuan: String(r['Satuan'] || '').trim(),
+                Total: toNum(r['Total']),
+                Sales: String(r['Sales'] || '').trim(),
+                Customer: String(r['Customer'] || '').trim(),
+                Alamat: String(r['Alamat'] || '').trim(),
+                Pembayaran: String(r['Pembayaran'] || '').trim()
+              };
+              if (row['No. Faktur'] || row.Produk) rows.push(row);
+            }
+          }
+        }
+
+        // Hitung total faktur per no faktur
+        const invTotals = new Map();
+        rows.forEach(r => {
+          const k = String(r['No. Faktur'] || '').trim().toUpperCase();
+          if (!k) return;
+          invTotals.set(k, (invTotals.get(k) || 0) + (Number(r.Total) || 0));
+        });
+        rows.forEach(r => {
+          const k = String(r['No. Faktur'] || '').trim().toUpperCase();
+          r._totalFaktur = k ? (invTotals.get(k) || 0) : (Number(r.Total) || 0);
+        });
+
+        pjRows = rows;
+        rows.forEach(r => {
+          const mk = monthKeyFromDate(r.Tanggal);
+          if (mk) monthsSet.add(mk);
+        });
+        pjReady = true;
+        dot.className = 'dot ok';
+        updateStatus();
+      } catch (e) {
+        console.error('loadPenjualan', e);
+        pjReady = true;
+        dot.className = 'dot err';
+        updateStatus();
+      }
+    }
+
+    /* ========== LOAD UANG MASUK (dari IndexedDB laporan_uang_masuk_db) ========== */
+    const UM_DB = 'laporan_uang_masuk_db', UM_ST = 'kv';
+    const UM_BRIDGE = 'um-bridge-v1', UM_BRIDGE_ST = 'um-data', UM_BRIDGE_KEY = 'latest';
+
+    async function loadUangMasuk() {
+      const dot = document.getElementById('dotUM');
+      try {
+        const rows = [];
+
+        // Coba bridge dulu (lebih ringkas, sudah flat)
+        try {
+          const db = await openIDB(UM_BRIDGE, UM_BRIDGE_ST);
+          const pack = await new Promise((ok, no) => {
+            const r = db.transaction(UM_BRIDGE_ST).objectStore(UM_BRIDGE_ST).get(UM_BRIDGE_KEY);
+            r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+          });
+          db.close();
+          if (pack && Array.isArray(pack.records) && pack.records.length) {
+            for (const x of pack.records) {
+              rows.push({
+                tgl: x.tgl || x.tanggal || '',
+                ket: x.ket || '',
+                sales: x.sales || '',
+                toko: x.nama_toko || x.toko || '',
+                alamat: x.alamat || '',
+                tagihan: Number(x.tagihan) || 0,
+                mCash: Number(x.minyak_cash ?? x.mCash) || 0,
+                mTf: Number(x.minyak_tf ?? x.mTf) || 0,
+                rCash: Number(x.rupa_cash ?? x.rCash) || 0,
+                rTf: Number(x.rupa_tf ?? x.rTf) || 0,
+                section: x.section || '',
+                faktur: x.no_faktur || x.faktur || ''
+              });
+            }
+          }
+        } catch (e) { /* lanjut ke full store */ }
+
+        // Fallback / lengkap: baca per-bulan dari IDB utama
+        if (!rows.length) {
+          const db = await openIDB(UM_DB, UM_ST);
+          // ambil semua key yang diawali month:
+          const allKeys = await new Promise((ok, no) => {
+            const r = db.transaction(UM_ST).objectStore(UM_ST).getAllKeys();
+            r.onsuccess = () => ok(r.result || []); r.onerror = () => no(r.error);
+          });
+          for (const key of allKeys) {
+            if (typeof key !== 'string' || !key.startsWith('month:')) continue;
+            const val = await new Promise((ok, no) => {
+              const r = db.transaction(UM_ST).objectStore(UM_ST).get(key);
+              r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+            });
+            if (!val || !Array.isArray(val.days)) continue;
+            for (const d of val.days) {
+              for (const x of (d.txns || [])) {
+                rows.push({
+                  tgl: x.tgl || d.tgl || '',
+                  ket: x.ket || '',
+                  sales: x.sales || '',
+                  toko: x.toko || '',
+                  alamat: x.alamat || '',
+                  tagihan: Number(x.tagihan) || 0,
+                  mCash: Number(x.mCash) || 0,
+                  mTf: Number(x.mTf) || 0,
+                  rCash: Number(x.rCash) || 0,
+                  rTf: Number(x.rTf) || 0,
+                  section: x.section || '',
+                  faktur: x.faktur || ''
+                });
+              }
+            }
+          }
+          db.close();
+        }
+
+        umRows = rows;
+        rows.forEach(r => {
+          // tgl UM sering format DD-MM atau DD/MM/YYYY
+          let mk = monthKeyFromDate(r.tgl);
+          if (!mk && /^\d{1,2}-\d{1,2}$/.test(String(r.tgl || ''))) {
+            // hanya hari-bulan; ambil tahun dari data lain tidak tersedia → skip
+          }
+          if (mk) monthsSet.add(mk);
+        });
+        umReady = true;
+        dot.className = 'dot ok';
+        updateStatus();
+      } catch (e) {
+        console.error('loadUangMasuk', e);
+        umReady = true;
+        dot.className = 'dot err';
+        updateStatus();
+      }
+    }
+
+    function updateStatus() {
+      const el = document.getElementById('statusLine');
+      const pjTxt = pjReady
+        ? (pjRows.length ? `Penjualan: ${pjRows.length.toLocaleString('id-ID')} baris` : 'Penjualan: kosong')
+        : 'Penjualan: memuat...';
+      const umTxt = umReady
+        ? (umRows.length ? `Uang Masuk: ${umRows.length.toLocaleString('id-ID')} faktur` : 'Uang Masuk: kosong')
+        : 'Uang Masuk: memuat...';
+      el.innerHTML =
+        `<span><span class="dot ${pjReady ? (pjRows.length ? 'ok' : 'warn') : 'warn'}" id="dotPJ"></span> ${pjTxt}</span>` +
+        `<span><span class="dot ${umReady ? (umRows.length ? 'ok' : 'warn') : 'warn'}" id="dotUM"></span> ${umTxt}</span>`;
+
+      // isi filter bulan
+      const sel = document.getElementById('qMonth');
+      const cur = sel.value;
+      const keys = [...monthsSet].sort().reverse();
+      sel.innerHTML = '<option value="">Semua Bulan</option>' +
+        keys.map(k => `<option value="${k}">${monthLabel(k)}</option>`).join('');
+      if (cur && monthsSet.has(cur)) sel.value = cur;
+    }
+
+    /* ========== SEARCH ========== */
+    function ketBadge(ket) {
+      const k = String(ket || '').toUpperCase();
+      if (k.includes('LUNAS')) return '<span class="badge badge-lunas">LUNAS</span>';
+      if (k.includes('TITIP')) return '<span class="badge badge-titip">TITIP</span>';
+      if (k.includes('TF') || k.includes('BG') || k.includes('TRANSFER')) return '<span class="badge badge-tf">TF/BG</span>';
+      return esc(ket) || '—';
+    }
+    function payBadge(p) {
+      const s = String(p || '').toUpperCase();
+      if (s === 'CASH') return '<span class="badge badge-cash">Cash</span>';
+      if (s === 'TEMPO') return '<span class="badge badge-tempo">Tempo</span>';
+      return esc(p) || '—';
+    }
+
+    function doSearch() {
+      const q = norm(document.getElementById('qToko').value);
+      const month = document.getElementById('qMonth').value;
+
+      if (!q && !month) {
+        document.getElementById('hintBox').style.display = 'block';
+        document.getElementById('panels').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('hintBox').style.display = 'none';
+      document.getElementById('panels').style.display = 'grid';
+
+      // --- Penjualan ---
+      let pjHit = pjRows.filter(r => {
+        if (month) {
+          const mk = monthKeyFromDate(r.Tanggal);
+          if (mk !== month) return false;
+        }
+        if (!q) return true;
+        const blob = norm([r.Customer, r.Alamat, r['No. Faktur'], r.Sales, r.Produk].join(' '));
+        return blob.includes(q);
+      });
+
+      // tampilkan 1 baris per faktur (agregat sederhana: baris pertama + total faktur)
+      // supaya tabel tidak terlalu panjang; tetap tampilkan semua item jika user mau detail
+      // Di sini kita tampilkan SEMUA baris item agar lengkap
+      const bodyPJ = document.getElementById('bodyPJ');
+      const metaPJ = document.getElementById('metaPJ');
+      if (!pjHit.length) {
+        bodyPJ.innerHTML = `<tr><td colspan="9" class="empty-msg"><div class="icon">📭</div>Tidak ada data penjualan yang cocok</td></tr>`;
+        metaPJ.textContent = '0 baris';
+      } else {
+        // group by faktur untuk tampil total faktur hanya di baris pertama
+        const firstIdx = new Map();
+        pjHit.forEach((r, i) => {
+          const k = String(r['No. Faktur'] || '').trim().toUpperCase();
+          if (k && !firstIdx.has(k)) firstIdx.set(k, i);
+        });
+        let sumTotal = 0;
+        const seenInv = new Set();
+        let html = pjHit.map((r, i) => {
+          const k = String(r['No. Faktur'] || '').trim().toUpperCase();
+          const show = !k || firstIdx.get(k) === i;
+          if (show && k && !seenInv.has(k)) {
+            sumTotal += r._totalFaktur || 0;
+            seenInv.add(k);
+          }
+          return `<tr>
+            <td class="center">${show ? esc(r.Tanggal) : ''}</td>
+            <td>${show ? esc(r['No. Faktur']) : ''}</td>
+            <td>${esc(r.Produk)}</td>
+            <td class="num">${fmt(r.Jumlah)}</td>
+            <td class="num">${show ? fmt(r._totalFaktur) : ''}</td>
+            <td>${show ? esc(r.Customer) : ''}</td>
+            <td>${show ? esc(r.Alamat) : ''}</td>
+            <td class="center">${show ? payBadge(r.Pembayaran) : ''}</td>
+            <td class="center">${show ? esc(r.Sales) : ''}</td>
+          </tr>`;
+        }).join('');
+        html += `<tr class="total-row">
+          <td colspan="4">TOTAL (${seenInv.size || pjHit.length} faktur · ${pjHit.length} baris)</td>
+          <td class="num">${fmt(sumTotal)}</td>
+          <td colspan="4"></td>
+        </tr>`;
+        bodyPJ.innerHTML = html;
+        metaPJ.textContent = `${pjHit.length.toLocaleString('id-ID')} baris · ${seenInv.size || pjHit.length} faktur`;
+      }
+
+      // --- Uang Masuk ---
+      let umHit = umRows.filter(r => {
+        if (month) {
+          // dukung tgl DD/MM/YYYY atau YYYY-MM-DD atau DD-MM
+          let mk = monthKeyFromDate(r.tgl);
+          if (!mk && r.tgl) {
+            // coba ambil dari format lain: "05-10" + asumsikan month filter
+            const parts = String(r.tgl).split(/[-\/]/);
+            if (parts.length >= 2) {
+              const mm = parts[1].padStart(2, '0');
+              if (month.endsWith('-' + mm)) mk = month; // cocok bulan saja
+            }
+          }
+          if (mk !== month) return false;
+        }
+        if (!q) return true;
+        const blob = norm([r.toko, r.alamat, r.faktur, r.sales, r.ket, r.section].join(' '));
+        return blob.includes(q);
+      });
+
+      const bodyUM = document.getElementById('bodyUM');
+      const metaUM = document.getElementById('metaUM');
+      if (!umHit.length) {
+        bodyUM.innerHTML = `<tr><td colspan="12" class="empty-msg"><div class="icon">📭</div>Tidak ada data uang masuk yang cocok</td></tr>`;
+        metaUM.textContent = '0 faktur';
+      } else {
+        let st = 0, smc = 0, smt = 0, src = 0, srt = 0;
+        let html = umHit.map((r, i) => {
+          st += r.tagihan || 0;
+          smc += r.mCash || 0; smt += r.mTf || 0;
+          src += r.rCash || 0; srt += r.rTf || 0;
+          const sec = r.section === 'PIUTANG' ? 'Piutang' : (r.section === 'DROPPING' ? 'Dropping' : (r.section || '—'));
+          return `<tr>
+            <td class="center">${esc(r.tgl)}</td>
+            <td>${ketBadge(r.ket)}</td>
+            <td>${esc(r.sales) || '—'}</td>
+            <td>${esc(r.toko)}</td>
+            <td>${esc(r.alamat)}</td>
+            <td class="num">${fmt(r.tagihan)}</td>
+            <td class="num">${fmt(r.mCash)}</td>
+            <td class="num">${fmt(r.mTf)}</td>
+            <td class="num">${fmt(r.rCash)}</td>
+            <td class="num">${fmt(r.rTf)}</td>
+            <td>${esc(sec)}</td>
+            <td>${esc(r.faktur)}</td>
+          </tr>`;
+        }).join('');
+        html += `<tr class="total-row">
+          <td colspan="5">TOTAL (${umHit.length} faktur)</td>
+          <td class="num">${fmt(st)}</td>
+          <td class="num">${fmt(smc)}</td>
+          <td class="num">${fmt(smt)}</td>
+          <td class="num">${fmt(src)}</td>
+          <td class="num">${fmt(srt)}</td>
+          <td colspan="2"></td>
+        </tr>`;
+        bodyUM.innerHTML = html;
+        metaUM.textContent = `${umHit.length.toLocaleString('id-ID')} faktur`;
+      }
+    }
+
+    // Enter di kotak cari
+    document.getElementById('qToko').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+    });
+    // live search (debounce)
+    let _t;
+    document.getElementById('qToko').addEventListener('input', () => {
+      clearTimeout(_t);
+      _t = setTimeout(doSearch, 320);
+    });
+    document.getElementById('qMonth').addEventListener('change', doSearch);
+
+    /* ========== INIT ========== */
+    (async function init() {
+      setLoading(true);
+      await Promise.all([loadPenjualan(), loadUangMasuk()]);
+      setLoading(false);
+      if (!pjRows.length && !umRows.length) {
+        toast('Belum ada data. Buka halaman PJ / UM dan upload Excel dulu.', 'err');
+      } else {
+        toast('Data siap. Silakan cari toko / customer.');
+      }
+    })();
+  </script>
+</body>
+</html>
