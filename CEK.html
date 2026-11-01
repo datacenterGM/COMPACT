@@ -388,12 +388,14 @@ function baseRows() {
 let VIEW = [];
 function render() {
   const base = baseRows();
-  const sumOf = a => 'Rp ' + fmt(Math.round(a.reduce((t, r) => t + (Number(r.total) || 0), 0)));
+  const byU = $('fBasis').value === 'U', mSel = $('fMonth').value;
+  const valOf = r => byU ? r.um.reduce((t, u) => (!mSel || String(u.tanggal_laporan_str || '').slice(0, 7) === mSel) ? t + (Number(u.total_bayar) || 0) : t, 0) : (Number(r.total) || 0);
+  const sumOf = a => (byU ? 'Masuk Rp ' : 'Faktur Rp ') + fmt(Math.round(a.reduce((t, r) => t + valOf(r), 0)));
   $('a_nAll').textContent = sumOf(base);
   $('a_nOk').textContent = sumOf(base.filter(r => r.cat === 'OK'));
   $('a_nDf').textContent = sumOf(base.filter(r => r.cat === 'DIFF'));
   $('a_nNo').textContent = sumOf(base.filter(r => r.cat === 'NONE'));
-  $('a_nOr').textContent = sumOf(base.filter(r => r.cat === 'ORPH')) + ' (uang masuk)';
+  $('a_nOr').textContent = (byU ? 'Masuk Rp ' : 'Uang masuk Rp ') + fmt(Math.round(base.filter(r => r.cat === 'ORPH').reduce((t, r) => t + (Number(r.total) || 0), 0)));
   $('nAll').textContent = fmt(base.length);
   $('nOk').textContent = fmt(base.filter(r => r.cat === 'OK').length);
   $('nDf').textContent = fmt(base.filter(r => r.cat === 'DIFF').length);
@@ -441,7 +443,7 @@ $('bReload').addEventListener('click', () => loadData());
 function coverage() {
   const mn = set => [...set].filter(Boolean).sort().map(m => MON[+m.slice(5) - 1].slice(0, 3) + ' ' + m.slice(0, 4)).join(', ') || '—';
   const ps = new Set(SALES_ROWS.map(r => monthOf(r.Tanggal))), us = new Set(UM_ROWS.filter(r => r.titip_aksi !== 'BATAL').map(r => r.bulan));
-  $('cov').innerHTML = '<span style="opacity:.6">v8</span> · Data terbaca — Penjualan: <b>' + mn(ps) + '</b> (' + fmt(INV.filter(r => !r.orph).length) + ' faktur) · Uang Masuk: <b>' + mn(us) + '</b> (' + fmt(UM_ROWS.length) + ' baris). Jumlah kartu mengikuti filter bulan, sales, pembayaran & produk di atas.';
+  $('cov').innerHTML = '<span style="opacity:.6">v9</span> · Data terbaca — Penjualan: <b>' + mn(ps) + '</b> (' + fmt(INV.filter(r => !r.orph).length) + ' faktur) · Uang Masuk: <b>' + mn(us) + '</b> (' + fmt(UM_ROWS.length) + ' baris). Jumlah kartu mengikuti filter bulan, sales, pembayaran & produk di atas.';
 }
 
 /* ===== penyimpanan keputusan manual (database cek-v1, ikut backup / sinkron) ===== */
