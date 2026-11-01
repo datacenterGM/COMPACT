@@ -37,6 +37,9 @@
   .chip .amt { grid-column:1 / -1; font-size:.72rem; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums; }
   .chip.c-ok .amt { color:var(--ok-tx); } .chip.c-df .amt { color:var(--df-tx); } .chip.c-no .amt { color:var(--no-tx); }
   .chip .v { font-variant-numeric:tabular-nums; }
+  .chip.c-ti .v, .chip.c-ti .amt { color:#2563eb; }
+  :root[data-theme="dark"] .chip.c-ti .v, :root[data-theme="dark"] .chip.c-ti .amt { color:#58a6ff; }
+  tr.r-ti td:first-child { box-shadow:3px 0 0 #2563eb inset; }
   .chip.c-ok .v { color:var(--ok-tx); } .chip.c-df .v { color:var(--df-tx); } .chip.c-no .v { color:var(--no-tx); }
   .wrap { flex:1; min-height:0; overflow:auto; margin:0 .7rem; border:1px solid var(--border); border-radius:8px; background:var(--card); }
   table { width:100%; border-collapse:collapse; }
@@ -94,6 +97,7 @@
 <div class="chips">
   <div class="chip on" data-f="ALL"><span>Semua Faktur</span><span class="v" id="nAll">0</span><span class="amt" id="a_nAll">Rp 0</span></div>
   <div class="chip c-ok" data-f="OK"><span>✓ Sesuai</span><span class="v" id="nOk">0</span><span class="amt" id="a_nOk">Rp 0</span></div>
+  <div class="chip c-ti" data-f="TITIP" title="Sudah dibayar sebagian, belum lunas"><span>◐ Titip / Belum Lunas</span><span class="v" id="nTi">0</span><span class="amt" id="a_nTi">Sisa Rp 0</span></div>
   <div class="chip c-df" data-f="DIFF"><span>⚠ Ada Selisih</span><span class="v" id="nDf">0</span><span class="amt" id="a_nDf">Rp 0</span></div>
   <div class="chip c-no" data-f="NONE"><span>● Belum Masuk</span><span class="v" id="nNo">0</span><span class="amt" id="a_nNo">Rp 0</span></div>
   <div class="chip c-df" data-f="ORPH" title="Uang Masuk yang No Fakturnya tidak ditemukan / salah ketik"><span>✎ UM Tanpa Faktur</span><span class="v" id="nOr">0</span><span class="amt" id="a_nOr">Rp 0</span></div>
@@ -355,10 +359,10 @@ function evaluate(rec, S) {
   rec.info = um.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || ''))
     .map(r => dmy(r.tanggal_laporan_str) + ' ' + (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop') + ' ' + fmt(r.total_bayar)).join(' · ');
   /* TITIP murni (hanya belum lunas) bukan salah catat */
-  rec.cat = issues.filter(i => !/^Baru dibayar/.test(i)).length ? 'DIFF' : 'OK';
+  rec.cat = issues.filter(i => !/^Baru dibayar/.test(i)).length ? 'DIFF' : (rec.status === 'TITIP' ? 'TITIP' : 'OK');
   rec.sig = issues.join('|');
   const ap = APPROVED[rec.fk];
-  if (rec.cat === 'DIFF' && ap) { if (ap.sig === rec.sig) { rec.cat = 'OK'; rec.manual = ap; } else rec.reopened = ap; }
+  if (rec.cat === 'DIFF' && ap) { if (ap.sig === rec.sig) { rec.cat = rec.status === 'TITIP' ? 'TITIP' : 'OK'; rec.manual = ap; } else rec.reopened = ap; }
 }
 
 /* ===== filter & tampilan ===== */
@@ -392,11 +396,14 @@ function render() {
   const valOf = r => byU ? r.um.reduce((t, u) => (!mSel || String(u.tanggal_laporan_str || '').slice(0, 7) === mSel) ? t + (Number(u.total_bayar) || 0) : t, 0) : (Number(r.total) || 0);
   const sumOf = a => (byU ? 'Masuk Rp ' : 'Faktur Rp ') + fmt(Math.round(a.reduce((t, r) => t + valOf(r), 0)));
   $('a_nAll').textContent = sumOf(base);
+  { const ti = base.filter(r => r.cat === 'TITIP'), sisa = ti.reduce((t, r) => t + Math.max(0, (Number(r.total) || 0) - (Number(r.paid) || 0)), 0);
+    $('a_nTi').textContent = (byU ? sumOf(ti) + ' · ' : '') + 'Sisa Rp ' + fmt(Math.round(sisa)); }
   $('a_nOk').textContent = sumOf(base.filter(r => r.cat === 'OK'));
   $('a_nDf').textContent = sumOf(base.filter(r => r.cat === 'DIFF'));
   $('a_nNo').textContent = sumOf(base.filter(r => r.cat === 'NONE'));
   $('a_nOr').textContent = (byU ? 'Masuk Rp ' : 'Uang masuk Rp ') + fmt(Math.round(base.filter(r => r.cat === 'ORPH').reduce((t, r) => t + (Number(r.total) || 0), 0)));
   $('nAll').textContent = fmt(base.length);
+  $('nTi').textContent = fmt(base.filter(r => r.cat === 'TITIP').length);
   $('nOk').textContent = fmt(base.filter(r => r.cat === 'OK').length);
   $('nDf').textContent = fmt(base.filter(r => r.cat === 'DIFF').length);
   $('nNo').textContent = fmt(base.filter(r => r.cat === 'NONE').length);
@@ -418,7 +425,7 @@ function render() {
     const ket = r.manual ? '<span class="good">✓ Dicek manual: sesuai</span> <span class="dim">' + (r.manual.note ? esc(r.manual.note) + ' · ' : '') + esc(r.info) + '</span>'
       : r.cat === 'NONE' ? '<span class="dim">' + esc(r.info) + '</span>'
       : (r.issues.length ? (r.reopened ? '<span class="dim">(sebelumnya ditandai sesuai, tetapi data berubah)</span><br>' : '') + r.issues.map(i => '<span class="x">' + esc(i) + '</span>').join('') + '<br>' : '<span class="good">Sesuai</span> ') + '<span class="dim">' + esc(r.info) + '</span>';
-    const cls = r.cat === 'ORPH' ? 'or' : r.cat === 'DIFF' ? 'df' : r.cat === 'NONE' ? 'no' : 'ok';
+    const cls = r.cat === 'ORPH' ? 'or' : r.cat === 'TITIP' ? 'ti' : r.cat === 'DIFF' ? 'df' : r.cat === 'NONE' ? 'no' : 'ok';
     const L = r.orph ? ['', '', '', '', '', '', '', ''] : [esc(r.tanggal), esc(r.faktur), fmt(r.total), esc(r.sales), esc(r.customer), esc(r.alamat), esc(r.prod), esc(r.pay)];
     return '<tr class="r-' + cls + clk + '">' +
       '<td class="ctr">' + L[0] + '</td><td class="ctr">' + L[1] + '</td><td class="num">' + L[2] + '</td>' +
@@ -443,7 +450,7 @@ $('bReload').addEventListener('click', () => loadData());
 function coverage() {
   const mn = set => [...set].filter(Boolean).sort().map(m => MON[+m.slice(5) - 1].slice(0, 3) + ' ' + m.slice(0, 4)).join(', ') || '—';
   const ps = new Set(SALES_ROWS.map(r => monthOf(r.Tanggal))), us = new Set(UM_ROWS.filter(r => r.titip_aksi !== 'BATAL').map(r => r.bulan));
-  $('cov').innerHTML = '<span style="opacity:.6">v9</span> · Data terbaca — Penjualan: <b>' + mn(ps) + '</b> (' + fmt(INV.filter(r => !r.orph).length) + ' faktur) · Uang Masuk: <b>' + mn(us) + '</b> (' + fmt(UM_ROWS.length) + ' baris). Jumlah kartu mengikuti filter bulan, sales, pembayaran & produk di atas.';
+  $('cov').innerHTML = '<span style="opacity:.6">v10</span> · Data terbaca — Penjualan: <b>' + mn(ps) + '</b> (' + fmt(INV.filter(r => !r.orph).length) + ' faktur) · Uang Masuk: <b>' + mn(us) + '</b> (' + fmt(UM_ROWS.length) + ' baris). Jumlah kartu mengikuti filter bulan, sales, pembayaran & produk di atas.';
 }
 
 /* ===== penyimpanan keputusan manual (database cek-v1, ikut backup / sinkron) ===== */
