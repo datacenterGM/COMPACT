@@ -24,7 +24,10 @@
   .bar { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; padding:.5rem .7rem; background:var(--card); border-bottom:1px solid var(--border); flex-shrink:0; }
   .bar .ttl { font-weight:700; color:var(--primary); margin-right:auto; font-size:.9rem; }
   select, input[type=text] { padding:.32rem .6rem; border:1px solid var(--border); border-radius:6px; background:var(--input); color:var(--text); font-size:.8rem; outline:none; }
-  input[type=text] { width:230px; }
+  input[type=text] { flex:1 1 180px; min-width:150px; max-width:340px; }
+  .acts { display:flex; gap:.4rem; margin-left:auto; white-space:nowrap; }
+  .bar { gap:.4rem; padding:.4rem .6rem; }
+  .bar select { max-width:170px; }
   .btn { padding:.32rem .8rem; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--primary); font-weight:600; font-size:.78rem; cursor:pointer; }
   .btn:hover { background:var(--hover); }
   .chips { display:flex; flex-wrap:wrap; gap:.5rem; padding:.5rem .7rem; flex-shrink:0; }
@@ -75,15 +78,16 @@
 </head>
 <body>
 <div class="bar">
-  <span class="ttl">CEK PENJUALAN → UANG MASUK <small style="font-weight:400;color:var(--muted)">v6</small></span>
+  
   <select id="fBasis" title="Bulan dihitung berdasarkan apa"><option value="F">Bulan: tanggal faktur</option><option value="U">Bulan: tanggal uang masuk</option></select>
   <select id="fMonth" title="Bulan"></select>
   <select id="fSales" title="Sales"><option value="">Semua Sales</option></select>
   <select id="fPay" title="Pembayaran"><option value="">Semua Pembayaran</option><option value="Tempo">Tempo</option><option value="Cash">Cash</option></select>
   <select id="fProd" title="Produk"><option value="">Semua Produk</option><option value="MINYAK">Minyak</option><option value="RUPA">Rupa Rupa</option><option value="CAMPUR">Campur</option></select>
   <input type="text" id="fQ" placeholder="Cari faktur / customer / sales / alamat…">
+  <span class="acts">
   <button class="btn" id="bReload" title="Baca ulang data Penjualan & Uang Masuk">↻ Muat Ulang</button>
-  <button class="btn" id="bXls">💾 Simpan Excel</button>
+  <button class="btn" id="bXls">💾 Simpan Excel</button></span>
 </div>
 <div class="chips">
   <div class="chip on" data-f="ALL"><span>Semua Faktur</span><span class="v" id="nAll">0</span></div>
@@ -429,7 +433,7 @@ $('bReload').addEventListener('click', () => loadData());
 function coverage() {
   const mn = set => [...set].filter(Boolean).sort().map(m => MON[+m.slice(5) - 1].slice(0, 3) + ' ' + m.slice(0, 4)).join(', ') || '—';
   const ps = new Set(SALES_ROWS.map(r => monthOf(r.Tanggal))), us = new Set(UM_ROWS.filter(r => r.titip_aksi !== 'BATAL').map(r => r.bulan));
-  $('cov').innerHTML = 'Data terbaca — Penjualan: <b>' + mn(ps) + '</b> (' + fmt(INV.filter(r => !r.orph).length) + ' faktur) · Uang Masuk: <b>' + mn(us) + '</b> (' + fmt(UM_ROWS.length) + ' baris). Jumlah kartu mengikuti filter bulan, sales, pembayaran & produk di atas.';
+  $('cov').innerHTML = '<span style="opacity:.6">v7</span> · Data terbaca — Penjualan: <b>' + mn(ps) + '</b> (' + fmt(INV.filter(r => !r.orph).length) + ' faktur) · Uang Masuk: <b>' + mn(us) + '</b> (' + fmt(UM_ROWS.length) + ' baris). Jumlah kartu mengikuti filter bulan, sales, pembayaran & produk di atas.';
 }
 
 /* ===== penyimpanan keputusan manual (database cek-v1, ikut backup / sinkron) ===== */
