@@ -61,8 +61,25 @@ const idb = (d, s, kp) => new Promise((ok, no) => {
   open(false);
 });
 const utf8 = s => new TextEncoder().encode(s);
-const enc = o => JSON.stringify(o, function (k, v) { const x = this[k]; return x instanceof Date ? { $d: isNaN(x) ? null : x.getTime() } : v; });
-const dec = t => JSON.parse(t, (k, v) => v && typeof v === 'object' && Object.keys(v).length === 1 && '$d' in v ? new Date(v.$d == null ? NaN : v.$d) : v);
+/* Data biner (file Excel Penjualan = ArrayBuffer) HARUS ikut tersimpan utuh. JSON.stringify biasa mengubahnya jadi {} (kosong). */
+const bytesOf = x => x instanceof ArrayBuffer ? new Uint8Array(x) : new Uint8Array(x.buffer, x.byteOffset, x.byteLength);
+const abToB64 = u => { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+const b64ToAb = t => { const bin = atob(t), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; };
+const isBin = x => x instanceof ArrayBuffer || ArrayBuffer.isView(x);
+const enc = o => JSON.stringify(o, function (k, v) {
+  const x = this[k];
+  if (x instanceof Date) return { $d: isNaN(x) ? null : x.getTime() };
+  if (isBin(x)) return { $ab: abToB64(bytesOf(x)) };
+  return v;
+});
+const dec = t => JSON.parse(t, (k, v) => {
+  if (v && typeof v === 'object') {
+    const ks = Object.keys(v);
+    if (ks.length === 1 && '$d' in v) return new Date(v.$d == null ? NaN : v.$d);
+    if (ks.length === 1 && '$ab' in v) return b64ToAb(v.$ab);
+  }
+  return v;
+});
 const pipe = async (u, S) => new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new S('gzip'))).arrayBuffer());
 const b64 = u => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result.split(',')[1]); f.readAsDataURL(new Blob([u])); });
 const unb64 = async s => new Uint8Array(await (await fetch('data:application/octet-stream;base64,' + s)).arrayBuffer());
@@ -150,6 +167,7 @@ async function fpOfSnap(o) {
 
 function validBackup(c, v) {
   if (v == null) return true;
+  if (c.k === 'penjualan') return !!v && typeof v === 'object' && (!Array.isArray(v.files) || v.files.every(f => f && (isBin(f.buf) || typeof f.b64 === 'string')));
   if (c.all) return Array.isArray(v) && v.every(x => x && typeof x === 'object' && typeof x.key === 'string');
   if (c.kp) return Array.isArray(v) && v.every(x => x && typeof x === 'object' && x[c.kp] != null);
   return typeof v === 'object';
@@ -158,7 +176,9 @@ async function apply(o) {
   /* 1) Validasi SEMUA bagian dulu, sebelum ada data yang disentuh. */
   for (const c of DBS) {
     if (!(c.k in o.d)) continue;
-    if (!validBackup(c, o.d[c.k])) throw new Error('Backup tidak valid pada bagian "' + c.k + '". Restore dibatalkan, data tidak diubah.');
+    if (!validBackup(c, o.d[c.k])) throw new Error(c.k === 'penjualan'
+      ? 'File Penjualan di backup/cloud ini RUSAK (isi file Excel hilang, disimpan oleh versi lama). Restore dibatalkan, data di device ini tidak diubah. Upload ulang dari device yang masih punya data Penjualan yang benar.'
+      : 'Backup tidak valid pada bagian "' + c.k + '". Restore dibatalkan, data tidak diubah.');
   }
   /* 2) Tulis per database: satu transaksi, di-abort bila ada error, db selalu ditutup. */
   for (const c of DBS) {
@@ -253,6 +273,7 @@ async function cloudMeta(c) {
 }
 async function upload() {
   const code = getCode(), o = await snap();   /* hanya satu kali baca penuh per upload */
+  for (const c of DBS) if (!validBackup(c, o.d[c.k])) throw new Error(c.k === 'penjualan' ? 'Data Penjualan di device ini rusak (isi file Excel hilang). Upload dibatalkan supaya cloud tidak ikut rusak. Hapus data Penjualan lalu upload ulang file Excelnya.' : 'Data "' + c.k + '" di device ini tidak valid. Upload dibatalkan.');
   if (isEmpty(o)) throw new Error('Device ini belum punya data. Upload dibatalkan supaya data di cloud tidak tertimpa kosong.');
   if (coreEmpty(o)) {
     /* Hanya ada keputusan manual (batal/harga/cek), belum ada data Penjualan / Uang Masuk / AR. */

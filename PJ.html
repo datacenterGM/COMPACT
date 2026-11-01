@@ -722,7 +722,17 @@
         });
         db.close();
         if (v && v.files && v.files.length) {
-          for (const f of v.files) filesMap.set(f.name, f.buf || b64ToAb(f.b64));
+          const bad = [];
+          for (const f of v.files) {
+            const bin = (f.buf instanceof ArrayBuffer || ArrayBuffer.isView(f.buf)) ? f.buf : (typeof f.b64 === 'string' ? b64ToAb(f.b64) : null);
+            if (bin) filesMap.set(f.name, (bin instanceof ArrayBuffer) ? bin : bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength));
+            else bad.push(f.name);
+          }
+          if (bad.length) {
+            console.warn('[PJ] file tersimpan rusak, dilewati:', bad);
+            setTimeout(() => alert('Data Penjualan tersimpan di device ini rusak (isi file Excel hilang):\n' + bad.join('\n') + '\n\nFile tersebut dilewati. Upload ulang file Excelnya (Menu > Upload File Excel).'), 300);
+            savePJ();   // buang entri rusak dari penyimpanan
+          }
           renderFileListMenu();
           processAllFiles();
         }
@@ -839,6 +849,7 @@
         ['normal', { type: 'array', cellDates: true }],
         ['batas-baris', { type: 'array', cellDates: true, sheetRows: 300000 }]
       ];
+      if (!(buffer instanceof ArrayBuffer) && !ArrayBuffer.isView(buffer)) throw new Error('isi file tidak valid (bukan data biner); upload ulang file Excelnya');
       const errs = [];
       for (const [label, opt] of tries) {
         try {
