@@ -374,6 +374,30 @@
       if (m) return m[1] + '-' + m[2];
       return '';
     }
+    /** Kunci urut tanggal → YYYYMMDD (string). Format yang didukung:
+     *  DD/MM/YYYY, D/M/YY, YYYY-MM-DD, DD-MM, DD-MM-YYYY, DD/MM
+     *  Untuk format tanpa tahun (DD-MM / DD/MM) pakai tahun dari filter bulan atau 0000.
+     */
+    function sortKeyDate(t, fallbackYear) {
+      const s = String(t || '').trim();
+      let m;
+      // DD/MM/YYYY atau D/M/YY
+      m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+      if (m) {
+        const y = m[3].length === 2 ? '20' + m[3] : m[3];
+        return y + m[2].padStart(2, '0') + m[1].padStart(2, '0');
+      }
+      // YYYY-MM-DD
+      m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) return m[1] + m[2] + m[3];
+      // DD-MM atau DD/MM (tanpa tahun) — UM sering format ini
+      m = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+      if (m) {
+        const y = fallbackYear || '0000';
+        return y + m[2].padStart(2, '0') + m[1].padStart(2, '0');
+      }
+      return '00000000';
+    }
     function monthLabel(ym) {
       if (!ym) return '';
       const [y, m] = ym.split('-');
@@ -692,6 +716,9 @@
       document.getElementById('hintBox').style.display = 'none';
       document.getElementById('panels').style.display = 'grid';
 
+      // Tahun fallback untuk format tanggal tanpa tahun (mis. "14-05")
+      const yearHint = month ? month.slice(0, 4) : '';
+
       // --- Penjualan ---
       let pjHit = pjRows.filter(r => {
         if (month) {
@@ -702,10 +729,16 @@
         const blob = norm([r.Customer, r.Alamat, r['No. Faktur'], r.Sales, r.Produk].join(' '));
         return blob.includes(q);
       });
+      // Urut: tanggal termuda (terbaru) di atas
+      pjHit.sort((a, b) => {
+        const ka = sortKeyDate(a.Tanggal, yearHint);
+        const kb = sortKeyDate(b.Tanggal, yearHint);
+        if (ka !== kb) return kb.localeCompare(ka); // descending
+        // sekunder: no faktur agar baris satu faktur tetap berdekatan
+        return String(a['No. Faktur'] || '').localeCompare(String(b['No. Faktur'] || ''));
+      });
 
-      // tampilkan 1 baris per faktur (agregat sederhana: baris pertama + total faktur)
-      // supaya tabel tidak terlalu panjang; tetap tampilkan semua item jika user mau detail
-      // Di sini kita tampilkan SEMUA baris item agar lengkap
+      // tampilkan SEMUA baris item agar lengkap
       const bodyPJ = document.getElementById('bodyPJ');
       const metaPJ = document.getElementById('metaPJ');
       if (!pjHit.length) {
@@ -766,6 +799,13 @@
         if (!q) return true;
         const blob = norm([r.toko, r.alamat, r.faktur, r.sales, r.ket, r.section].join(' '));
         return blob.includes(q);
+      });
+      // Urut: tanggal termuda (terbaru) di atas — sama dengan penjualan
+      umHit.sort((a, b) => {
+        const ka = sortKeyDate(a.tgl, yearHint);
+        const kb = sortKeyDate(b.tgl, yearHint);
+        if (ka !== kb) return kb.localeCompare(ka); // descending
+        return String(a.faktur || '').localeCompare(String(b.faktur || ''));
       });
 
       const bodyUM = document.getElementById('bodyUM');
