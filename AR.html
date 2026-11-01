@@ -254,6 +254,7 @@ tbody td{color:#000!important}
 <button class="tabbtn" data-cat="titip">TITIP</button>
 <button class="tabbtn" data-cat="lunas">SUDAH LUNAS</button>
 <div class="sumber-btns" id="sumberFilter" data-value="semua"></div>
+<select class="filter-select" id="monthFilter" title="Bulan data AR (snapshot akhir bulan)"><option value="">Belum ada data</option></select>
 <select class="filter-select" id="salesFilter"><option value="semua">Semua sales</option></select>
 <input type="text" class="searchbox" id="searchBox" placeholder="Cari toko / sales / no faktur...">
 <div class="menu-wrap" id="menuWrap" style="position:relative;display:inline-flex;align-items:center;">
@@ -269,8 +270,8 @@ tbody td{color:#000!important}
 <div class="menu-item" id="inputBtnA" role="button"><span>✏️ Input AR Minyak</span></div>
 <div class="menu-item" id="inputBtnB" role="button"><span>✏️ Input AR Rupa‑rupa</span></div>
 <div class="menu-divider"></div>
-<div class="menu-item danger" id="delBtnA" role="button"><span>🗑 Hapus Data AR Minyak</span></div>
-<div class="menu-item danger" id="delBtnB" role="button"><span>🗑 Hapus Data AR Rupa‑rupa</span></div>
+<div class="menu-item danger" id="delBtnA" role="button"><span>🗑 Hapus AR Minyak (bulan dipilih)</span></div>
+<div class="menu-item danger" id="delBtnB" role="button"><span>🗑 Hapus AR Rupa‑rupa (bulan dipilih)</span></div>
 </div>
 </div>
 <button type="button" class="btn-theme" id="themeToggle" title="Ganti tema">🌙</button>
@@ -359,11 +360,44 @@ tbody td{color:#000!important}
 </div>
 </div>
 </div>
+<div class="modal-overlay" id="monthModal">
+<div class="modal-box" style="max-width:400px">
+<div class="modal-header"><h3>Simpan data AR untuk bulan…</h3></div>
+<div class="modal-body">
+<div class="form-hint" id="upInfo" style="margin-bottom:10px"></div>
+<div class="form-grid">
+<div class="form-group"><label for="upMonth">Bulan</label><select id="upMonth"></select></div>
+<div class="form-group"><label for="upYear">Tahun</label><input type="number" id="upYear" min="2000" max="2100" step="1"></div>
+</div>
+<div class="form-hint" id="upHint" style="margin:6px 0 4px;line-height:1.5"></div>
+<div class="form-actions">
+<button type="button" class="btn-cancel" id="monthCancelBtn">Batal</button>
+<button type="button" class="btn-save" id="monthOkBtn">Simpan</button>
+</div>
+</div>
+</div>
+</div>
 <script>
 console.log('[AR] script start');
 const COL={NO:0,SALES:1,NO_FAKTUR:2,TANGGAL:3,KD_CUS:4,TOKO:5,ALAMAT:6,TGL_KIRIM:7,TGL_JATUH_TEMPO:8,NOMINAL:9,SALDO_AWAL:10,TOTAL_PAYMENT:57,SISA:65,TGL_PELUNASAN:66,KETERANGAN:67,STATUS:68};
 const DATA_START_ROW_INDEX=13,JATUH_TEMPO_OFFSET_HARI=12;
-const state={A:null,B:null};
+const BULAN_NAMA=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const store={};                 // 'YYYY-MM' -> {A:{...}|null, B:{...}|null}  (snapshot AR akhir bulan)
+const loadedMonths=new Set();   // bulan yang isinya sudah dimuat dari IndexedDB
+const knownMonths=new Set();    // semua bulan yang ada di penyimpanan
+let curMonth='';                // bulan yang sedang ditampilkan
+let state={A:null,B:null};      // = store[curMonth] (kode lama tetap memakai state.A / state.B)
+function ymLabel(ym){const m=String(ym||'').match(/^(\d{4})-(\d{2})$/);return m?BULAN_NAMA[+m[2]-1]+' '+m[1]:'-'}
+function pad2(n){return String(n).padStart(2,'0')}
+function ymNow(d){d=d||new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)}
+function latestMonth(){let m='';knownMonths.forEach(x=>{if(x>m)m=x});return m}
+function setMonth(ym){
+  curMonth=ym||'';
+  if(!curMonth){state={A:null,B:null};return}
+  if(!store[curMonth])store[curMonth]={A:null,B:null};
+  state=store[curMonth];
+}
+function rowsOfMonth(ym){const o=store[ym];if(!o)return[];let r=[];if(o.A)r=r.concat(o.A.rows);if(o.B)r=r.concat(o.B.rows);return r}
 let activeCat='semua',currentPage=1,pageSize=100;
 
 function parseDateToSerial(s){
@@ -524,6 +558,8 @@ function parseWorkbookInWorker(ab,src,slot,onProgress){
 }
 
 const IDB_NAME='piutangHarianDB',IDB_VERSION=1,IDB_STORE='slots';
+/* Struktur penyimpanan: store 'slots' (keyPath 'slot') — kunci baru "YYYY-MM|A" / "YYYY-MM|B".
+   Nama DB/store/keyPath sengaja TIDAK diubah agar backup & sinkron cloud di index.html tetap berfungsi. */
 let idbPromise=null;
 function openIDB(){
   if(idbPromise)return idbPromise;
@@ -536,15 +572,22 @@ function openIDB(){
   return idbPromise;
 }
 function _quotaMsg(e){
-  return (e&&e.name==='QuotaExceededError')?'Storage penuh. Data terlalu besar untuk disimpan di browser ini. Hapus data lama atau gunakan browser lain.':('Gagal menyimpan data: '+(e&&e.message||String(e)));
+  return (e&&e.name==='QuotaExceededError')?'Storage penuh. Data terlalu besar untuk disimpan di browser ini. Hapus data bulan lama atau gunakan browser lain.':('Gagal menyimpan data: '+(e&&e.message||String(e)));
 }
-async function saveSlot(slot){
+const slotKey=(ym,k)=>ym+'|'+k;
+function recOf(ym,k){
+  const d=store[ym]&&store[ym][k];
+  return d?{slot:slotKey(ym,k),month:ym,k:k,filename:d.filename,label:d.label,rows:d.rows,ts:d.ts.toISOString()}:null;
+}
+async function saveSlot(slot,ym){
+  ym=ym||curMonth;
+  if(!ym)return;
   try{
     const db=await openIDB();
     const tx=db.transaction(IDB_STORE,'readwrite');
     const st=tx.objectStore(IDB_STORE);
-    if(state[slot]) st.put({slot,filename:state[slot].filename,label:state[slot].label,rows:state[slot].rows,ts:state[slot].ts.toISOString()});
-    else st.delete(slot);
+    const rec=recOf(ym,slot);
+    if(rec)st.put(rec);else st.delete(slotKey(ym,slot));
     await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});
   }catch(e){
     console.error('saveSlot gagal:',e);
@@ -552,14 +595,16 @@ async function saveSlot(slot){
     throw e;
   }
 }
-async function saveAllSlots(){
+async function saveAllSlots(ym){
+  ym=ym||curMonth;
+  if(!ym)return;
   try{
     const db=await openIDB();
     const tx=db.transaction(IDB_STORE,'readwrite');
     const st=tx.objectStore(IDB_STORE);
     for(const k of['A','B']){
-      if(state[k])st.put({slot:k,filename:state[k].filename,label:state[k].label,rows:state[k].rows,ts:state[k].ts.toISOString()});
-      else st.delete(k);
+      const rec=recOf(ym,k);
+      if(rec)st.put(rec);else st.delete(slotKey(ym,k));
     }
     await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});
   }catch(e){
@@ -569,68 +614,156 @@ async function saveAllSlots(){
   }
 }
 const saveStateToStorage=saveAllSlots;
-let saveTimers={A:null,B:null};
-function scheduleSaveSlot(slot,delay){
-  if(delay===undefined)delay=800;
-  if(saveTimers[slot])clearTimeout(saveTimers[slot]);
-  saveTimers[slot]=setTimeout(()=>{
-    saveTimers[slot]=null;
-    saveSlot(slot).catch(()=>{});
+const saveTimers={};
+function scheduleSaveSlot(slot,delay,ym){
+  ym=ym||curMonth;
+  if(delay===undefined||delay===null)delay=800;
+  const key=slotKey(ym,slot);
+  if(saveTimers[key])clearTimeout(saveTimers[key]);
+  saveTimers[key]=setTimeout(()=>{
+    delete saveTimers[key];
+    saveSlot(slot,ym).catch(()=>{});
   },delay);
 }
-function cancelPendingSave(slot){
-  if(saveTimers[slot]){clearTimeout(saveTimers[slot]);saveTimers[slot]=null}
+function cancelPendingSave(slot,ym){
+  const key=slotKey(ym||curMonth,slot);
+  if(saveTimers[key]){clearTimeout(saveTimers[key]);delete saveTimers[key]}
 }
 function flushPendingSaves(){
-  for(const k of['A','B']){
-    if(saveTimers[k]){
-      clearTimeout(saveTimers[k]);
-      saveTimers[k]=null;
-      saveSlot(k).catch(()=>{});
-    }
-  }
+  Object.keys(saveTimers).forEach(key=>{
+    clearTimeout(saveTimers[key]);delete saveTimers[key];
+    const p=key.split('|');
+    saveSlot(p[1],p[0]).catch(()=>{});
+  });
 }
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden')flushPendingSaves();
 });
 
+function hydrate(rec){
+  const d={filename:rec.filename,label:rec.label,rows:rec.rows||[],ts:new Date(rec.ts)};
+  d.rows.forEach(r=>{r.tglJatuhTempo=hitungJatuhTempoSerial(r.tglFaktur);r.sisaRiil=hitungSisaRiil(r.nominal,r.totalPayment,r.sisaRiil)});
+  return d;
+}
+/* Bulan data = bulan dari tgl faktur paling akhir (snapshot AR akhir bulan). Cadangan: bulan tanggal upload. */
+function detectMonthFromRows(rows,fallbackDate){
+  let mx=null;
+  for(let i=0;i<rows.length;i++){const sr=parseDateToSerial(rows[i].tglFaktur);if(sr!==null&&(mx===null||sr>mx))mx=sr}
+  if(mx!==null){const d=new Date(Math.floor(mx-25569)*864e5);return d.getUTCFullYear()+'-'+pad2(d.getUTCMonth()+1)}
+  return ymNow(fallbackDate&&!isNaN(fallbackDate.getTime())?fallbackDate:new Date());
+}
+function idbGetAllKeys(db){
+  return new Promise((res,rej)=>{const r=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).getAllKeys();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)});
+}
+/* Data versi lama (kunci 'A' / 'B' tanpa bulan) dipindahkan ke bulan hasil deteksi. Tidak menimpa bulan yang sudah ada. */
+async function migrateLegacySlots(db,legacy){
+  const recs=await Promise.all(legacy.map(k=>new Promise(r=>{const g=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).get(k);g.onsuccess=()=>r(g.result);g.onerror=()=>r(null)})));
+  const tx=db.transaction(IDB_STORE,'readwrite');
+  const st=tx.objectStore(IDB_STORE);
+  recs.forEach((rec,i)=>{
+    const k=legacy[i];
+    if(!rec){st.delete(k);return}
+    const ym=detectMonthFromRows(rec.rows||[],new Date(rec.ts));
+    const nk=slotKey(ym,k);
+    const c=st.count(nk);
+    c.onsuccess=()=>{
+      if(!c.result)st.put(Object.assign({},rec,{slot:nk,month:ym,k:k}));
+      st.delete(k);
+    };
+  });
+  await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)});
+}
+async function loadMonth(ym){
+  if(!ym||loadedMonths.has(ym))return;
+  const db=await openIDB();
+  const st=db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE);
+  const get=k=>new Promise(r=>{const g=st.get(slotKey(ym,k));g.onsuccess=()=>r(g.result);g.onerror=()=>r(null)});
+  const[rA,rB]=await Promise.all([get('A'),get('B')]);
+  const o=store[ym]||(store[ym]={A:null,B:null});
+  if(rA)o.A=hydrate(rA);
+  if(rB)o.B=hydrate(rB);
+  loadedMonths.add(ym);
+}
+function rebuildMonthFilter(){
+  const sel=document.getElementById('monthFilter');
+  if(!sel)return;
+  const ms=Array.from(knownMonths).sort().reverse();
+  if(!ms.length){sel.innerHTML='<option value="">Belum ada data</option>';sel.value='';return}
+  sel.innerHTML=ms.map(m=>'<option value="'+m+'">'+escapeHtml(ymLabel(m))+'</option>').join('');
+  sel.value=curMonth;
+}
+async function switchMonth(ym){
+  if(!ym)return;
+  try{await loadMonth(ym)}catch(e){console.error(e);alert('Gagal memuat data '+ymLabel(ym)+': '+(e&&e.message||e));rebuildMonthFilter();return}
+  setMonth(ym);
+  currentPage=1;
+  rebuildMonthFilter();updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();render();
+}
 async function loadStateFromStorage(){
   try{
     const db=await openIDB();
-    const tx=db.transaction(IDB_STORE,'readonly');
-    const st=tx.objectStore(IDB_STORE);
-    const gA=st.get('A'),gB=st.get('B');
-    const[rA,rB]=await Promise.all([
-      new Promise(r=>{gA.onsuccess=()=>r(gA.result);gA.onerror=()=>r(null)}),
-      new Promise(r=>{gB.onsuccess=()=>r(gB.result);gB.onerror=()=>r(null)})
-    ]);
-    if(rA){state.A={filename:rA.filename,label:rA.label,rows:rA.rows||[],ts:new Date(rA.ts)};state.A.rows.forEach(r=>{r.tglJatuhTempo=hitungJatuhTempoSerial(r.tglFaktur);r.sisaRiil=hitungSisaRiil(r.nominal,r.totalPayment,r.sisaRiil)})}
-    if(rB){state.B={filename:rB.filename,label:rB.label,rows:rB.rows||[],ts:new Date(rB.ts)};state.B.rows.forEach(r=>{r.tglJatuhTempo=hitungJatuhTempoSerial(r.tglFaktur);r.sisaRiil=hitungSisaRiil(r.nominal,r.totalPayment,r.sisaRiil)})}
-    if(!rA&&!rB){
+    let keys=await idbGetAllKeys(db);
+    const legacy=keys.filter(k=>k==='A'||k==='B');
+    if(legacy.length){
+      try{await migrateLegacySlots(db,legacy)}catch(e){console.error('Migrasi data lama gagal:',e)}
+      keys=await idbGetAllKeys(db);
+    }
+    if(!keys.length){
+      /* cadangan terakhir: format paling lama di localStorage */
       try{
         const raw=localStorage.getItem('piutangHarianState_v1');
         if(raw){
           const p=JSON.parse(raw);
-          ['A','B'].forEach(k=>{
-            if(p[k]){state[k]={filename:p[k].filename,label:p[k].label,rows:p[k].rows,ts:new Date(p[k].ts)};state[k].rows.forEach(r=>{r.tglJatuhTempo=hitungJatuhTempoSerial(r.tglFaktur)})}
-          });
-          if(state.A||state.B)await saveAllSlots();
+          for(const k of['A','B']){
+            if(!p[k])continue;
+            const d=hydrate(p[k]);
+            const ym=detectMonthFromRows(d.rows,d.ts);
+            if(!store[ym])store[ym]={A:null,B:null};
+            store[ym][k]=d;loadedMonths.add(ym);knownMonths.add(ym);
+            await saveSlot(k,ym);
+          }
         }
       }catch(_){}
     }
-    updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();
+    keys.forEach(k=>{const m=String(k).match(/^(\d{4}-\d{2})\|[AB]$/);if(m)knownMonths.add(m[1])});
+    const lm=latestMonth();
+    if(lm){await loadMonth(lm);setMonth(lm)}
   }catch(e){
     console.error('Gagal memuat dari IndexedDB:',e);
-    try{
-      const raw=localStorage.getItem('piutangHarianState_v1');
-      if(!raw)return;
-      const p=JSON.parse(raw);
-      ['A','B'].forEach(k=>{
-        if(p[k]){state[k]={filename:p[k].filename,label:p[k].label,rows:p[k].rows,ts:new Date(p[k].ts)};state[k].rows.forEach(r=>{r.tglJatuhTempo=hitungJatuhTempoSerial(r.tglFaktur)})}
-      });
-      updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();
-    }catch(err){console.error(err)}
   }
+  rebuildMonthFilter();updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();
+}
+
+function fillMonthSelect(){
+  const sm=document.getElementById('upMonth');
+  if(sm&&!sm.options.length)sm.innerHTML=BULAN_NAMA.map((n,i)=>'<option value="'+(i+1)+'">'+n+'</option>').join('');
+}
+/* Tanya bulan penyimpanan (otomatis terisi dari tanggal faktur di file). Hasil: 'YYYY-MM' atau null jika dibatalkan. */
+function askMonth(slot,label,rows,fname){
+  fillMonthSelect();
+  return new Promise(resolve=>{
+    const modal=document.getElementById('monthModal'),sm=document.getElementById('upMonth'),sy=document.getElementById('upYear'),hint=document.getElementById('upHint');
+    const ok=document.getElementById('monthOkBtn'),cancel=document.getElementById('monthCancelBtn');
+    const det=detectMonthFromRows(rows).split('-');
+    sm.value=String(+det[1]);sy.value=det[0];
+    document.getElementById('upInfo').textContent=label+' · '+fname+' · '+rows.length+' faktur. Bulan terisi otomatis dari tgl faktur terakhir di file — ubah bila tidak sesuai.';
+    const pick=()=>{const y=parseInt(sy.value,10),m=parseInt(sm.value,10);return(y>=2000&&y<=2100&&m>=1&&m<=12)?y+'-'+pad2(m):''};
+    let seq=0;
+    async function upd(){
+      const my=++seq,ym=pick();
+      if(!ym){hint.textContent='Isi tahun yang valid.';return}
+      try{await loadMonth(ym)}catch(_){}
+      if(my!==seq)return;
+      const ex=store[ym]&&store[ym][slot];
+      hint.textContent=ex?('⚠ Data '+(ex.label||label)+' '+ymLabel(ym)+' sudah ada ('+ex.rows.length+' faktur) dan akan DIGANTI oleh file ini. Bulan lain tidak terpengaruh.'):('Data '+label+' untuk '+ymLabel(ym)+' belum ada — akan disimpan sebagai bulan tersendiri.');
+    }
+    function done(v){modal.classList.remove('show');sm.onchange=sy.oninput=ok.onclick=cancel.onclick=null;resolve(v)}
+    sm.onchange=upd;sy.oninput=upd;
+    ok.onclick=()=>{const ym=pick();if(!ym){alert('Tahun tidak valid.');return}done(ym)};
+    cancel.onclick=()=>done(null);
+    modal.classList.add('show');
+    upd();
+  });
 }
 
 function handleFile(slot,file){
@@ -655,42 +788,62 @@ function handleFile(slot,file){
         rows=parseWorkbook(b2,label);
       }
       rows.forEach(r=>{r.tglJatuhTempo=hitungJatuhTempoSerial(r.tglFaktur)});
-      state[slot]={filename:file.name,label,rows,ts:new Date()};
-      updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();
+      const ym=await askMonth(slot,label,rows,file.name);
+      if(!ym){updateUploadStatus();return}
+      await loadMonth(ym);
+      const o=store[ym]||(store[ym]={A:null,B:null});
+      o[slot]={filename:file.name,label,rows,ts:new Date()};
+      knownMonths.add(ym);loadedMonths.add(ym);
+      setMonth(ym);
+      rebuildMonthFilter();updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();
       currentPage=1;render();
-      el.innerHTML='<span class="ok">'+label+'</span>: <span class="file-count">'+rows.length+'</span> faktur'+dInfo;
-      cancelPendingSave(slot);
-      try{await saveSlot(slot)}catch(_){el.innerHTML+=' <span style="color:var(--red)">(belum tersimpan permanen)</span>'}
+      el.innerHTML='<b>'+escapeHtml(ymLabel(ym))+'</b> — <span class="ok">'+label+'</span>: <span class="file-count">'+rows.length+'</span> faktur'+dInfo;
+      cancelPendingSave(slot,ym);
+      try{await saveSlot(slot,ym)}catch(_){el.innerHTML+=' <span style="color:var(--red)">(belum tersimpan permanen)</span>'}
     }catch(err){el.innerHTML='<span style="color:var(--red)">Gagal membaca file: '+err.message+'</span>'}
   };
   rd.onerror=()=>{el.innerHTML='<span style="color:var(--red)">Gagal membaca file.</span>'};
   rd.readAsArrayBuffer(file);
 }
 
-async function clearSlot(k,opts){
-  cancelPendingSave(k);
-  state[k]=null;
-  updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();
-  if(!opts||!opts.skipSave){
-    try{await saveSlot(k)}catch(_){}
+/* Setelah slot dihapus: bila bulan aktif jadi kosong, bulan itu dilepas dari daftar dan pindah ke bulan terbaru yang masih ada. */
+async function refreshAfterDelete(){
+  if(curMonth&&!state.A&&!state.B){
+    const gone=curMonth;
+    knownMonths.delete(gone);loadedMonths.delete(gone);delete store[gone];
+    const lm=latestMonth();
+    if(lm){await loadMonth(lm);setMonth(lm)}else setMonth('');
   }
-  currentPage=1;render();
+  currentPage=1;
+  rebuildMonthFilter();updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();render();
+}
+async function clearSlot(k,opts){
+  const ym=curMonth;
+  cancelPendingSave(k,ym);
+  state[k]=null;
+  if(!opts||!opts.skipSave){
+    try{await saveSlot(k,ym)}catch(_){}
+  }
+  await refreshAfterDelete();
 }
 window.clearSlot=clearSlot;
 window.clearAll=async function(){
-  if(!state.A && !state.B){alert('Tidak ada data untuk dihapus.');return}
-  if(!confirm('Hapus SEMUA data AR (Minyak & Rupa-rupa)?\n\nTindakan ini tidak bisa dibatalkan.'))return;
-  cancelPendingSave('A');cancelPendingSave('B');
+  if(!curMonth||(!state.A&&!state.B)){alert('Tidak ada data untuk dihapus.');return}
+  if(!confirm('Hapus SEMUA data AR bulan '+ymLabel(curMonth)+' (Minyak & Rupa-rupa)?\n\nData bulan lain TIDAK ikut terhapus.\nTindakan ini tidak bisa dibatalkan.'))return;
+  const ym=curMonth;
+  cancelPendingSave('A',ym);cancelPendingSave('B',ym);
   state.A=null;state.B=null;
-  updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();
-  try{await saveAllSlots()}catch(_){}
-  currentPage=1;render();
+  try{await saveAllSlots(ym)}catch(_){}
+  await refreshAfterDelete();
 };
 function updateUploadStatus(){
   const el=document.getElementById('uploadStatus');
   const p=[];
-  ['A','B'].forEach(k=>{const d=state[k];if(d)p.push('<span class="ok">'+d.label+'</span>: <span class="file-count">'+d.rows.length+'</span> faktur')});
-  el.innerHTML=p.length===0?'<span>Belum ada file diupload.</span>':p.join(' · ')+' <button type="button" class="clear-btn" onclick="clearAll()">hapus semua</button>';
+  ['A','B'].forEach(k=>{const d=state[k];if(d)p.push('<span class="ok">'+escapeHtml(d.label)+'</span>: <span class="file-count">'+d.rows.length+'</span> faktur')});
+  const head=curMonth?'<b>'+escapeHtml(ymLabel(curMonth))+'</b> — ':'';
+  const nb=knownMonths.size;
+  const tail=nb>1?' <span style="opacity:.7">· '+nb+' bulan tersimpan</span>':'';
+  el.innerHTML=p.length===0?(nb?head+'<span>Belum ada file untuk bulan ini.</span>'+tail:'<span>Belum ada file diupload.</span>'):head+p.join(' · ')+tail+' <button type="button" class="clear-btn" onclick="clearAll()">hapus bulan ini</button>';
 }
 function rebuildSumberFilter(){
   const wrap=document.getElementById('sumberFilter');
@@ -725,6 +878,7 @@ function rebuildSalesFilter(){
 }
 function getSumberVal(){return document.getElementById('sumberFilter').dataset.value||'semua'}
 
+document.getElementById('monthFilter').addEventListener('change',function(){if(this.value)switchMonth(this.value)});
 document.getElementById('fileA').addEventListener('change',function(){if(this.files[0])handleFile('A',this.files[0]);this.value=''});
 document.getElementById('fileB').addEventListener('change',function(){if(this.files[0])handleFile('B',this.files[0]);this.value=''});
 
@@ -777,7 +931,7 @@ document.getElementById('btnCetak').addEventListener('click',()=>{
   const sv=getSumberVal();
   const lv=document.getElementById('salesFilter').value;
   const q=document.getElementById('searchBox').value.trim();
-  const parts=['Kategori: '+cl];
+  const parts=['Bulan AR: '+(curMonth?ymLabel(curMonth):'-'),'Kategori: '+cl];
   if(sv!=='semua')parts.push('Sumber: '+escapeHtml(sv));
   if(lv!=='semua')parts.push('Sales: '+escapeHtml(lv));
   if(q)parts.push('Cari: "'+escapeHtml(q)+'"');
@@ -822,7 +976,7 @@ function exportCurrentViewToExcel(){
   if(incOD)header.push('OD (hari)');
   if(incPel)header.push('Tgl Pelunasan');
   header.push('Status','Sumber','Keterangan');
-  const aoa=[['DATA AR '+cl.toUpperCase().replace(/_/g,' ')],['Tanggal cetak: '+todayStr()+'   ·   '+te.length+' baris'+(te.length<f.length?' (dari '+f.length+' sesuai filter)':'')],[''],header];
+  const aoa=[['DATA AR '+cl.toUpperCase().replace(/_/g,' ')+(curMonth?' — '+ymLabel(curMonth).toUpperCase():'')],['Tanggal cetak: '+todayStr()+'   ·   '+te.length+' baris'+(te.length<f.length?' (dari '+f.length+' sesuai filter)':'')],[''],header];
   te.forEach((r,idx)=>{
     const row=[idx+1,r.sales||'',String(r.noFaktur||''),r.toko||'',r.alamat||'',fmtDate(r.tglFaktur),fmtDate(r.tglJatuhTempo),Number(r.nominal)||0,Number(r.totalPayment)||0,Number(r.sisaRiil)||0];
     if(incOD){const d=hitungOD(r.tglJatuhTempo);row.push(d!==null?d:'')}
@@ -849,13 +1003,13 @@ function exportCurrentViewToExcel(){
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'AR');
   const d=new Date();const ymd=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
   const part=te.length<f.length?'_Top'+te.length:'';
-  XLSX.writeFile(wb,'AR_'+cl+part+'_'+ymd+'.xlsx');
+  XLSX.writeFile(wb,'AR_'+(curMonth?curMonth+'_':'')+cl+part+'_'+ymd+'.xlsx');
 }
 document.getElementById('btnExportExcel').addEventListener('click',exportCurrentViewToExcel);
 
 let __allRowsCache=null,__allRowsCacheKey='';
 function allRows(){
-  const key=(state.A?(state.A.ts?.getTime?.()||0)+'_'+state.A.rows.length:'x')+'|'+(state.B?(state.B.ts?.getTime?.()||0)+'_'+state.B.rows.length:'x');
+  const key=curMonth+'#'+(state.A?(state.A.ts?.getTime?.()||0)+'_'+state.A.rows.length:'x')+'|'+(state.B?(state.B.ts?.getTime?.()||0)+'_'+state.B.rows.length:'x');
   if(__allRowsCacheKey===key&&__allRowsCache)return __allRowsCache;
   let rows=[];
   if(state.A)rows=rows.concat(state.A.rows);
@@ -1002,7 +1156,7 @@ function openInputModal(slot){
   document.getElementById('inputSlot').value=slot;
   document.getElementById('inpSudahBayar').value='0';
   document.getElementById('inpStatus').value='BELUM LUNAS';
-  document.getElementById('modalTitle').textContent=slot==='A'?'Input AR Minyak':'Input AR Rupa‑rupa';
+  document.getElementById('modalTitle').textContent=(slot==='A'?'Input AR Minyak':'Input AR Rupa‑rupa')+(curMonth?' — '+ymLabel(curMonth):'');
   const t=new Date();
   document.getElementById('inpTglFaktur').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
   updateJatuhTempoField();
@@ -1013,17 +1167,17 @@ function closeInputModal(){document.getElementById('inputModal').classList.remov
 async function deleteSlot(slot){
   const dl=slot==='A'?'AR Minyak':'AR Rupa-rupa';
   const d=state[slot];
-  if(!d){alert('Tidak ada data '+dl+' yang tersimpan saat ini.');return}
+  if(!curMonth||!d){alert('Tidak ada data '+dl+' yang tersimpan untuk bulan ini.');return}
   const nm=d.label||dl;
   const jn=(d.rows&&d.rows.length)?d.rows.length:0;
-  if(!confirm('Hapus SEMUA data '+nm+' ?\n\nFile: '+d.filename+'\nJumlah: '+jn+' faktur\n\nData yang dihapus tidak bisa dikembalikan.'))return;
-  cancelPendingSave(slot);
+  if(!confirm('Hapus data '+nm+' bulan '+ymLabel(curMonth)+' ?\n\nFile: '+d.filename+'\nJumlah: '+jn+' faktur\n\nData bulan lain TIDAK ikut terhapus.\nData yang dihapus tidak bisa dikembalikan.'))return;
+  const ym=curMonth;
+  cancelPendingSave(slot,ym);
   state[slot]=null;
-  updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();
   let savedOK=true;
-  try{await saveSlot(slot)}catch(_){savedOK=false}
-  currentPage=1;render();
-  alert('Data '+nm+' ('+jn+' faktur) sudah dihapus.'+(savedOK?'':'\n\nPERINGATAN: gagal menyimpan ke storage. Data bisa muncul kembali setelah reload.'));
+  try{await saveSlot(slot,ym)}catch(_){savedOK=false}
+  await refreshAfterDelete();
+  alert('Data '+nm+' '+ymLabel(ym)+' ('+jn+' faktur) sudah dihapus.'+(savedOK?'':'\n\nPERINGATAN: gagal menyimpan ke storage. Data bisa muncul kembali setelah reload.'));
 }
 document.getElementById('inputBtnA').addEventListener('click',()=>{window.__closeArMenu();openInputModal('A')});
 document.getElementById('inputBtnB').addEventListener('click',()=>{window.__closeArMenu();openInputModal('B')});
@@ -1052,13 +1206,15 @@ document.getElementById('inputForm').addEventListener('submit',function(e){
   const sisa=Math.max(nominal-tp,0);
   const kat=kategoriBaris(st,tp);
   const label=slot==='A'?'MINYAK':'RUPA-RUPA';
+  if(!curMonth){const ym0=tf.slice(0,7);if(!store[ym0])store[ym0]={A:null,B:null};loadedMonths.add(ym0);setMonth(ym0)}
   if(!state[slot])state[slot]={filename:'(input manual)',label:label,rows:[],ts:new Date()};
   state[slot].rows.push({sales,noFaktur:nf,toko,alamat:'',tglFaktur:tfS,tglJatuhTempo:jtS,tglPelunasan:tpelS,nominal,totalPayment:tp,sisaRiil:sisa,kategori:kat,sumber:state[slot].label||label,keterangan:''});
   state[slot].ts=new Date();
   if(!state[slot].label)state[slot].label=label;
   updateUploadStatus();rebuildSumberFilter();rebuildSalesFilter();
+  knownMonths.add(curMonth);rebuildMonthFilter();
   currentPage=1;render();closeInputModal();
-  scheduleSaveSlot(slot);
+  scheduleSaveSlot(slot,undefined,curMonth);
 });
 
 const THEME_KEY='arMinyakTheme';
@@ -1133,7 +1289,7 @@ initTheme();
 window.__SCAN_GET_AR=function(){
   try{
     const S={belum:'BELUM LUNAS',titip:'BAYAR TITIP',lunas:'SUDAH LUNAS'};
-    return allRows().map(function(r){
+    return rowsOfMonth(latestMonth()).map(function(r){
       const d=excelSerialToDate(r.tglFaktur);
       const tgl=d?fmtDateFromDateObj(d):'';
       const od=hitungOD(r.tglJatuhTempo);
