@@ -420,6 +420,7 @@ async function runSync(trigger) {
     const t = String((e && e.message) || e);
     if (t === 'TABEL_BELUM_ADA') pill('⚠️ Tabel Supabase belum dibuat', 'err');
     else if (e instanceof TypeError || /fetch|network/i.test(t)) pill('📴 Offline, sinkron ditunda', 'warn');
+    else if (/RUSAK/.test(t)) pill('⚠️ Data Penjualan di cloud rusak. Upload ulang dari device utama', 'err');
     else pill('⚠️ Sinkron gagal: ' + t.slice(0, 80), 'err');
   } finally {
     syncing = false;
