@@ -52,56 +52,58 @@
       min-height: 100vh;
       line-height: 1.45;
     }
-    .container { max-width: 100%; padding: 12px 14px 24px; }
+    .container { max-width: 100%; padding: 8px 12px 20px; }
 
     header {
       display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-      gap: 10px; margin-bottom: 14px; padding-bottom: 12px;
+      gap: 6px; margin-bottom: 8px; padding-bottom: 6px;
       border-bottom: 1px solid var(--border);
     }
-    header h1 { font-size: 1.05rem; font-weight: 650; }
+    header h1 { font-size: 0.92rem; font-weight: 600; line-height: 1.2; }
     header h1 span { color: var(--accent); font-weight: 500; }
-    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .header-actions { display: flex; align-items: center; gap: 5px; }
 
     .theme-btn, .nav-btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-      height: 32px; padding: 0 12px; border-radius: 8px;
-      background: var(--card); border: 1px solid var(--border);
-      color: var(--text); font-size: 0.82rem; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+      height: 26px; padding: 0 9px; border-radius: 6px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text); font-size: 0.75rem; cursor: pointer;
       text-decoration: none; transition: all 0.15s;
     }
     .theme-btn:hover, .nav-btn:hover { border-color: var(--accent); background: var(--card2); }
 
-    /* SEARCH BAR */
+    /* SEARCH BAR — flat, tipis, tanpa kartu bersarang */
     .search-bar {
-      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end;
+      background: transparent; border: none; border-radius: 0;
+      padding: 0 0 8px; margin-bottom: 8px;
+      border-bottom: 1px solid var(--border);
     }
     .search-bar label {
-      font-size: 0.72rem; color: var(--muted); text-transform: uppercase;
-      letter-spacing: 0.04em; display: block; margin-bottom: 4px;
+      font-size: 0.65rem; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.04em; display: block; margin-bottom: 2px;
     }
     .field { display: flex; flex-direction: column; min-width: 0; }
-    .field.grow { flex: 1 1 220px; }
+    .field.grow { flex: 1 1 200px; }
     .field select, .field input[type="search"] {
-      background: var(--bg); color: var(--text);
-      border: 1px solid var(--border); border-radius: 8px;
-      padding: 9px 12px; font-size: 0.9rem; outline: none;
-      width: 100%; min-width: 160px;
+      background: var(--card); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 10px; font-size: 0.84rem; outline: none;
+      width: 100%; min-width: 140px; height: 32px;
     }
     .field select:focus, .field input:focus { border-color: var(--accent); }
     .btn-search {
-      align-self: flex-end; padding: 9px 20px; border: none; border-radius: 8px;
-      background: var(--accent); color: #fff; font-weight: 600; font-size: 0.9rem;
+      align-self: flex-end; padding: 0 14px; border: none; border-radius: 6px;
+      background: var(--accent); color: #fff; font-weight: 600; font-size: 0.82rem;
       cursor: pointer; transition: background 0.15s; white-space: nowrap;
+      height: 32px;
     }
     .btn-search:hover { background: var(--accent2); }
     .btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .status-line {
-      font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;
-      display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+      font-size: 0.75rem; color: var(--muted); margin-bottom: 8px;
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
     }
     .status-line .dot {
       width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px;
