@@ -1,8 +1,8 @@
-/* Service worker — Laporan (PWA). Naikkan VERSION setiap kali index.html / AR.html diganti agar cache lama dibuang. */
-const VERSION = 'laporan-v3';
+/* Service worker — Laporan (PWA). Naikkan VERSION setiap kali salah satu file HTML diganti agar cache lama dibuang. */
+const VERSION = 'laporan-v4';
 
 /* File aplikasi sendiri (di-cache saat pertama kali dipasang) */
-const SHELL = ['./', 'index.html', 'AR.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
+const SHELL = ['./', 'index.html', 'UM.html', 'PJ.html', 'CEK.html', 'AR.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
   'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png', 'favicon-16.png'];
 
 /* Pustaka dari internet yang dipakai aplikasi. Semuanya diunduh SEKALI saat service worker dipasang,
@@ -53,12 +53,19 @@ self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
-/* Halaman: jaringan dulu (update langsung terpakai), tapi bila jaringan lambat (>4 dtk) atau mati, pakai cache. */
-function pageResponse(e, req, isTop) {
-  const key = isTop ? 'index.html' : req.url;       /* halaman utama = index.html; iframe (mis. AR.html) disimpan atas URL-nya sendiri */
+/* Halaman: jaringan dulu (update langsung terpakai), tapi bila jaringan lambat (>4 dtk) atau mati, pakai cache.
+   Setiap halaman (index, UM, PJ, CEK, AR) disimpan atas URL-nya sendiri; alamat folder ("…/") dianggap index.html.
+   (Versi lama menyimpan SEMUA navigasi utama sebagai index.html — itu akan menimpa menu dengan halaman lain.) */
+function pageKey(req) {
+  const u = new URL(req.url);
+  let path = u.pathname;
+  if (path.endsWith('/')) path += 'index.html';
+  return u.origin + path;
+}
+function pageResponse(e, req) {
+  const key = pageKey(req);
   return caches.open(VERSION).then(async cache => {
     let cached = await cache.match(key, { ignoreSearch: true });
-    if (!cached && isTop) cached = await cache.match('./');
     const net = fetch(req).then(r => { if (r && r.ok) cache.put(key, r.clone()); return r; });
     e.waitUntil(net.catch(() => {}));
     if (!cached) return net.catch(() => Response.error());
@@ -76,7 +83,7 @@ self.addEventListener('fetch', e => {
   if (!sameOrigin && !CACHE_HOSTS.includes(url.hostname)) return;
 
   if (req.mode === 'navigate') {
-    e.respondWith(pageResponse(e, req, req.destination === 'document'));
+    e.respondWith(pageResponse(e, req));
     return;
   }
 

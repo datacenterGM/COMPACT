@@ -1,0 +1,3857 @@
+<!DOCTYPE html>
+<!-- saved from url=(0067)file:///C:/Users/LENOVO%20T470S/OneDrive/Desktop/KasGM-main/UM.html -->
+<html lang="id"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Uang Masuk">
+  <meta name="description" content="Laporan uang masuk Minyak &amp; Rupa-rupa. Data tersimpan di perangkat Anda.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="icon" href="./favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="./icon-192.png" type="image/png" sizes="192x192">
+  <title>Laporan Uang Masuk — Minyak &amp; Rupa-rupa</title>
+  <style>
+    :root, html[data-theme="dark"] {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card2: #334155;
+      --border: #475569;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent2: #2563eb;
+      --green: #22c55e;
+      --green-bg: #14532d;
+      --orange: #f59e0b;
+      --red: #ef4444;
+      --minyak: #3b82f6;
+      --rupa: #22c55e;
+      --thead-bg: #0f172a;
+      --row-hover: rgba(59,130,246,0.06);
+      --total-row: rgba(59,130,246,0.12);
+      --overlay: rgba(0,0,0,0.65);
+      --shadow: rgba(0,0,0,0.45);
+    }
+    html[data-theme="light"] {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --card2: #e2e8f0;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent2: #1d4ed8;
+      --green: #16a34a;
+      --green-bg: #dcfce7;
+      --orange: #d97706;
+      --red: #dc2626;
+      --minyak: #2563eb;
+      --rupa: #16a34a;
+      --thead-bg: #e2e8f0;
+      --row-hover: rgba(37,99,235,0.06);
+      --total-row: rgba(37,99,235,0.10);
+      --overlay: rgba(15,23,42,0.45);
+      --shadow: rgba(15,23,42,0.18);
+    }
+    .theme-btn {
+      width: 28px; height: 28px; border-radius: 6px;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.95rem; line-height: 1;
+      transition: all 0.15s; flex-shrink: 0; padding: 0;
+    }
+    .theme-btn:hover { border-color: var(--accent); background: var(--card2); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    .container { max-width: 100%; width: 100%; margin: 0; padding: 12px 10px 20px; box-sizing: border-box; }
+
+    header {
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 8px; margin-bottom: 8px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 0.9rem; font-weight: 400; letter-spacing: -0.01em; }
+    header h1 span { color: var(--accent); font-weight: 400; }
+    .header-actions { display: flex; align-items: center; gap: 6px; position: relative; }
+
+    .tabs-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .tabs-row .tabs { margin-bottom: 0; }
+
+    .menu-btn {
+      width: 28px; height: 28px; border-radius: 6px;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.5px;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .menu-btn:hover { border-color: var(--accent); background: var(--card2); }
+    .menu-btn span {
+      display: block; width: 12px; height: 1.2px; background: var(--text);
+      border-radius: 1px; transition: all 0.2s;
+    }
+    .menu-dropdown {
+      position: absolute; top: calc(100% + 8px); right: 0;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; min-width: 220px;
+      box-shadow: 0 12px 40px var(--shadow);
+      padding: 6px; z-index: 40;
+      display: none; flex-direction: column; gap: 2px;
+    }
+    .menu-dropdown.show { display: flex; }
+    .menu-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 14px; border-radius: 9px; border: none;
+      background: transparent; color: var(--text);
+      font-size: 0.9rem; font-weight: 500; cursor: pointer;
+      text-align: left; width: 100%; transition: background 0.12s;
+    }
+    .menu-item:hover { background: var(--card2); }
+    .menu-item:disabled { opacity: 0.4; cursor: not-allowed; }
+    .menu-item.danger { color: #f87171; font-weight: 600; }
+    .menu-item.danger:hover { background: rgba(239,68,68,0.2); color: #fecaca; }
+    .menu-divider { height: 1px; background: var(--border); margin: 4px 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; border-radius: 10px; border: none;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      transition: all 0.15s ease; white-space: nowrap;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent2); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #dc2626; }
+    .btn-ghost {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover:not(:disabled) { background: var(--card2); color: var(--text); }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px; margin-bottom: 22px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .card.minyak::before { background: var(--minyak); }
+    .card.rupa::before { background: var(--rupa); }
+    .card.total::before { background: linear-gradient(90deg, var(--minyak), var(--rupa)); }
+    .card.cash::before { background: var(--orange); }
+    .card-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .card-value { font-size: 1.05rem; font-weight: 400; letter-spacing: -0.01em; }
+    .card-sub { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      margin-bottom: 10px; justify-content: space-between;
+    }
+    .toolbar-left, .toolbar-right { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    select, input[type="search"] {
+      background: var(--card); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 4px 8px; font-size: 0.75rem; outline: none;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+    input[type="search"] { min-width: 140px; }
+
+    .filter-group {
+      display: inline-flex;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 3px 10px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover { color: var(--text); }
+    .filter-btn.active { background: var(--accent); color: #fff; }
+
+    .table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    thead { position: sticky; top: 0; z-index: 2; }
+    th {
+      background: var(--thead-bg);
+      color: var(--muted);
+      font-weight: 600; font-size: 0.72rem;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      padding: 12px 10px; text-align: right;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    th:first-child, th.text-left, td.text-left { text-align: left; }
+    th.center, td.center { text-align: center; }
+    td {
+      padding: 10px; border-bottom: 1px solid rgba(71,85,105,0.4);
+      text-align: right; white-space: nowrap;
+    }
+    tr:hover td { background: var(--row-hover); }
+    tr.total-row td {
+      background: var(--total-row);
+      font-weight: 700; border-top: 2px solid var(--accent);
+    }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 600;
+    }
+    .badge-minyak { background: rgba(59,130,246,0.2); color: #93c5fd; }
+
+    /* TITIP: kolom padat */
+    #tab-titip th:nth-child(2), #tab-titip td:nth-child(2) {
+      width: 48px; max-width: 52px; white-space: nowrap;
+    }
+    #tab-titip th:nth-child(4), #tab-titip td:nth-child(4) {
+      width: 64px; max-width: 80px; white-space: nowrap;
+    }
+    #tab-titip td:nth-child(4) .badge {
+      padding: 1px 5px; font-size: 0.68rem;
+    }
+    .badge-rupa { background: rgba(34,197,94,0.2); color: #86efac; }
+
+    .faded { opacity: 0.25; filter: blur(0.6px); user-select: none; }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      justify-content: center;
+      align-items: center;
+      padding: 10px 0 4px;
+      font-size: 0.85rem;
+    }
+    .pagination button {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      min-width: 32px;
+      transition: all 0.12s;
+    }
+    .pagination button:hover:not(:disabled) { border-color: var(--accent); }
+    .pagination button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .pagination button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pagination .info { color: var(--muted); font-size: 0.75rem; margin-left: 6px; }
+
+    .section-title {
+      font-size: 1.05rem; font-weight: 650; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .month-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px; margin-bottom: 24px;
+    }
+    .month-chip {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex; align-items: center; gap: 10px;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .month-chip:hover { border-color: var(--accent); }
+    .month-chip.active { border-color: var(--accent); background: rgba(59,130,246,0.12); }
+    .month-chip input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+    .month-chip .name { font-weight: 600; }
+    .month-chip .days { font-size: 0.75rem; color: var(--muted); }
+    .btn-del-one {
+      background: transparent; border: none; cursor: pointer;
+      font-size: 1rem; padding: 4px 6px; border-radius: 6px;
+      opacity: 0.45; transition: all 0.15s; flex-shrink: 0;
+    }
+    .btn-del-one:hover { opacity: 1; background: rgba(239,68,68,0.2); }
+
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 14px;
+      padding: 32px 20px;
+      text-align: center;
+      background: var(--card);
+      transition: all 0.2s;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(59,130,246,0.08);
+    }
+    .upload-zone .icon { font-size: 2.2rem; margin-bottom: 8px; }
+    .upload-zone p { color: var(--muted); font-size: 0.9rem; }
+    .upload-zone strong { color: var(--text); }
+
+    .tabs { display: flex; gap: 2px; margin-bottom: 12px; background: var(--card); padding: 2px; border-radius: 8px; width: fit-content; flex-wrap: wrap; }
+    .tab {
+      padding: 4px 11px; border-radius: 6px; border: none;
+      background: transparent; color: var(--muted);
+      font-weight: 500; font-size: 0.75rem; cursor: pointer;
+    }
+    .tab.active { background: var(--accent); color: #fff; }
+    
+    /* Sembunyikan tombol tab Kelola Bulan dari barisan tab utama */
+    .tab[data-tab="manage"] { display: none; }
+
+    .empty {
+      text-align: center; padding: 60px 20px; color: var(--muted);
+    }
+    .empty .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--card2); color: var(--text);
+      padding: 14px 20px; border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 40px var(--shadow);
+      z-index: 100; transform: translateY(120px); opacity: 0;
+      transition: all 0.3s ease; max-width: 360px;
+      font-size: 0.9rem;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-left: 4px solid var(--green); }
+    .toast.error { border-left: 4px solid var(--red); }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: var(--overlay);
+      display: none; align-items: center; justify-content: center;
+      z-index: 50; padding: 16px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px; max-width: 420px; width: 100%;
+    }
+    .modal h3 { margin-bottom: 8px; }
+    .modal p { color: var(--muted); margin-bottom: 20px; font-size: 0.9rem; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    .progress-bar {
+      height: 6px; background: var(--card2); border-radius: 3px;
+      overflow: hidden; margin-top: 10px; display: none;
+    }
+    .progress-bar.show { display: block; }
+    .progress-fill {
+      height: 100%; background: var(--accent); width: 0%;
+      transition: width 0.3s;
+    }
+
+    .rincian-panel {
+      margin-top: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .rincian-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: var(--thead-bg);
+      border-bottom: 1px solid var(--border); gap: 12px; flex-wrap: wrap;
+    }
+    .rincian-header h3 { font-size: 0.95rem; font-weight: 650; }
+    .rincian-header .meta { font-size: 0.8rem; color: var(--muted); }
+    tr.day-row { cursor: pointer; }
+    tr.day-row:hover td { background: var(--total-row); }
+    tr.day-row.active td { background: var(--total-row); }
+    .rincian-section-title {
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--muted);
+      padding: 10px 14px 6px; background: rgba(15,23,42,0.5);
+    }
+    .badge-lunas { background: rgba(34,197,94,0.2); color: #86efac; }
+    .badge-titip { background: rgba(245,158,11,0.2); color: #fcd34d; }
+    .badge-tf { background: rgba(59,130,246,0.2); color: #93c5fd; }
+    .badge-bg { background: rgba(168,85,247,0.2); color: #d8b4fe; }
+    .empty-rincian { padding: 24px; text-align: center; color: var(--muted); font-size: 0.9rem; }
+
+    footer {
+      margin-top: 20px; text-align: center; color: var(--muted);
+      font-size: 0.8rem; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+
+    /* PWA standalone: judul sistem sudah di title bar — sembunyikan h1 agar tidak dobel */
+    @media (display-mode: standalone), (display-mode: fullscreen) {
+      header h1 { display: none !important; }
+      header {
+        margin-bottom: 4px;
+        padding-bottom: 6px;
+        min-height: 0;
+        border-bottom: none;
+      }
+      .container { padding-top: 6px; }
+    }
+    html.pwa-standalone header h1,
+    body.pwa-standalone header h1 {
+      display: none !important;
+    }
+    html.pwa-standalone header,
+    body.pwa-standalone header {
+      margin-bottom: 4px;
+      padding-bottom: 6px;
+      border-bottom: none;
+    }
+    html.pwa-standalone .container,
+    body.pwa-standalone .container {
+      padding-top: 6px;
+    }
+
+    @media (max-width: 700px) {
+      .card-value { font-size: 0.95rem; font-weight: 400; }
+      .cards { gap: 10px; }
+      .card { padding: 10px 12px; }
+      table { font-size: 0.78rem; }
+      th, td { padding: 8px 6px; }
+      .filter-group { flex-wrap: wrap; }
+    }
+  </style>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('um_theme');
+        if (t !== 'light' && t !== 'dark') t = 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', t === 'light' ? '#e2e8f0' : '#1e293b');
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📊 Laporan Uang Masuk <span>Minyak &amp; Rupa-rupa</span></h1>
+    </header>
+
+    <div class="tabs-row">
+      <div class="tabs">
+        <button class="tab" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+        <button class="tab active" data-tab="detail" onclick="switchTab('detail')">Detail Harian</button>
+        <button class="tab" data-tab="rincian" onclick="switchTab('rincian')">Rincian Harian</button>
+        <button class="tab" data-tab="minyak" onclick="switchTab('minyak')">Minyak</button>
+        <button class="tab" data-tab="rupa" onclick="switchTab('rupa')">Rupa-rupa</button>
+        <button class="tab" data-tab="titip" onclick="switchTab('titip')">🤝 TITIP</button>
+        <button class="tab" data-tab="piutang" onclick="switchTab('piutang')">Piutang Tempo</button>
+        <button class="tab" data-tab="dropping" onclick="switchTab('dropping')">Cash Dropping</button>
+        <!-- Tombol tab manage disembunyikan lewat CSS, tapi tetap ada di HTML untuk logic -->
+        <button class="tab" data-tab="manage" onclick="switchTab('manage')">Kelola Bulan</button>
+      </div>
+      <div class="header-actions">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+        <a class="theme-btn" href="index.html" title="Kembali ke Dashboard (menu utama)" aria-label="Kembali ke Dashboard" style="width:auto;padding:0 10px;font-size:0.8rem;gap:4px;text-decoration:none">🏠 Dashboard</a>
+        <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Mode gelap / terang" title="Mode gelap / terang">🌙</button>
+        <button class="menu-btn" id="menuBtn" onclick="toggleMenu(event)" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="menu-dropdown" id="menuDropdown">
+          <button class="menu-item" onclick="document.getElementById('fileInput').click(); closeMenu();">
+            ⬆️ Upload Data Bulanan
+          </button>
+          <button type="button" class="menu-item danger" id="btnDelete" onclick="handleDeleteClick(); closeMenu();">🗑️ Hapus Bulan Terpilih</button>
+          <div class="menu-divider"></div>
+          <button class="menu-item" onclick="switchTab('manage'); closeMenu();">
+            🗂️ Kelola Bulan
+          </button>
+          <button class="menu-item" onclick="exportExcelByFilter(); closeMenu();">
+            📊 Export Excel (Bulan Aktif)
+          </button>
+          <button class="menu-item" onclick="exportAllJSON(); closeMenu();">
+            ⬇️ Export Backup (JSON)
+          </button>
+          <div class="menu-divider"></div>
+          <button class="menu-item" id="btnInstall" style="display:none" onclick="installPWA(); closeMenu();">
+            📱 Instal Aplikasi (PWA)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-dashboard" style="display: none;">
+      <div id="emptyDashboard" class="empty" style="display: none;">
+        <div class="icon">📁</div>
+        <p>Belum ada data.<br>Upload file Excel laporan harian untuk mulai.</p>
+      </div>
+
+      <div id="dashboardContent" style="display: block;">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <label style="color:var(--muted);font-size:0.85rem">Filter bulan:</label>
+            <select id="filterMonth" onchange="renderAll()"><option value="all">Semua Bulan</option></select>
+          </div>
+          <div class="toolbar-right">
+            <span id="dayCount" style="color:var(--muted);font-size:0.85rem"></span>
+          </div>
+        </div>
+
+        <div class="cards" id="summaryCards"></div>
+
+        <div class="section-title">📈 Ringkasan per Bulan</div>
+        <div class="table-wrap" style="max-height:320px">
+          <table>
+            <thead>
+              <tr>
+                <th class="text-left">Bulan</th>
+                <th>Hari</th>
+                <th>Minyak Cash</th>
+                <th>Minyak TF</th>
+                <th>Total Minyak</th>
+                <th>Rupa Cash</th>
+                <th>Rupa TF</th>
+                <th>Total Rupa</th>
+                <th>Grand Total</th>
+              </tr>
+            </thead>
+            <tbody id="monthSummaryBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-detail" style="display: block;">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select id="detailMonth" onchange="(async()=>{closeRincian(); await ensureMonthLoaded(this.value); renderDetail();})()"><option value="">—</option></select>
+          <input type="search" id="searchDetail" placeholder="Cari tanggal...">
+        </div>
+        <div class="toolbar-right">
+          <span style="color:var(--muted);font-size:0.8rem">Klik baris tanggal untuk lihat rincian faktur</span>
+        </div>
+      </div>
+      <div class="table-wrap" style="height: calc(100vh - 250px); min-height: 400px;">
+        <table>
+          <thead>
+            <tr>
+              <th class="center">No</th>
+              <th class="text-left">Tanggal</th>
+              <th>Minyak Cash</th>
+              <th>Minyak TF</th>
+              <th>Total Minyak</th>
+              <th>Rupa Cash</th>
+              <th>Rupa TF</th>
+              <th>Total Rupa</th>
+              <th>Total Cash</th>
+              <th>Total TF</th>
+              <th>Grand Total</th>
+            </tr>
+          </thead>
+          <tbody id="detailBody"></tbody>
+        </table>
+      </div>
+      <div id="rincianPanel" class="rincian-panel" style="display:none">
+        <div class="rincian-header">
+          <div>
+            <h3 id="rincianTitle">Rincian</h3>
+            <div class="meta" id="rincianMeta"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="closeRincian()">Tutup ✕</button>
+        </div>
+        <div class="table-wrap" style="max-height:420px;border:none;border-radius:0">
+          <table>
+            <thead>
+              <tr>
+                <th class="center">No</th>
+                <th class="text-left">Tgl</th>
+                <th class="text-left">Ket</th>
+                <th class="text-left">Sales</th>
+                <th class="text-left">No Faktur</th>
+                <th class="text-left">Nama Toko</th>
+                <th class="text-left">Alamat</th>
+                <th>Tagihan</th>
+                <th>Minyak Cash</th>
+                <th>Minyak TF</th>
+                <th>Rupa Cash</th>
+                <th>Rupa TF</th>
+                <th class="text-left">Section</th>
+              </tr>
+            </thead>
+            <tbody id="rincianBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-rincian" style="display: none;">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select id="rincianMonth" onchange="(async()=>{const v=this.value; if(v==='all'){await loadMonthsConcurrent(monthKeys());} else {await ensureMonthLoaded(v);} pagState.rincian.page=1; renderRincianTab();})()"><option value="all">Semua Bulan</option></select>
+          <select id="rincianDate" onchange="pagState.rincian.page=1; renderRincianTab()"><option value="all">Semua Tanggal</option></select>
+          <input type="search" id="searchRincian" placeholder="Cari toko, faktur, sales..." style="min-width:180px">
+        </div>
+        <div class="toolbar-right">
+          <select id="rincianSection" onchange="pagState.rincian.page=1; renderRincianTab()">
+            <option value="all">Semua Section</option>
+            <option value="PIUTANG">Piutang Tempo</option>
+            <option value="DROPPING">Cash Dropping</option>
+          </select>
+          <div class="filter-group" id="rincianKetGroup">
+            <button class="filter-btn active" data-val="all" onclick="setFilterStatus('rincian', 'all')">Semua</button>
+            <button class="filter-btn" data-val="LUNAS" onclick="setFilterStatus('rincian', 'LUNAS')">Lunas</button>
+            <button class="filter-btn" data-val="TITIP" onclick="setFilterStatus('rincian', 'TITIP')">Titip</button>
+            <button class="filter-btn" data-val="TF" onclick="setFilterStatus('rincian', 'TF')">TF/BG</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap" style="height: calc(100vh - 230px); min-height: 400px;">
+        <table>
+          <thead>
+            <tr>
+              <th class="center">No</th>
+              <th class="text-left">Tgl</th>
+              <th class="text-left">Ket</th>
+              <th class="text-left">Sales</th>
+              <th class="text-left">No Faktur</th>
+              <th class="text-left">Nama Toko</th>
+              <th class="text-left">Alamat</th>
+              <th>Tagihan</th>
+              <th>Minyak Cash</th>
+              <th>Minyak TF</th>
+              <th>Rupa Cash</th>
+              <th>Rupa TF</th>
+              <th class="text-left">Section</th>
+            </tr>
+          </thead>
+          <tbody id="rincianTabBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="rincianPagination"></div>
+    </div>
+
+
+    <div id="tab-minyak" style="display: none;">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select id="minyakMonth" onchange="(async()=>{await ensureMonthLoaded(this.value); pagState.minyak.page=1; renderProdukTab('minyak')})()"><option value="">—</option></select>
+          <select id="minyakDate" onchange="pagState.minyak.page=1; renderProdukTab('minyak')"><option value="all">Semua Tanggal</option></select>
+          <input type="search" id="searchMinyak" placeholder="Cari toko, faktur, sales..." style="min-width:180px">
+        </div>
+        <div class="toolbar-right">
+          <select id="minyakSection" onchange="pagState.minyak.page=1; renderProdukTab('minyak')">
+            <option value="all">Semua Section</option>
+            <option value="PIUTANG">Piutang Tempo</option>
+            <option value="DROPPING">Cash Dropping</option>
+          </select>
+          <div class="filter-group" id="minyakKetGroup">
+            <button class="filter-btn active" data-val="all" onclick="setFilterStatus('minyak', 'all')">Semua</button>
+            <button class="filter-btn" data-val="LUNAS" onclick="setFilterStatus('minyak', 'LUNAS')">Lunas</button>
+            <button class="filter-btn" data-val="TITIP" onclick="setFilterStatus('minyak', 'TITIP')">Titip</button>
+            <button class="filter-btn" data-val="TF" onclick="setFilterStatus('minyak', 'TF')">TF/BG</button>
+          </div>
+        </div>
+      </div>
+      <div id="minyakSummary" class="cards" style="margin-bottom:14px"></div>
+      <div class="table-wrap" style="height: calc(100vh - 310px); min-height: 400px;">
+        <table>
+          <thead>
+            <tr>
+              <th class="center">No</th>
+              <th class="text-left">Tgl</th>
+              <th class="text-left">Ket</th>
+              <th class="text-left">Sales</th>
+              <th class="text-left">No Faktur</th>
+              <th class="text-left">Nama Toko</th>
+              <th class="text-left">Alamat</th>
+              <th>Tagihan</th>
+              <th>Minyak Cash</th>
+              <th>Minyak TF</th>
+              <th>Total Minyak</th>
+              <th class="text-left">Section</th>
+            </tr>
+          </thead>
+          <tbody id="minyakBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="minyakPagination"></div>
+    </div>
+
+    <div id="tab-rupa" style="display: none;">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select id="rupaMonth" onchange="(async()=>{await ensureMonthLoaded(this.value); pagState.rupa.page=1; renderProdukTab('rupa')})()"><option value="">—</option></select>
+          <select id="rupaDate" onchange="pagState.rupa.page=1; renderProdukTab('rupa')"><option value="all">Semua Tanggal</option></select>
+          <input type="search" id="searchRupa" placeholder="Cari toko, faktur, sales..." style="min-width:180px">
+        </div>
+        <div class="toolbar-right">
+          <select id="rupaSection" onchange="pagState.rupa.page=1; renderProdukTab('rupa')">
+            <option value="all">Semua Section</option>
+            <option value="PIUTANG">Piutang Tempo</option>
+            <option value="DROPPING">Cash Dropping</option>
+          </select>
+          <div class="filter-group" id="rupaKetGroup">
+            <button class="filter-btn active" data-val="all" onclick="setFilterStatus('rupa', 'all')">Semua</button>
+            <button class="filter-btn" data-val="LUNAS" onclick="setFilterStatus('rupa', 'LUNAS')">Lunas</button>
+            <button class="filter-btn" data-val="TITIP" onclick="setFilterStatus('rupa', 'TITIP')">Titip</button>
+            <button class="filter-btn" data-val="TF" onclick="setFilterStatus('rupa', 'TF')">TF/BG</button>
+          </div>
+        </div>
+      </div>
+      <div id="rupaSummary" class="cards" style="margin-bottom:14px"></div>
+      <div class="table-wrap" style="height: calc(100vh - 310px); min-height: 400px;">
+        <table>
+          <thead>
+            <tr>
+              <th class="center">No</th>
+              <th class="text-left">Tgl</th>
+              <th class="text-left">Ket</th>
+              <th class="text-left">Sales</th>
+              <th class="text-left">No Faktur</th>
+              <th class="text-left">Nama Toko</th>
+              <th class="text-left">Alamat</th>
+              <th>Tagihan</th>
+              <th>Rupa Cash</th>
+              <th>Rupa TF</th>
+              <th>Total Rupa</th>
+              <th class="text-left">Section</th>
+            </tr>
+          </thead>
+          <tbody id="rupaBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="rupaPagination"></div>
+    </div>
+
+    <div id="tab-titip" style="display:none">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select id="titipMonth" onchange="loadAndRenderTitip()" aria-label="Filter bulan titip">
+            <option value="all">Semua Bulan</option>
+          </select>
+          <select id="titipDate" onchange="pagState.titip.page=1; renderTitipTab()">
+            <option value="all">Semua Tanggal</option>
+          </select>
+          <input type="search" id="searchTitip" placeholder="Cari toko, faktur, sales..." style="min-width:180px">
+        </div>
+        <div class="toolbar-right">
+          <select id="titipSection" onchange="pagState.titip.page=1; renderTitipTab()">
+            <option value="all">Semua Section</option>
+            <option value="PIUTANG">Piutang Tempo</option>
+            <option value="DROPPING">Cash Dropping</option>
+          </select>
+          <div class="filter-group" id="titipStatusGroup" aria-label="Filter status TITIP">
+            <button type="button" class="filter-btn active" data-val="all" onclick="setTitipStatusFilter('all')">Semua</button>
+            <button type="button" class="filter-btn" data-val="LUNAS" onclick="setTitipStatusFilter('LUNAS')">Lunas</button>
+            <button type="button" class="filter-btn" data-val="DIBAYAR SEBAGIAN" onclick="setTitipStatusFilter('DIBAYAR SEBAGIAN')">Dibayar Sebagian</button>
+            <button type="button" class="filter-btn" data-val="BELUM DIBAYAR" onclick="setTitipStatusFilter('BELUM DIBAYAR')">Belum Dibayar</button>
+          </div>
+        </div>
+      </div>
+      <div id="titipSummary" class="cards" style="margin-bottom:14px"></div>
+      <div class="table-wrap" style="height: calc(100vh - 310px); min-height: 400px;">
+        <table>
+          <thead><tr>
+            <th class="center">No</th>
+            <th class="text-left">Bulan</th>
+            <th class="text-left">Tgl Titip</th>
+            <th class="text-left">Ket</th>
+            <th class="text-left">No Faktur</th>
+            <th class="text-left">Nama Toko</th>
+            <th class="text-left">Alamat</th>
+            <th>Tagihan</th>
+            <th>Total Bayar Awal</th>
+            <th>Bayar Susulan</th>
+            <th>Sisa TITIP</th>
+            <th class="text-left">Status</th>
+            <th class="text-left">Sales</th>
+            <th>Minyak Cash</th>
+            <th>Minyak TF</th>
+            <th>Rupa Cash</th>
+            <th>Rupa TF</th>
+            <th class="text-left">Section</th>
+          </tr></thead>
+          <tbody id="titipBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="titipPagination"></div>
+    </div>
+
+    <div id="tab-piutang" style="display:none">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select id="piutangMonth" onchange="(async()=>{await ensureMonthLoaded(this.value); pagState.piutang.page=1; renderPiutangTab()})()"><option value="">—</option></select>
+          <select id="piutangDate" onchange="pagState.piutang.page=1; renderPiutangTab()"><option value="all">Semua Tanggal</option></select>
+          <input type="search" id="searchPiutang" placeholder="Cari toko, faktur, sales..." style="min-width:160px">
+        </div>
+        <div class="toolbar-right">
+          <div class="filter-group" id="piutangProdukGroup">
+            <button class="filter-btn active" data-val="all" onclick="setFilterProduk('piutang', 'all')">Semua Produk</button>
+            <button class="filter-btn" data-val="minyak" onclick="setFilterProduk('piutang', 'minyak')">Minyak</button>
+            <button class="filter-btn" data-val="rupa" onclick="setFilterProduk('piutang', 'rupa')">Rupa-rupa</button>
+          </div>
+          <div class="filter-group" id="piutangKetGroup">
+            <button class="filter-btn active" data-val="all" onclick="setFilterStatus('piutang', 'all')">Semua</button>
+            <button class="filter-btn" data-val="LUNAS" onclick="setFilterStatus('piutang', 'LUNAS')">Lunas</button>
+            <button class="filter-btn" data-val="TITIP" onclick="setFilterStatus('piutang', 'TITIP')">Titip</button>
+            <button class="filter-btn" data-val="TF" onclick="setFilterStatus('piutang', 'TF')">TF/BG</button>
+          </div>
+        </div>
+      </div>
+      <div id="piutangSummary" class="cards" style="margin-bottom:14px"></div>
+      <div class="table-wrap" style="height: calc(100vh - 310px); min-height: 400px;">
+        <table>
+          <thead>
+            <tr>
+              <th class="center">No</th>
+              <th class="text-left">Tgl</th>
+              <th class="text-left">Ket</th>
+              <th class="text-left">Sales</th>
+              <th class="text-left">No Faktur</th>
+              <th class="text-left">Nama Toko</th>
+              <th class="text-left">Alamat</th>
+              <th class="text-left">Tgl Faktur</th>
+              <th class="text-left">JT</th>
+              <th>Tagihan</th>
+              <th>Minyak Cash</th>
+              <th>Minyak TF/BG</th>
+              <th>Rupa Cash</th>
+              <th>Rupa TF/BG</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="piutangBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="piutangPagination"></div>
+    </div>
+
+    <div id="tab-dropping" style="display:none">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select id="droppingMonth" onchange="(async()=>{await ensureMonthLoaded(this.value); pagState.dropping.page=1; renderDroppingTab()})()"><option value="">—</option></select>
+          <select id="droppingDate" onchange="pagState.dropping.page=1; renderDroppingTab()"><option value="all">Semua Tanggal</option></select>
+          <input type="search" id="searchDropping" placeholder="Cari toko, faktur, sales..." style="min-width:160px">
+        </div>
+        <div class="toolbar-right">
+          <div class="filter-group" id="droppingProdukGroup">
+            <button class="filter-btn active" data-val="all" onclick="setFilterProduk('dropping', 'all')">Semua Produk</button>
+            <button class="filter-btn" data-val="minyak" onclick="setFilterProduk('dropping', 'minyak')">Minyak</button>
+            <button class="filter-btn" data-val="rupa" onclick="setFilterProduk('dropping', 'rupa')">Rupa-rupa</button>
+          </div>
+          <div class="filter-group" id="droppingKetGroup">
+            <button class="filter-btn active" data-val="all" onclick="setFilterStatus('dropping', 'all')">Semua</button>
+            <button class="filter-btn" data-val="LUNAS" onclick="setFilterStatus('dropping', 'LUNAS')">Lunas</button>
+            <button class="filter-btn" data-val="TITIP" onclick="setFilterStatus('dropping', 'TITIP')">Titip</button>
+            <button class="filter-btn" data-val="TF" onclick="setFilterStatus('dropping', 'TF')">TF/BG</button>
+          </div>
+        </div>
+      </div>
+      <div id="droppingSummary" class="cards" style="margin-bottom:14px"></div>
+      <div class="table-wrap" style="height: calc(100vh - 310px); min-height: 400px;">
+        <table>
+          <thead>
+            <tr>
+              <th class="center">No</th>
+              <th class="text-left">Tgl</th>
+              <th class="text-left">Ket</th>
+              <th class="text-left">Dropping/Sales</th>
+              <th class="text-left">No Faktur</th>
+              <th class="text-left">Nama Toko</th>
+              <th class="text-left">Alamat</th>
+              <th class="text-left">Tgl Faktur</th>
+              <th class="text-left">JT</th>
+              <th>Nominal Faktur</th>
+              <th>Minyak Cash</th>
+              <th>Minyak TF</th>
+              <th>Rupa Cash</th>
+              <th>Rupa TF</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="droppingBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="droppingPagination"></div>
+    </div>
+
+    <div id="tab-manage" style="display:none">
+      <div class="section-title">📁 Upload Data Baru</div>
+      <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">📤</div>
+        <p><strong>Klik atau tarik file Excel ke sini</strong></p>
+        <p style="margin-top:6px">Format: .xlsx / .xls (Laporan Uang Masuk Harian)</p>
+        <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill" style="width: 0%;"></div></div>
+      </div>
+
+      <div class="section-title">🗂️ Bulan Tersimpan</div>
+      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px">
+        Centang bulan lalu klik <strong>Hapus</strong> di menu ☰, atau klik icon 🗑️ di kanan tiap bulan.
+      </p>
+      <div class="month-grid" id="monthGrid"></div>
+
+      <div style="margin-top:16px">
+        <button class="btn btn-ghost btn-sm" onclick="selectAllMonths(true)">Pilih Semua</button>
+        <button class="btn btn-ghost btn-sm" onclick="selectAllMonths(false)">Batal Pilih</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportAllJSON()" style="margin-left:8px">⬇️ Export Backup (JSON)</button>
+        <button class="btn btn-ghost btn-sm" onclick="bridgeRebuild(true)" style="margin-left:4px" title="Kirim ulang semua data Uang Masuk ke aplikasi CEK">🔗 Sinkron ke CEK</button>
+        <label class="btn btn-ghost btn-sm" style="margin-left:4px;cursor:pointer">
+          ⬆️ Restore Backup
+          <input type="file" accept=".json" hidden="" onchange="importJSON(event)">
+        </label>
+      </div>
+    </div>
+
+    <footer>
+      Data tersimpan di perangkat Anda (IndexedDB). Bisa diinstal sebagai aplikasi (PWA). Upload Excel laporan harian untuk menambah data.
+    </footer>
+  </div>
+
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+      <h3>Hapus bulan terpilih?</h3>
+      <p id="deleteMsg">Anda akan menghapus data bulan terpilih. Data tidak bisa dikembalikan (kecuali ada backup).</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Batal</button>
+        <button class="btn btn-danger" onclick="doDelete()">Ya, Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast error" id="toast"></div>
+
+  <script>
+    // ===================== CONSTANTS & STATE =====================
+    const STORAGE_KEY = 'laporan_uang_masuk_v1';
+    const IDB_NAME = 'laporan_uang_masuk_db';
+    const IDB_STORE = 'kv';
+    const IDB_INDEX_KEY = 'months';        // index array bulan tersimpan
+    const IDB_LEGACY_KEY = 'store';        // format lama (untuk migrasi)
+    const PAGE_SIZE = 100;
+
+    let store = {};
+    let selectedDay = null;
+
+    const pagState = {
+      rincian: { page: 1, size: PAGE_SIZE },
+      minyak: { page: 1, size: PAGE_SIZE },
+      rupa: { page: 1, size: PAGE_SIZE },
+      titip: { page: 1, size: PAGE_SIZE },
+      piutang: { page: 1, size: PAGE_SIZE },
+      dropping: { page: 1, size: PAGE_SIZE },
+    };
+
+    // ===== Versi & cache (perbaikan #2, #3) =====
+    let _storeVersion = 0;
+    let _flatTxnsCache = {};
+    let _filterCache = {};   // per tab: { [tab]: { key, rows, sum } } — pindah tab tidak saling menimpa
+    function _fcGet(sig) {
+      const c = _filterCache[sig.split('|', 1)[0]];
+      return (c && c.key === sig) ? c : null;
+    }
+    function _fcSet(sig, rows, sum) {
+      _filterCache[sig.split('|', 1)[0]] = { key: sig, rows, sum };
+    }
+    let _loadedMonths = new Set(); // P1: bulan yang txns-nya sudah di RAM
+
+    function markStoreDirty() {
+      _storeVersion++;
+      _flatTxnsCache = {}; // invalidasi total — murah & aman
+      _flatLRU.length = 0;
+      _filterCache = {};
+    }
+
+    const _selectsState = {
+      version: -1,
+      dateMonth: {}, // { prefix: { version, month } }
+    };
+
+    const _flatLRU = [];
+    function getFlatTxns(monthKey) {
+      if (!store[monthKey]) return [];
+      if (_flatTxnsCache[monthKey]) return _flatTxnsCache[monthKey];
+      const rows = [];
+      for (const d of (store[monthKey].days || [])) {
+        for (const x of (d.txns || [])) {
+          // reuse object reference — set tgl sekali saja (mutasi ringan)
+          if (x.tgl !== d.tgl) x.tgl = d.tgl;
+          // rebuild _search bila belum ada (setelah load dari IDB)
+          if (!x._search) {
+            x._search = [x.sales, x.faktur, x.toko, x.alamat, x.ket, x.tglFaktur, x.jt]
+              .join(' ').toLowerCase();
+          }
+          rows.push(x);
+        }
+      }
+      _flatTxnsCache[monthKey] = rows;
+      _flatLRU.push(monthKey);
+      while (_flatLRU.length > 3) {
+        const evict = _flatLRU.shift();
+        if (evict !== monthKey) delete _flatTxnsCache[evict];
+      }
+      return rows;
+    }
+
+    // ===================== INDEXEDDB =====================
+    let _dbPromise = null;
+    function openDB() {
+      if (_dbPromise) return _dbPromise;
+      _dbPromise = new Promise((resolve, reject) => {
+        if (typeof indexedDB === 'undefined') return reject(new Error('IndexedDB tidak tersedia'));
+        const req = indexedDB.open(IDB_NAME, 1);
+        req.onupgradeneeded = () => {
+          if (!req.result.objectStoreNames.contains(IDB_STORE)) {
+            req.result.createObjectStore(IDB_STORE);
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error || new Error('IDB open failed'));
+      });
+      return _dbPromise;
+    }
+
+    async function idbGet(key) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const req = tx.objectStore(IDB_STORE).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function idbSet(key, val) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        const req = tx.objectStore(IDB_STORE).put(val, key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function idbDelete(key) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        const req = tx.objectStore(IDB_STORE).delete(key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+
+    // ===================== P1 LAZY LOAD =====================
+    function stripMonthForMeta(m) {
+      if (!m || typeof m !== 'object') return m;
+      return {
+        label: m.label,
+        days: (m.days || []).map(d => ({
+          tgl: d.tgl,
+          mc: d.mc || 0, mt: d.mt || 0, rc: d.rc || 0, rt: d.rt || 0,
+          txns: [] // txns dimuat on-demand
+        }))
+      };
+    }
+
+    function monthHasTxns(m) {
+      return !!(m && (m.days || []).some(d => d.txns && d.txns.length));
+    }
+
+    async function ensureMonthLoaded(ym) {
+      if (!ym || !store[ym]) return false;
+      // Sudah berhasil di-load (punya txns di RAM)
+      if (_loadedMonths.has(ym)) return true;
+      // Sudah punya txns di RAM (mis. baru upload) — tandai loaded
+      if (monthHasTxns(store[ym])) {
+        _loadedMonths.add(ym);
+        return true;
+      }
+      // Sudah pernah dicoba sukses-tapi-kosong (metadata saja) → jangan spam IDB
+      try {
+        const full = await idbGet('month:' + ym);
+        if (full && typeof full === 'object') {
+          const sanitized = sanitizeStore({ [ym]: full });
+          if (sanitized[ym]) {
+            store[ym] = sanitized[ym];
+            _loadedMonths.add(ym);
+            delete _flatTxnsCache[ym];
+            _filterCache = {};
+            return true; // Berhasil dimuat, termasuk bulan dengan 0 faktur
+          }
+        }
+        // Tidak ada data tersimpan: anggap gagal/tidak tersedia, jangan tandai loaded
+        return false;
+      } catch (e) {
+        console.warn('[lazy] ensureMonthLoaded failed:', e);
+        // JANGAN tandai _loadedMonths pada error transient → boleh retry lain kali
+        toast(`Gagal memuat data bulan ${store[ym]?.label || ym}. Coba reload halaman.`, 'error');
+        return false;
+      }
+    }
+
+
+    // Muat banyak bulan dengan konkurensi terbatas (lebih cepat daripada sequential, RAM tetap terkendali)
+    async function loadMonthsConcurrent(keys, concurrency = 4) {
+      const queue = [...keys];
+      const worker = async () => {
+        while (queue.length) await ensureMonthLoaded(queue.shift());
+      };
+      await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, worker));
+    }
+
+    // Bersihkan field runtime sebelum tulis ke IDB/LS
+    function cleanMonthForPersist(m) {
+      if (!m || typeof m !== 'object') return m;
+      return {
+        label: m.label,
+        days: (m.days || []).map(d => ({
+          tgl: d.tgl,
+          mc: d.mc || 0, mt: d.mt || 0, rc: d.rc || 0, rt: d.rt || 0,
+          txns: Array.isArray(d.txns)
+            ? d.txns.map(t => {
+                if (!t || typeof t !== 'object') return t;
+                const { _search, tgl, ...clean } = t;
+                return clean;
+              })
+            : []
+        }))
+      };
+    }
+
+    function isMonthFullyLoaded(ym) {
+      // Bulan dianggap berhasil dimuat meskipun belum memiliki rincian faktur.
+      return _loadedMonths.has(ym);
+    }
+
+    // ===================== STORAGE =====================
+    function sanitizeStore(o) {
+      if (!o || typeof o !== 'object' || Array.isArray(o)) return {};
+      const result = {};
+      for (const [k, v] of Object.entries(o)) {
+        if (!/^\d{4}-\d{2}$/.test(k)) continue;
+        if (!v || typeof v !== 'object' || Array.isArray(v) || !Array.isArray(v.days)) continue;
+        const validDays = [];
+        for (const d of v.days) {
+          if (!d || typeof d !== 'object' || Array.isArray(d)) continue;
+          if (typeof d.tgl !== 'string') continue;
+          const m = d.tgl.match(/^(\d{2}-\d{2})/);
+          if (!m) continue;
+          const txns = Array.isArray(d.txns)
+            ? d.txns.filter(t => t && typeof t === 'object' && !Array.isArray(t)).map(t => {
+                // Jangan persist field runtime (_search, tgl) — hemat storage ~30%
+                const { _search, tgl, ...clean } = t;
+                return clean;
+              })
+            : [];
+          const day = { ...d, tgl: m[1], txns };
+          // Hitung ulang ringkasan dari txns bila field ringkasan hilang/tidak valid
+          if (txns.length) {
+            const num = x => Number(x) || 0;
+            const miss = f => typeof day[f] !== 'number' || !Number.isFinite(day[f]);
+            if (miss('mc')) day.mc = txns.reduce((a, t) => a + num(t.mCash), 0);
+            if (miss('mt')) day.mt = txns.reduce((a, t) => a + num(t.mTf), 0);
+            if (miss('rc')) day.rc = txns.reduce((a, t) => a + num(t.rCash), 0);
+            if (miss('rt')) day.rt = txns.reduce((a, t) => a + num(t.rTf), 0);
+          }
+          validDays.push(day);
+        }
+        result[k] = {
+          label: (typeof v.label === 'string' && v.label) ? v.label : formatMonthLabel(k),
+          days: validDays
+        };
+      }
+      return result;
+    }
+
+    async function listStoredMonthKeys() {
+      try {
+        const idx = await idbGet(IDB_INDEX_KEY);
+        return Array.isArray(idx) ? idx : [];
+      } catch { return []; }
+    }
+
+    async function migrateLegacyIfNeeded() {
+      if (typeof indexedDB === 'undefined') return;
+      try {
+        const legacy = await idbGet(IDB_LEGACY_KEY);
+        if (!legacy || typeof legacy !== 'object' || Array.isArray(legacy)) return;
+        const sanitized = sanitizeStore(legacy);
+        const keys = Object.keys(sanitized);
+        if (!keys.length) { await idbDelete(IDB_LEGACY_KEY); return; }
+        for (const k of keys) await idbSet('month:' + k, sanitized[k]);
+        await idbSet(IDB_INDEX_KEY, keys);
+        await idbDelete(IDB_LEGACY_KEY);
+        console.info('[idb] migrated', keys.length, 'bulan dari format lama');
+      } catch (e) {
+        console.warn('[idb] migrasi gagal:', e);
+      }
+    }
+
+    async function loadStoreAsync() {
+      if (typeof indexedDB !== 'undefined') {
+        try {
+          await migrateLegacyIfNeeded();
+          const idx = await listStoredMonthKeys();
+          if (idx.length) {
+            // Baca paralel dengan konkurensi terbatas: tiap idbGet memuat nilai bulan PENUH
+            // sebelum di-strip, jadi batasi (3) agar puncak memori tidak melonjak.
+            // Hasil ditampung per indeks supaya urutan key tetap sama dengan index.
+            const metas = new Array(idx.length);
+            let next = 0;
+            const worker = async () => {
+              while (next < idx.length) {
+                const i = next++;
+                const m = await idbGet('month:' + idx[i]);
+                // P1: load metadata saja di startup (txns on-demand)
+                if (m) metas[i] = stripMonthForMeta(m);
+              }
+            };
+            await Promise.all(Array.from({ length: Math.min(3, idx.length) }, worker));
+            const result = {};
+            idx.forEach((k, i) => { if (metas[i]) result[k] = metas[i]; });
+            if (Object.keys(result).length) return sanitizeStore(result);
+          }
+        } catch (e) { console.warn('[idb] load failed:', e); }
+      }
+      try {
+        return sanitizeStore(JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'));
+      } catch { return {}; }
+    }
+
+    function _writeLocalStorageFallback() {
+      // Skip hanya bulan yang masih lazy (metadata saja, belum di-load) —
+      // jangan blokir seluruh LS write hanya karena satu bulan belum di-load
+      const keys = Object.keys(store);
+      let n = 0;
+      const clean = {};
+      for (const k of keys) {
+        const days = store[k]?.days || [];
+        const noTxns = days.length > 0 && days.every(d => !d.txns || d.txns.length === 0);
+        // Bulan lazy belum di-load → jangan tulis ke LS (cegah overwrite data penuh)
+        if (noTxns && !_loadedMonths.has(k)) {
+          console.info('[ls] skip bulan lazy (belum di-load):', k);
+          continue;
+        }
+        clean[k] = cleanMonthForPersist(store[k]);
+        for (const d of days) n += (d.txns?.length || 0);
+      }
+      // Store benar-benar kosong (semua bulan dihapus) → bersihkan LS agar data lama
+      // tidak "bangkit kembali" lewat fallback di loadStoreAsync()
+      if (keys.length === 0) {
+        try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+        return true;
+      }
+      if (Object.keys(clean).length === 0) return false;
+      if (n > 5000) return false;
+      try {
+        const json = JSON.stringify(clean);
+        if (json.length < 4 * 1024 * 1024) {
+          localStorage.setItem(STORAGE_KEY, json);
+          return true;
+        }
+      } catch (e) { console.warn('[ls] save failed:', e); }
+      return false;
+    }
+
+    // Full sync (dipakai importJSON)
+    async function saveStoreAsync() {
+      let idbOk = false, idbErr = null;
+      if (typeof indexedDB !== 'undefined') {
+        try {
+          const oldKeys = await listStoredMonthKeys();
+          const newKeys = Object.keys(store);
+          for (const k of oldKeys) {
+            if (!newKeys.includes(k)) await idbDelete('month:' + k);
+          }
+          // Tulis JIKA pernah di-load (termasuk hasil import 0 txn), atau punya txns
+          // Skip HANYA bulan lazy yang belum pernah di-load sama sekali
+          for (const k of newKeys) {
+            const m = store[k];
+            if (_loadedMonths.has(k) || monthHasTxns(m)) {
+              await idbSet('month:' + k, cleanMonthForPersist(m));
+            } else {
+              console.info('[idb] skip write bulan lazy (belum di-load):', k);
+            }
+          }
+          await idbSet(IDB_INDEX_KEY, newKeys);
+          idbOk = true;
+        } catch (e) { idbErr = e; console.warn('[idb] saveStore failed:', e); }
+      }
+      const lsOk = _writeLocalStorageFallback();
+      if (!idbOk && !lsOk) {
+        const reason = (idbErr && idbErr.message) || 'Penyimpanan penuh atau tidak tersedia';
+        throw new Error('Gagal menyimpan data: ' + reason);
+      }
+    }
+
+    // Simpan 1 bulan saja (dipakai upload) — perbaikan #1
+    async function saveMonthAsync(key) {
+      let idbOk = false, idbErr = null;
+      if (typeof indexedDB !== 'undefined') {
+        try {
+          // Jangan simpan field runtime; pastikan hanya bulan yang valid
+          await idbSet('month:' + key, cleanMonthForPersist(store[key]));
+          const idx = await listStoredMonthKeys();
+          if (!idx.includes(key)) {
+            idx.push(key);
+            idx.sort();
+            await idbSet(IDB_INDEX_KEY, idx);
+          }
+          idbOk = true;
+        } catch (e) { idbErr = e; console.warn('[idb] saveMonth failed:', e); }
+      }
+      const lsOk = _writeLocalStorageFallback();
+      if (!idbOk && !lsOk) {
+        const reason = (idbErr && idbErr.message) || 'Penyimpanan penuh atau tidak tersedia';
+        throw new Error('Gagal menyimpan data: ' + reason);
+      }
+    }
+
+    // Hapus 1 atau beberapa bulan (dipakai doDelete)
+    async function deleteMonthsAsync(keys) {
+      let idbOk = false, idbErr = null;
+      if (typeof indexedDB !== 'undefined') {
+        try {
+          // Atomik: semua delete + update index dalam 1 transaksi
+          const db = await openDB();
+          await new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            const os = tx.objectStore(IDB_STORE);
+            for (const k of keys) os.delete('month:' + k);
+            // Update index di transaksi yang sama
+            const idxReq = os.get(IDB_INDEX_KEY);
+            idxReq.onsuccess = () => {
+              const idx = Array.isArray(idxReq.result) ? idxReq.result : [];
+              const newIdx = idx.filter(k => !keys.includes(k));
+              os.put(newIdx, IDB_INDEX_KEY);
+            };
+            idxReq.onerror = () => reject(idxReq.error);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error || new Error('IDB delete tx failed'));
+            tx.onabort = () => reject(tx.error || new Error('IDB delete tx aborted'));
+          });
+          idbOk = true;
+        } catch (e) { idbErr = e; console.warn('[idb] deleteMonths failed:', e); }
+      }
+      const lsOk = _writeLocalStorageFallback();
+      if (!idbOk && !lsOk) {
+        const reason = (idbErr && idbErr.message) || 'Penyimpanan penuh atau tidak tersedia';
+        throw new Error('Gagal menyimpan data: ' + reason);
+      }
+    }
+
+
+    // ===================== JEMBATAN KE CEK (file HTML terpisah) =====================
+    // CEK membaca Uang Masuk dari IndexedDB 'um-fixv1' → store 'um-data' → key 'latest' → { records }.
+    // UM_V2 menerbitkan datanya ke sana (format baris datar) dan memberi sinyal lewat BroadcastChannel
+    // 'laporan-data'. Syarat: ketiga file dibuka di browser/profil yang sama dengan origin yang sama.
+    const BRIDGE_DB = 'um-fixv1', BRIDGE_ST = 'um-data', BRIDGE_KEY = 'latest', BRIDGE_SCHEMA = 1;
+    let _bridgeQ = Promise.resolve();   // serialkan operasi jembatan agar tidak saling menimpa
+
+    function bridgeOpen() {
+      return new Promise((ok, no) => {
+        const r = indexedDB.open(BRIDGE_DB);
+        r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(BRIDGE_ST)) r.result.createObjectStore(BRIDGE_ST); };
+        r.onerror = () => no(r.error);
+        r.onsuccess = () => {
+          const d = r.result; d.onversionchange = () => d.close();
+          if (d.objectStoreNames.contains(BRIDGE_ST)) return ok(d);
+          const nv = d.version + 1; d.close();       // DB sudah ada tapi belum punya store → naikkan versi
+          const u = indexedDB.open(BRIDGE_DB, nv);
+          u.onupgradeneeded = () => u.result.createObjectStore(BRIDGE_ST);
+          u.onsuccess = () => { u.result.onversionchange = () => u.result.close(); ok(u.result); };
+          u.onerror = () => no(u.error);
+        };
+      });
+    }
+    async function bridgeRead() {
+      const db = await bridgeOpen();
+      try {
+        return await new Promise((ok, no) => {
+          const q = db.transaction(BRIDGE_ST).objectStore(BRIDGE_ST).get(BRIDGE_KEY);
+          q.onsuccess = () => ok(q.result || null); q.onerror = () => no(q.error);
+        });
+      } finally { db.close(); }
+    }
+    async function bridgeWrite(value) {
+      const db = await bridgeOpen();
+      try {
+        await new Promise((ok, no) => {
+          const tx = db.transaction(BRIDGE_ST, 'readwrite');
+          tx.objectStore(BRIDGE_ST).put(value, BRIDGE_KEY);
+          tx.oncomplete = ok; tx.onerror = tx.onabort = () => no(tx.error);
+        });
+      } finally { db.close(); }
+      try { const bc = new BroadcastChannel('laporan-data'); bc.postMessage('uangmasuk'); bc.close(); } catch (e) {}
+    }
+
+    // Satu baris transaksi UM_V2 → satu record yang dimengerti CEK
+    function bridgeRecords(mk, m) {
+      const out = [];
+      const y0 = +mk.slice(0, 4), km = +mk.slice(5, 7);
+      for (const d of (m?.days || [])) {
+        const pt = String(d.tgl || '').split('-');           // 'DD-MM'
+        if (pt.length !== 2) continue;
+        const tm = +pt[1];
+        let y = y0;
+        if (tm === 12 && km === 1) y = y0 - 1; else if (tm === 1 && km === 12) y = y0 + 1;
+        const dateStr = y + '-' + pt[1].padStart(2, '0') + '-' + pt[0].padStart(2, '0');
+        for (const x of (d.txns || [])) {
+          const f = String(x.faktur == null ? '' : x.faktur).trim();
+          if (!f) continue;
+          const mC = +x.mCash || 0, mT = +x.mTf || 0, rC = +x.rCash || 0, rT = +x.rTf || 0;
+          out.push({
+            _mk: mk, bulan: dateStr.slice(0, 7), tanggal_laporan_str: dateStr,
+            section: x.section === 'PIUTANG' ? 'PIUTANG' : 'CASH',
+            no_faktur: f, nama_toko: x.toko || '', alamat: x.alamat || '', sales: x.sales || '',
+            tagihan: +x.tagihan || 0,
+            minyak_cash: mC, minyak_tf: mT, rupa_cash: rC, rupa_tf: rT, total_bayar: mC + mT + rC + rT,
+            status: x.ket || '', tgl_faktur: x.tglFaktur || '', jt: x.jt || ''
+          });
+        }
+      }
+      return out;
+    }
+
+    // Bangun ulang seluruh data jembatan dari semua bulan tersimpan
+    async function _bridgeRebuildNow(manual) {
+      if (typeof indexedDB === 'undefined') return;
+      try {
+        const keys = monthKeys();
+        let records = [];
+        for (const k of keys) {
+          // bulan yang sudah di RAM dipakai langsung; selain itu dibaca dari IDB tanpa ditahan di store
+          const m = _loadedMonths.has(k) ? store[k] : await idbGet('month:' + k);
+          if (m) records = records.concat(bridgeRecords(k, m));
+        }
+        await bridgeWrite({ schema: BRIDGE_SCHEMA, months: keys, records, updatedAt: Date.now(), source: 'UM_V2' });
+        if (manual) toast(`Data uang masuk dikirim ke CEK (${fmt(records.length)} baris, ${keys.length} bulan)`);
+      } catch (e) {
+        console.warn('[bridge] rebuild gagal:', e);
+        if (manual) toast('Gagal mengirim data ke CEK: ' + (e && e.message || e), 'error');
+      }
+    }
+    function bridgeRebuild(manual) {
+      _bridgeQ = _bridgeQ.then(() => _bridgeRebuildNow(manual));
+      return _bridgeQ;
+    }
+
+    // Update inkremental: ganti/hapus hanya bulan yang berubah (tanpa memuat bulan lain)
+    function bridgeSync(upsertKeys, removeKeys) {
+      _bridgeQ = _bridgeQ.then(async () => {
+        if (typeof indexedDB === 'undefined') return;
+        try {
+          const cur = await bridgeRead();
+          if (!cur || cur.schema !== BRIDGE_SCHEMA || !Array.isArray(cur.records) || !Array.isArray(cur.months)) {
+            return _bridgeRebuildNow(false);       // belum ada / skema beda → bangun ulang penuh
+          }
+          const drop = new Set([...upsertKeys, ...removeKeys]);
+          let records = cur.records.filter(r => !drop.has(r._mk));
+          for (const k of upsertKeys) {
+            if (!store[k]) continue;
+            await ensureMonthLoaded(k);
+            records = records.concat(bridgeRecords(k, store[k]));
+          }
+          const months = new Set(cur.months.filter(k => !removeKeys.includes(k)));
+          upsertKeys.forEach(k => { if (store[k]) months.add(k); });
+          await bridgeWrite({ schema: BRIDGE_SCHEMA, months: [...months].sort(), records, updatedAt: Date.now(), source: 'UM_V2' });
+        } catch (e) { console.warn('[bridge] sync gagal:', e); }
+      });
+      return _bridgeQ;
+    }
+
+    // Saat startup: bila data jembatan belum ada / daftar bulannya beda dengan store → bangun ulang
+    async function bridgeEnsureFresh() {
+      if (typeof indexedDB === 'undefined') return;
+      try {
+        const cur = await bridgeRead();
+        const keys = monthKeys();
+        const same = cur && cur.schema === BRIDGE_SCHEMA && Array.isArray(cur.months)
+          && cur.months.length === keys.length && cur.months.every((k, i) => k === keys[i]);
+        if (!same && (keys.length || (cur && cur.records && cur.records.length))) await bridgeRebuild(false);
+      } catch (e) { console.warn('[bridge] cek awal gagal:', e); }
+    }
+
+    // ===================== HELPERS =====================
+    function fmt(n) {
+      if (n == null || isNaN(n)) return '0';
+      return Number(n).toLocaleString('id-ID');
+    }
+    function fmtCell(n) {
+      if (n == null || isNaN(n) || n === 0) return '<span class="faded">0</span>';
+      return fmt(n);
+    }
+    function esc(s) {
+      if (s == null) return '';
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+    function sumDays(days) {
+      const t = { mc:0, mt:0, rc:0, rt:0 };
+      for (const d of days) {
+        t.mc += d.mc || 0; t.mt += d.mt || 0;
+        t.rc += d.rc || 0; t.rt += d.rt || 0;
+      }
+      return t;
+    }
+    function monthKeys() {
+      return Object.keys(store).sort();
+    }
+    function toast(msg, type = 'success') {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show ' + type;
+      setTimeout(() => el.classList.remove('show'), 3200);
+    }
+    function debounce(fn, ms = 250) {
+      let t;
+      return function(...args) {
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(this, args), ms);
+      };
+    }
+
+    // ===================== BADGE / KET LOGIC =====================
+    function getKetFlags(x) {
+      const u = String(x.ket || '').toUpperCase();
+      let lunas = u.includes('LUNAS');
+      const titip = u.includes('TITIP');
+      const tf = u.includes('TF') || u.includes('BG') || u.includes('TRANSFER');
+      if (!lunas && tf) {
+        const tagihan = x.tagihan || 0;
+        const total = (x.mCash || 0) + (x.mTf || 0) + (x.rCash || 0) + (x.rTf || 0);
+        if (tagihan > 0 && total >= tagihan) lunas = true;
+      }
+      return { lunas, titip, tf };
+    }
+
+    function getDisplayKet(x) {
+      const ket = x.ket || '';
+      if (!ket) return '';
+      const f = getKetFlags(x);
+      if (f.tf && f.lunas && !String(ket).toUpperCase().includes('LUNAS')) {
+        return ket + ' - LUNAS';
+      }
+      return ket;
+    }
+
+    function ketBadge(ket) {
+      if (!ket) return '';
+      const u = String(ket).toUpperCase();
+      let cls = 'badge';
+      if (u.includes('LUNAS')) cls += ' badge-lunas';
+      else if (u.includes('TITIP')) cls += ' badge-titip';
+      else if (u.includes('TF') || u.includes('BG') || u.includes('TRANSFER')) cls += ' badge-tf';
+      return `<span class="${cls}">${esc(ket)}</span>`;
+    }
+
+    function applyKetFilter(rows, ketF) {
+      if (!ketF || ketF === 'all') return rows;
+      return rows.filter(r => {
+        const f = getKetFlags(r);
+        if (ketF === 'LUNAS') return f.lunas;
+        if (ketF === 'TF') return f.tf;
+        if (ketF === 'TITIP') return f.titip;
+        return true;
+      });
+    }
+
+    // ===================== MENU =====================
+    
+    function getTheme() {
+      return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    }
+    function applyTheme(theme) {
+      const t = theme === 'light' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+      try { localStorage.setItem('um_theme', t); } catch (e) {}
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', t === 'light' ? '#e2e8f0' : '#1e293b');
+      const btn = document.getElementById('themeBtn');
+      if (btn) {
+        btn.textContent = t === 'light' ? '🌙' : '☀️';
+        btn.title = t === 'light' ? 'Aktifkan mode gelap' : 'Aktifkan mode terang';
+        btn.setAttribute('aria-label', btn.title);
+      }
+    }
+    function toggleTheme() {
+      applyTheme(getTheme() === 'dark' ? 'light' : 'dark');
+    }
+    document.addEventListener('DOMContentLoaded', () => applyTheme(getTheme()));
+
+function toggleMenu(e) {
+      e.stopPropagation();
+      document.getElementById('menuDropdown').classList.toggle('show');
+    }
+    function closeMenu() {
+      document.getElementById('menuDropdown').classList.remove('show');
+    }
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('menuDropdown');
+      const btn = document.getElementById('menuBtn');
+      if (menu && !menu.contains(e.target) && !btn.contains(e.target)) closeMenu();
+    });
+
+    // ===================== TABS =====================
+    async function switchTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+      ['dashboard','detail','rincian','minyak','rupa','titip','piutang','dropping','manage'].forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        if (el) el.style.display = t === name ? 'block' : 'none';
+      });
+      // P1: lazy-load txns saat tab yang butuh rincian dibuka
+      if (['rincian','minyak','rupa','piutang','dropping','detail'].includes(name)) {
+        const map = {
+          detail: 'detailMonth', rincian: 'rincianMonth', minyak: 'minyakMonth',
+          rupa: 'rupaMonth', piutang: 'piutangMonth', dropping: 'droppingMonth'
+        };
+        const id = map[name];
+        let ym = id ? document.getElementById(id)?.value : '';
+        if (ym === 'all') {
+          await loadMonthsConcurrent(monthKeys());
+        } else {
+          if (!ym) ym = getActiveMonthKey();
+          if (ym) await ensureMonthLoaded(ym);
+        }
+      }
+      if (name === 'dashboard') renderAll();
+      else if (name === 'detail') renderDetail();
+      else if (name === 'rincian') renderRincianTab();
+      else if (name === 'minyak') renderProdukTab('minyak');
+      else if (name === 'rupa') renderProdukTab('rupa');
+      else if (name === 'titip') await loadAndRenderTitip();
+      else if (name === 'piutang') renderPiutangTab();
+      else if (name === 'dropping') renderDroppingTab();
+      else if (name === 'manage') renderManage();
+    }
+
+    // ===================== PAGINATION =====================
+    // Clamp halaman SEBELUM slice, supaya data yang menyusut tidak menghasilkan halaman kosong
+    function clampPage(prefix, total) {
+      const st = pagState[prefix];
+      const pages = Math.max(1, Math.ceil(total / st.size));
+      if (st.page > pages) st.page = pages;
+      if (st.page < 1) st.page = 1;
+    }
+
+    function renderPagination(containerId, prefix, total) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      const st = pagState[prefix];
+      const pages = Math.max(1, Math.ceil(total / st.size));
+      if (st.page > pages) st.page = pages;
+      if (st.page < 1) st.page = 1;
+      if (pages <= 1) { el.innerHTML = ''; return; }
+
+      const cur = st.page;
+      const items = [];
+      items.push(`<button ${cur <= 1 ? 'disabled' : ''} onclick="setPage('${prefix}', ${cur - 1})">‹</button>`);
+
+      const start = Math.max(1, cur - 2);
+      const end = Math.min(pages, cur + 2);
+
+      if (start > 1) {
+        items.push(`<button onclick="setPage('${prefix}', 1)">1</button>`);
+        if (start > 2) items.push(`<span style="color:var(--muted)">…</span>`);
+      }
+      for (let i = start; i <= end; i++) {
+        items.push(`<button class="${i === cur ? 'active' : ''}" onclick="setPage('${prefix}', ${i})">${i}</button>`);
+      }
+      if (end < pages) {
+        if (end < pages - 1) items.push(`<span style="color:var(--muted)">…</span>`);
+        items.push(`<button onclick="setPage('${prefix}', ${pages})">${pages}</button>`);
+      }
+
+      items.push(`<button ${cur >= pages ? 'disabled' : ''} onclick="setPage('${prefix}', ${cur + 1})">›</button>`);
+      items.push(`<span class="info">${fmt(total)} data · hal ${cur}/${pages}</span>`);
+
+      el.innerHTML = items.join('');
+    }
+
+    function setPage(prefix, page) {
+      pagState[prefix].page = page;
+      if (prefix === 'rincian') renderRincianTab();
+      else if (prefix === 'piutang') renderPiutangTab();
+      else if (prefix === 'dropping') renderDroppingTab();
+      else if (prefix === 'minyak' || prefix === 'rupa') renderProdukTab(prefix);
+      else if (prefix === 'titip') renderTitipTab();
+    }
+
+    // ===================== DASHBOARD =====================
+    function getFilteredDays() {
+      const filter = document.getElementById('filterMonth').value;
+      if (filter === 'all') {
+        const out = [];
+        for (const k of monthKeys()) {
+          for (const d of store[k].days) out.push({ ...d, _month: k });
+        }
+        return out;
+      }
+      return (store[filter]?.days || []).map(d => ({ ...d, _month: filter }));
+    }
+
+    function renderAll() {
+      populateMonthSelectsIfNeeded();       // perbaikan #3
+      const keys = monthKeys();
+      const empty = keys.length === 0;
+      document.getElementById('emptyDashboard').style.display = empty ? 'block' : 'none';
+      document.getElementById('dashboardContent').style.display = empty ? 'none' : 'block';
+      if (empty) return;
+
+      const days = getFilteredDays();
+      const s = sumDays(days);
+      const totalMinyak = s.mc + s.mt;
+      const totalRupa = s.rc + s.rt;
+      const grand = totalMinyak + totalRupa;
+      const totalCash = s.mc + s.rc;
+
+      document.getElementById('dayCount').textContent = days.length + ' hari aktif';
+
+      document.getElementById('summaryCards').innerHTML = `
+        <div class="card minyak">
+          <div class="card-label">Total Minyak</div>
+          <div class="card-value">Rp ${fmt(totalMinyak)}</div>
+          <div class="card-sub">Cash ${fmt(s.mc)} · TF ${fmt(s.mt)}</div>
+        </div>
+        <div class="card rupa">
+          <div class="card-label">Total Rupa-rupa</div>
+          <div class="card-value">Rp ${fmt(totalRupa)}</div>
+          <div class="card-sub">Cash ${fmt(s.rc)} · TF ${fmt(s.rt)}</div>
+        </div>
+        <div class="card cash">
+          <div class="card-label">Total Cash</div>
+          <div class="card-value">Rp ${fmt(totalCash)}</div>
+          <div class="card-sub">Minyak + Rupa (tunai)</div>
+        </div>
+        <div class="card total">
+          <div class="card-label">Grand Total</div>
+          <div class="card-value">Rp ${fmt(grand)}</div>
+          <div class="card-sub">Minyak ${grand ? (totalMinyak/grand*100).toFixed(1) : 0}% · Rupa ${grand ? (totalRupa/grand*100).toFixed(1) : 0}%</div>
+        </div>
+      `;
+
+      const tbody = document.getElementById('monthSummaryBody');
+      let html = keys.map(k => {
+        const m = store[k];
+        const sm = sumDays(m.days);
+        const tm = sm.mc + sm.mt;
+        const tr = sm.rc + sm.rt;
+        return `<tr>
+          <td class="text-left">${esc(m.label)}</td>
+          <td class="center">${m.days.length}</td>
+          <td>${fmt(sm.mc)}</td>
+          <td>${fmt(sm.mt)}</td>
+          <td><strong>${fmt(tm)}</strong></td>
+          <td>${fmt(sm.rc)}</td>
+          <td>${fmt(sm.rt)}</td>
+          <td><strong>${fmt(tr)}</strong></td>
+          <td><strong>${fmt(tm+tr)}</strong></td>
+        </tr>`;
+      }).join('');
+
+      if (keys.length > 1) {
+        const all = sumDays(keys.flatMap(k => store[k].days));
+        const tm = all.mc + all.mt, tr = all.rc + all.rt;
+        html += `<tr class="total-row">
+          <td class="text-left">TOTAL SEMUA</td>
+          <td class="center">${keys.reduce((a,k)=>a+store[k].days.length,0)}</td>
+          <td>${fmt(all.mc)}</td><td>${fmt(all.mt)}</td><td>${fmt(tm)}</td>
+          <td>${fmt(all.rc)}</td><td>${fmt(all.rt)}</td><td>${fmt(tr)}</td>
+          <td>${fmt(tm+tr)}</td>
+        </tr>`;
+      }
+      tbody.innerHTML = html;
+    }
+
+    function populateMonthSelects() {
+      const keys = monthKeys();
+      const latest = keys.length ? keys[keys.length - 1] : '';
+      const opts = keys.map(k => `<option value="${esc(k)}">${esc(store[k].label)}</option>`).join('');
+
+      const filter = document.getElementById('filterMonth');
+      if (filter) {
+        const prev = filter.value;
+        filter.innerHTML = `<option value="all">Semua Bulan</option>` + opts;
+        if (!filter.dataset.inited) {
+          if (latest) filter.value = latest;
+          filter.dataset.inited = '1';
+        } else if (prev && [...filter.options].some(o => o.value === prev)) {
+          filter.value = prev;
+        } else if (latest) {
+          filter.value = latest;
+        }
+      }
+
+      const detail = document.getElementById('detailMonth');
+      if (detail) {
+        const prevD = detail.value;
+        detail.innerHTML = opts || '<option value="">—</option>';
+        if ([...detail.options].some(o => o.value === prevD)) detail.value = prevD;
+        else if (latest) detail.value = latest;
+      }
+
+      const rinMonth = document.getElementById('rincianMonth');
+      if (rinMonth) {
+        const prevR = rinMonth.value;
+        rinMonth.innerHTML = `<option value="all">Semua Bulan</option>` + (opts || '');
+        if (!rinMonth.dataset.inited) {
+          if (latest) rinMonth.value = latest;
+          rinMonth.dataset.inited = '1';
+        } else if (prevR && [...rinMonth.options].some(o => o.value === prevR)) {
+          rinMonth.value = prevR;
+        } else if (latest) {
+          rinMonth.value = latest;
+        }
+        populateRincianDates();
+      }
+
+      ['piutangMonth', 'droppingMonth', 'minyakMonth', 'rupaMonth'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const prev = el.value;
+        el.innerHTML = opts || '<option value="">—</option>';
+        if ([...el.options].some(o => o.value === prev)) el.value = prev;
+        else if (latest) el.value = latest;
+      });
+      populateSectionDates('piutang');
+      populateSectionDates('dropping');
+      populateSectionDates('minyak');
+      populateSectionDates('rupa');
+    }
+
+    // ===== Gating selects (perbaikan #3) =====
+    function populateMonthSelectsIfNeeded() {
+      if (_selectsState.version === _storeVersion) return;
+      populateMonthSelects();
+      _selectsState.version = _storeVersion;
+      _selectsState.dateMonth = {
+        rincian:  { version: _storeVersion, month: document.getElementById('rincianMonth')?.value },
+        piutang:  { version: _storeVersion, month: document.getElementById('piutangMonth')?.value },
+        dropping: { version: _storeVersion, month: document.getElementById('droppingMonth')?.value },
+        minyak:   { version: _storeVersion, month: document.getElementById('minyakMonth')?.value },
+        rupa:     { version: _storeVersion, month: document.getElementById('rupaMonth')?.value },
+      };
+    }
+
+    function populateDateSelectIfNeeded(prefix) {
+      const curMonth = document.getElementById(prefix + 'Month')?.value;
+      const last = _selectsState.dateMonth[prefix];
+      if (last && last.version === _storeVersion && last.month === curMonth) return;
+      if (prefix === 'rincian') populateRincianDates();
+      else populateSectionDates(prefix);
+      _selectsState.dateMonth[prefix] = { version: _storeVersion, month: curMonth };
+    }
+
+    function populateSectionDates(prefix) {
+      const key = document.getElementById(prefix + 'Month')?.value;
+      const sel = document.getElementById(prefix + 'Date');
+      if (!sel) return;
+      const prev = sel.value;
+      if (!key || !store[key]) {
+        sel.innerHTML = '<option value="all">Semua Tanggal</option>';
+        return;
+      }
+      const days = store[key].days || [];
+      sel.innerHTML = '<option value="all">Semua Tanggal</option>' +
+        days.map(d => `<option value="${esc(d.tgl)}">${esc(d.tgl)}</option>`).join('');
+      if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+    }
+
+    function populateRincianDates() {
+      const key = document.getElementById('rincianMonth')?.value;
+      const sel = document.getElementById('rincianDate');
+      if (!sel) return;
+      const prev = sel.value;
+      let opts = [];
+      if (key === 'all') {
+        // Mode semua bulan: value = "monthKey|tgl" agar 01-09 tahun berbeda tidak tercampur
+        for (const k of monthKeys()) {
+          for (const d of (store[k]?.days || [])) {
+            if (d.tgl) opts.push({ value: k + '|' + d.tgl, label: d.tgl + ' · ' + (store[k].label || k) });
+          }
+        }
+      } else if (key && store[key]) {
+        opts = (store[key].days || []).filter(d => d.tgl).map(d => ({ value: d.tgl, label: d.tgl }));
+      } else {
+        sel.innerHTML = '<option value="all">Semua Tanggal</option>';
+        return;
+      }
+      sel.innerHTML = '<option value="all">Semua Tanggal</option>' +
+        opts.map(o => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('');
+      if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+    }
+
+    // ===================== DETAIL =====================
+    function renderDetail() {
+      populateMonthSelectsIfNeeded();       // perbaikan #3
+      const key = document.getElementById('detailMonth').value;
+      const q = (document.getElementById('searchDetail').value || '').toLowerCase();
+      const tbody = document.getElementById('detailBody');
+      if (!key || !store[key]) { tbody.innerHTML = ''; closeRincian(); return; }
+
+      const allDays = store[key].days || [];
+      let days = allDays;
+      if (q) days = days.filter(d => d.tgl.toLowerCase().includes(q));
+
+      if (!days.length) {
+        tbody.innerHTML = `<tr><td colspan="11" class="empty-rincian">Tidak ada tanggal yang cocok dengan pencarian.</td></tr>`;
+        return;
+      }
+
+      let html = days.map((d, i) => {
+        const tm = (d.mc||0) + (d.mt||0);
+        const tr = (d.rc||0) + (d.rt||0);
+        const tc = (d.mc||0) + (d.rc||0);
+        const tf = (d.mt||0) + (d.rt||0);
+        const g = tm + tr;
+        const active = selectedDay && selectedDay.monthKey === key && selectedDay.tgl === d.tgl;
+        const hasTx = d.txns && d.txns.length;
+        return `<tr class="day-row${active ? ' active' : ''}" onclick="openRincian('${key}','${d.tgl}')">
+          <td class="center">${i+1}</td>
+          <td class="text-left">${esc(d.tgl)}${hasTx ? ' <span style="opacity:0.5">📋</span>' : ''}</td>
+          <td>${fmtCell(d.mc)}</td>
+          <td>${fmtCell(d.mt)}</td>
+          <td><strong>${fmtCell(tm)}</strong></td>
+          <td>${fmtCell(d.rc)}</td>
+          <td>${fmtCell(d.rt)}</td>
+          <td><strong>${fmtCell(tr)}</strong></td>
+          <td>${fmtCell(tc)}</td>
+          <td>${fmtCell(tf)}</td>
+          <td><strong>${fmtCell(g)}</strong></td>
+        </tr>`;
+      }).join('');
+
+      // TOTAL selalu dari seluruh hari bulan (tidak ikut filter pencarian)
+      const s = sumDays(allDays);
+      const tm = s.mc + s.mt, tr = s.rc + s.rt;
+      const tc = s.mc + s.rc, tf = s.mt + s.rt, g = tm + tr;
+      const totalLabel = (q && days.length !== allDays.length)
+        ? `TOTAL (${allDays.length} hari)`
+        : 'TOTAL';
+
+      html += `<tr class="total-row">
+        <td></td><td class="text-left">${totalLabel}</td>
+        <td>${fmtCell(s.mc)}</td><td>${fmtCell(s.mt)}</td><td>${fmtCell(tm)}</td>
+        <td>${fmtCell(s.rc)}</td><td>${fmtCell(s.rt)}</td><td>${fmtCell(tr)}</td>
+        <td>${fmtCell(tc)}</td><td>${fmtCell(tf)}</td><td>${fmtCell(g)}</td>
+      </tr>`;
+      tbody.innerHTML = html;
+
+      if (selectedDay && selectedDay.monthKey === key) {
+        openRincian(selectedDay.monthKey, selectedDay.tgl, true);
+      }
+    }
+
+    async function openRincian(monthKey, tgl, silent) {
+      selectedDay = { monthKey, tgl };
+      await ensureMonthLoaded(monthKey);
+      const day = (store[monthKey]?.days || []).find(d => d.tgl === tgl);
+      const panel = document.getElementById('rincianPanel');
+      const body = document.getElementById('rincianBody');
+      if (!day) { closeRincian(); return; }
+
+      document.getElementById('rincianTitle').textContent = `Rincian ${tgl} — ${store[monthKey].label}`;
+      const txns = day.txns || [];
+      const nPiutang = txns.filter(x => x.section === 'PIUTANG').length;
+      const nDrop = txns.filter(x => x.section === 'DROPPING').length;
+      document.getElementById('rincianMeta').textContent =
+        txns.length
+          ? `${txns.length} faktur · Piutang ${nPiutang} · Cash Dropping ${nDrop}`
+          : 'Tidak ada rincian faktur (data di-upload sebelum fitur rincian, atau sheet tidak terbaca). Upload ulang Excel untuk mengisi rincian.';
+
+      if (!txns.length) {
+        body.innerHTML = `<tr><td colspan="13" class="empty-rincian">Belum ada data rincian untuk tanggal ini.<br/>Upload ulang file Excel bulan ini agar faktur per toko terbaca.</td></tr>`;
+        panel.style.display = 'block';
+        if (!silent) renderDetail();
+        return;
+      }
+
+      const sections = [
+        { key: 'PIUTANG', title: 'PIUTANG TEMPO' },
+        { key: 'DROPPING', title: 'CASH DROPPING' }
+      ];
+      let html = '';
+      let no = 0;
+      for (const sec of sections) {
+        const list = txns.filter(x => x.section === sec.key);
+        if (!list.length) continue;
+        html += `<tr><td colspan="13" class="rincian-section-title">${sec.title} (${list.length})</td></tr>`;
+        for (const x of list) {
+          no++;
+          html += `<tr>
+            <td class="center">${no}</td>
+            <td class="text-left">${esc(tgl)}</td>
+            <td class="text-left">${ketBadge(getDisplayKet(x))}</td>
+            <td class="text-left">${esc(x.sales) || '—'}</td>
+            <td class="text-left">${esc(x.faktur)}</td>
+            <td class="text-left">${esc(x.toko)}</td>
+            <td class="text-left">${esc(x.alamat)}</td>
+            <td>${fmtCell(x.tagihan)}</td>
+            <td>${fmtCell(x.mCash)}</td>
+            <td>${fmtCell(x.mTf)}</td>
+            <td>${fmtCell(x.rCash)}</td>
+            <td>${fmtCell(x.rTf)}</td>
+            <td class="text-left">${sec.key === 'PIUTANG' ? 'Piutang' : 'Dropping'}</td>
+          </tr>`;
+        }
+      }
+      const sum = txns.reduce((a,x)=>({
+        t: a.t+(x.tagihan||0), mc:a.mc+(x.mCash||0), mt:a.mt+(x.mTf||0),
+        rc:a.rc+(x.rCash||0), rt:a.rt+(x.rTf||0)
+      }), {t:0,mc:0,mt:0,rc:0,rt:0});
+      html += `<tr class="total-row">
+        <td></td><td class="text-left" colspan="6">TOTAL RINCIAN</td>
+        <td>${fmtCell(sum.t)}</td>
+        <td>${fmtCell(sum.mc)}</td><td>${fmtCell(sum.mt)}</td>
+        <td>${fmtCell(sum.rc)}</td><td>${fmtCell(sum.rt)}</td>
+        <td></td>
+      </tr>`;
+      body.innerHTML = html;
+      panel.style.display = 'block';
+
+      if (!silent) {
+        const q = (document.getElementById('searchDetail').value || '').toLowerCase();
+        let days = store[monthKey].days;
+        if (q) days = days.filter(d => d.tgl.toLowerCase().includes(q));
+        document.querySelectorAll('#detailBody tr.day-row').forEach((tr, i) => {
+          const d = days[i];
+          if (d) tr.classList.toggle('active', d.tgl === tgl);
+        });
+      }
+    }
+
+    function closeRincian() {
+      selectedDay = null;
+      const panel = document.getElementById('rincianPanel');
+      if (panel) panel.style.display = 'none';
+      document.querySelectorAll('#detailBody tr.day-row.active').forEach(tr => tr.classList.remove('active'));
+    }
+
+    // ===================== FILTER =====================
+    function setFilterProduk(prefix, val) {
+      const group = document.getElementById(prefix + 'ProdukGroup');
+      if (!group) return;
+      group.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === val);
+      });
+      if (prefix === 'piutang') { pagState.piutang.page = 1; renderPiutangTab(); }
+      if (prefix === 'dropping') { pagState.dropping.page = 1; renderDroppingTab(); }
+    }
+
+    function setFilterStatus(prefix, val) {
+      const group = document.getElementById(prefix + 'KetGroup');
+      if (!group) return;
+      group.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === val);
+      });
+      if (prefix === 'piutang') { pagState.piutang.page = 1; renderPiutangTab(); }
+      if (prefix === 'dropping') { pagState.dropping.page = 1; renderDroppingTab(); }
+      if (prefix === 'rincian') { pagState.rincian.page = 1; renderRincianTab(); }
+      if (prefix === 'minyak' || prefix === 'rupa') { pagState[prefix].page = 1; renderProdukTab(prefix); }
+    }
+
+    // ===================== TAB TITIP =====================
+    async function loadAndRenderTitip() {
+      const sel = document.getElementById('titipMonth');
+      if (!sel) return;
+      const keys = monthKeys();
+      const prev = sel.value;
+      sel.innerHTML = '<option value="all">Semua Bulan</option>' +
+        keys.map(k => `<option value="${esc(k)}">${esc(store[k].label || k)}</option>`).join('');
+      if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+      else sel.value = 'all';
+
+      const chosen = sel.value;
+      // Semua bulan perlu dimuat agar pembayaran susulan lintas bulan ikut terbaca.
+      await loadMonthsConcurrent(keys);
+      pagState.titip.page = 1;
+      renderTitipTab();
+    }
+
+    function titipNorm(v) {
+      return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    function titipDateKey(r) {
+      const mk = String(r._monthKey || '');
+      const p = String(r.tgl || '').split('-');
+      if (p.length === 2) return mk + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+      return mk + '-00-00';
+    }
+    function titipIdentity(r) {
+      // Identitas utama: toko + alamat + sales. No faktur hanya penguat.
+      return [titipNorm(r.toko), titipNorm(r.alamat), titipNorm(r.sales)].join('|');
+    }
+    function titipPaid(r) {
+      return (Number(r.mCash)||0) + (Number(r.mTf)||0) + (Number(r.rCash)||0) + (Number(r.rTf)||0);
+    }
+
+    function setTitipStatusFilter(status) {
+      const group = document.getElementById('titipStatusGroup');
+      if (!group) return;
+      group.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === status);
+      });
+      pagState.titip.page = 1;
+      renderTitipTab();
+    }
+
+    function titipDateKeyOf(mk, tgl) {
+      const p = String(tgl || '').split('-');
+      if (p.length === 2) return mk + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+      return mk + '-00-00';
+    }
+
+    // Indeks TITIP lintas bulan (alokasi pembayaran susulan). Dihitung SEKALI per perubahan
+    // data (store version / jumlah bulan ter-load), bukan di setiap render/pagination.
+    // Hanya baris TITIP & baris berpembayaran yang diproses; sisanya tidak dialokasikan.
+    let _titipIndex = null;
+    function getTitipIndex() {
+      const sigv = _storeVersion + ':' + _loadedMonths.size;
+      if (_titipIndex && _titipIndex.sig === sigv) return _titipIndex.rows;
+
+      const groups = new Map();
+      for (const k of monthKeys()) {
+        const label = store[k]?.label || k;
+        for (const r of getFlatTxns(k)) {
+          const id = titipIdentity(r);
+          if (!id.replace(/\|/g,'')) continue;
+          const isTitip = getKetFlags(r).titip;
+          const paid = titipPaid(r);
+          if (!isTitip && paid <= 0) continue;          // tidak relevan untuk TITIP
+          let g = groups.get(id);
+          if (!g) { g = { ts: [], pays: [] }; groups.set(id, g); }
+          // entri ringan (bukan salinan penuh txn); dk & faktur ternormalisasi dihitung sekali
+          (isTitip ? g.ts : g.pays).push({ r, k, label, dk: titipDateKeyOf(k, r.tgl), paid, fk: titipNorm(r.faktur), used: 0 });
+        }
+      }
+
+      const byDk = (a, b) => a.dk < b.dk ? -1 : (a.dk > b.dk ? 1 : 0);
+      const out = [];
+      for (const g of groups.values()) {
+        if (!g.ts.length) continue;
+        g.ts.sort(byDk);
+        g.pays.sort(byDk);
+        for (const t of g.ts) {
+          const total = Number(t.r.tagihan) || 0;
+          const ownPaid = t.paid;
+          let remaining = Math.max(0, total - ownPaid);
+          let susulan = 0;
+          if (remaining > 0 && g.pays.length) {
+            const later = g.pays.filter(p => p.dk > t.dk && p.used < p.paid);
+            // faktur sama didahulukan, sisanya urut tanggal (pays sudah terurut → urutan stabil)
+            const ordered = t.fk
+              ? later.filter(p => p.fk === t.fk).concat(later.filter(p => p.fk !== t.fk))
+              : later;
+            for (const pay of ordered) {
+              if (remaining <= 0) break;
+              const take = Math.min(remaining, pay.paid - pay.used);
+              if (take > 0) { pay.used += take; susulan += take; remaining -= take; }
+            }
+          }
+          const paidTotal = Math.min(total, ownPaid + susulan);
+          out.push({ ...t.r, _monthKey: t.k, _monthLabel: t.label, _dk: t.dk,
+            _ownPaid: ownPaid, _susulan: susulan, _paidTotal: paidTotal,
+            _sisa: Math.max(0, total - paidTotal),
+            _status: remaining <= 0 ? 'LUNAS' : (paidTotal > 0 ? 'DIBAYAR SEBAGIAN' : 'BELUM DIBAYAR') });
+        }
+      }
+      out.sort((a, b) => a._dk < b._dk ? -1 : (a._dk > b._dk ? 1 : 0));
+      _titipIndex = { sig: sigv, rows: out };
+      return out;
+    }
+
+    // opts.syncUI=true (hanya dari renderTitipTab) → bangun ulang <select id="titipDate"> bila opsi berubah.
+    // Tanpa syncUI (mis. export) fungsi ini murni menghitung data, tanpa mengubah DOM.
+    // Hasil di-cache per kombinasi filter (_filterCache.titip) sehingga pagination tidak menghitung ulang.
+    function collectTitipFilteredRows(opts = {}) {
+      const sel = document.getElementById('titipMonth');
+      const dateSel = document.getElementById('titipDate');
+      const key = sel?.value || 'all';
+      const section = document.getElementById('titipSection')?.value || 'all';
+      const activeStatusBtn = document.querySelector('#titipStatusGroup .filter-btn.active');
+      const statusFilter = activeStatusBtn?.dataset.val || 'all';
+      const q = (document.getElementById('searchTitip')?.value || '').trim().toLowerCase();
+      const prevDate = dateSel?.value || 'all';
+
+      const sig = ['titip', key, prevDate, section, statusFilter, q, _storeVersion, _loadedMonths.size].join('|');
+      let res;
+      const fc = _fcGet(sig);
+      if (fc) {
+        res = fc.rows;
+      } else {
+        const idx = getTitipIndex();
+        let rows = key === 'all' ? idx : idx.filter(r => r._monthKey === key);
+
+        // Opsi tanggal: mode semua bulan → "monthKey|tgl" agar tanggal sama di tahun berbeda tidak tercampur
+        const dateMap = new Map();
+        for (const r of rows) {
+          if (!r.tgl) continue;
+          const v = key === 'all' ? (r._monthKey + '|' + r.tgl) : r.tgl;
+          if (!dateMap.has(v)) dateMap.set(v, { value: v, label: key === 'all' ? (r.tgl + ' · ' + (r._monthLabel || r._monthKey)) : r.tgl });
+        }
+        const dateOpts = [...dateMap.values()];      // rows sudah terurut by _dk → opsi ikut terurut
+        const optSig = [key, _storeVersion, _loadedMonths.size, dateOpts.length].join(':');
+
+        const dateRaw = (prevDate === 'all' || dateMap.has(prevDate)) ? prevDate : 'all';
+        let date = dateRaw, dateMk = '';
+        if (dateRaw.includes('|')) { const i = dateRaw.indexOf('|'); dateMk = dateRaw.slice(0, i); date = dateRaw.slice(i + 1); }
+        if (dateRaw !== 'all') rows = rows.filter(r => r.tgl === date && (!dateMk || r._monthKey === dateMk));
+        if (section !== 'all') rows = rows.filter(r => r.section === section);
+        if (statusFilter !== 'all') rows = rows.filter(r => r._status === statusFilter);
+        if (q) rows = rows.filter(r => (r._tq || (r._tq = [r.tgl,r.sales,r.faktur,r.toko,r.alamat,r.ket,r.section,r._monthLabel,r._status].join(' ').toLowerCase())).includes(q));
+
+        let own = 0, sus = 0, sisa = 0, tag = 0, lunas = 0, belum = 0, sebagian = 0;
+        for (const r of rows) {
+          own += r._ownPaid; sus += r._susulan; sisa += r._sisa; tag += (Number(r.tagihan) || 0);
+          if (r._status === 'LUNAS') lunas++; else if (r._status === 'BELUM DIBAYAR') belum++; else if (r._status === 'DIBAYAR SEBAGIAN') sebagian++;
+        }
+        res = {
+          rows, dateOpts, optSig,
+          filters: { key, date, dateMk, section, statusFilter, q },
+          sum: { own, sus, sisa, tag, n: rows.length, lunas, belum, sebagian }
+        };
+        _fcSet(sig, res, null);
+      }
+
+      if (opts.syncUI && dateSel && dateSel.dataset.optSig !== res.optSig) {
+        dateSel.innerHTML = '<option value="all">Semua Tanggal</option>' +
+          res.dateOpts.map(o => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('');
+        if ([...dateSel.options].some(o => o.value === prevDate)) dateSel.value = prevDate;
+        dateSel.dataset.optSig = res.optSig;
+      }
+      return res;
+    }
+
+    function renderTitipTab() {
+      const tbody = document.getElementById('titipBody');
+      const summary = document.getElementById('titipSummary');
+      if (!tbody) return;
+      const { rows, sum } = collectTitipFilteredRows({ syncUI: true });
+      if (summary) summary.innerHTML = `
+        <div class="card cash"><div class="card-label">Jumlah Faktur TITIP</div><div class="card-value">${fmt(sum.n)}</div><div class="card-sub">Data sesuai filter</div></div>
+        <div class="card total"><div class="card-label">Total Tagihan TITIP</div><div class="card-value">Rp ${fmt(sum.tag)}</div><div class="card-sub">Nilai tagihan awal</div></div>
+        <div class="card minyak"><div class="card-label">Pembayaran Susulan</div><div class="card-value">Rp ${fmt(sum.sus)}</div><div class="card-sub">Dikaitkan dari toko, alamat & sales</div></div>
+        <div class="card rupa"><div class="card-label">Sisa TITIP</div><div class="card-value">Rp ${fmt(sum.sisa)}</div><div class="card-sub">Belum tertutup pembayaran</div></div>
+        <div class="card total"><div class="card-label">Status TITIP</div><div class="card-value">${fmt(sum.lunas)} Lunas</div><div class="card-sub">${fmt(sum.sebagian)} Sebagian · ${fmt(sum.belum)} Belum bayar</div></div>`;
+
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="18" class="empty-rincian">Tidak ada transaksi TITIP pada filter ini.</td></tr>`;
+        renderPagination('titipPagination','titip',0); return;
+      }
+      clampPage('titip', rows.length);
+      const start = (pagState.titip.page - 1) * pagState.titip.size;
+      const pageRows = rows.slice(start, start + pagState.titip.size);
+      tbody.innerHTML = pageRows.map((r,i) => {
+        const mk = r._monthKey || '';
+        const mmYY = /^\d{4}-\d{2}$/.test(mk) ? (mk.slice(5,7) + '/' + mk.slice(2,4)) : esc(r._monthLabel || mk);
+        return `<tr>
+        <td class="center">${start+i+1}</td>
+        <td class="text-left">${mmYY}</td>
+        <td class="text-left">${esc(r.tgl)}</td>
+        <td class="text-left">${ketBadge(getDisplayKet(r))}</td>
+        <td class="text-left">${esc(r.faktur)}</td>
+        <td class="text-left">${esc(r.toko)}</td>
+        <td class="text-left">${esc(r.alamat)}</td>
+        <td>${fmtCell(r.tagihan)}</td>
+        <td>${fmtCell(r._ownPaid)}</td>
+        <td>${fmtCell(r._susulan)}</td>
+        <td>${fmtCell(r._sisa)}</td>
+        <td class="text-left">${esc(r._status)}</td>
+        <td class="text-left">${esc(r.sales)||'—'}</td>
+        <td>${fmtCell(r.mCash)}</td>
+        <td>${fmtCell(r.mTf)}</td>
+        <td>${fmtCell(r.rCash)}</td>
+        <td>${fmtCell(r.rTf)}</td>
+        <td class="text-left">${r.section==='PIUTANG'?'Piutang':r.section==='DROPPING'?'Dropping':'—'}</td>
+      </tr>`;
+      }).join('');
+      renderPagination('titipPagination','titip',rows.length);
+    }
+
+    async function exportTitipExcel() {
+      // Pastikan semua bulan termuat (bayar susulan lintas bulan)
+      await loadMonthsConcurrent(monthKeys());
+      try { await ensureXLSX(); }
+      catch (e) { toast(e.message || 'Gagal memuat library Excel', 'error'); return; }
+
+      const { rows, filters, sum } = collectTitipFilteredRows();
+      if (!rows.length) {
+        toast('Tidak ada data TITIP pada filter ini untuk diekspor.', 'error');
+        return;
+      }
+
+      const monthText = filters.key === 'all' ? 'Semua Bulan' : (store[filters.key]?.label || filters.key);
+      const dateText = filters.date === 'all' ? 'Semua Tanggal' : (filters.dateMk ? filters.date + ' (' + (store[filters.dateMk]?.label || filters.dateMk) + ')' : filters.date);
+      const sectionText = filters.section === 'all' ? 'Semua Section'
+        : (filters.section === 'PIUTANG' ? 'Piutang Tempo' : 'Cash Dropping');
+      const statusText = filters.statusFilter === 'all' ? 'Semua Status' : filters.statusFilter;
+      const statusFile = filters.statusFilter === 'all' ? 'SemuaStatus'
+        : filters.statusFilter.replace(/\s+/g, '_');
+      const monthFile = filters.key === 'all' ? 'SemuaBulan'
+        : ((store[filters.key]?.label || filters.key).replace(/\s+/g, '_'));
+      const dateFile = filters.date === 'all' ? 'SemuaTgl' : (filters.dateMk ? filters.dateMk + '_' + filters.date : filters.date);
+      const now = new Date();
+      const tglCetak = String(now.getDate()).padStart(2,'0') + '/'
+        + String(now.getMonth()+1).padStart(2,'0') + '/' + now.getFullYear()
+        + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+      // ===== Sheet laporan siap cetak =====
+      // Baris judul + info filter + header tabel + data + total
+      const aoa = [];
+      aoa.push(['LAPORAN TITIP — MINYAK & RUPA-RUPA']);
+      aoa.push(['Filter: ' + statusText + '  |  Bulan: ' + monthText + '  |  Tanggal: ' + dateText + '  |  Section: ' + sectionText]);
+      if (filters.q) aoa.push(['Pencarian: ' + filters.q]);
+      aoa.push(['Dicetak: ' + tglCetak + '  |  Jumlah faktur: ' + sum.n
+        + '  |  Tagihan: ' + sum.tag
+        + '  |  Bayar awal: ' + sum.own
+        + '  |  Susulan: ' + sum.sus
+        + '  |  Sisa: ' + sum.sisa
+        + '  |  Lunas: ' + sum.lunas + '  Sebagian: ' + sum.sebagian + '  Belum: ' + sum.belum]);
+      aoa.push([]); // baris kosong pemisah
+
+      const header = [
+        'No', 'Bulan', 'Tgl Titip', 'Ket', 'No Faktur', 'Nama Toko', 'Alamat',
+        'Tagihan', 'Total Bayar Awal', 'Bayar Susulan', 'Sisa TITIP', 'Status',
+        'Sales', 'Minyak Cash', 'Minyak TF', 'Rupa Cash', 'Rupa TF', 'Section'
+      ];
+      aoa.push(header);
+      const headerRow = aoa.length; // 1-based later
+
+      rows.forEach((r, i) => {
+        const mk = r._monthKey || '';
+        const mmYY = /^\d{4}-\d{2}$/.test(mk) ? (mk.slice(5,7) + '/' + mk.slice(2,4)) : (r._monthLabel || mk);
+        aoa.push([
+          i + 1,
+          mmYY,
+          r.tgl || '',
+          getDisplayKet(r) || r.ket || '',
+          r.faktur || '',
+          r.toko || '',
+          r.alamat || '',
+          Number(r.tagihan) || 0,
+          r._ownPaid || 0,
+          r._susulan || 0,
+          r._sisa || 0,
+          r._status || '',
+          r.sales || '',
+          r.mCash || 0,
+          r.mTf || 0,
+          r.rCash || 0,
+          r.rTf || 0,
+          r.section === 'PIUTANG' ? 'Piutang' : (r.section === 'DROPPING' ? 'Dropping' : '')
+        ]);
+      });
+      aoa.push([
+        '', 'TOTAL', '', '', '', '', '',
+        sum.tag, sum.own, sum.sus, sum.sisa, '',
+        '', '', '', '', '', ''
+      ]);
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+      // Merge judul & baris info (18 kolom = A..R)
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 17 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 17 } },
+      ];
+      let infoRow = 2;
+      if (filters.q) {
+        ws['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 17 } });
+        infoRow = 3;
+      }
+      ws['!merges'].push({ s: { r: infoRow, c: 0 }, e: { r: infoRow, c: 17 } });
+
+      // Lebar kolom (mendekati print landscape A4)
+      ws['!cols'] = [
+        { wch: 5 },   // No
+        { wch: 7 },   // Bulan
+        { wch: 9 },   // Tgl
+        { wch: 10 },  // Ket
+        { wch: 16 },  // Faktur
+        { wch: 18 },  // Toko
+        { wch: 16 },  // Alamat
+        { wch: 12 },  // Tagihan
+        { wch: 13 },  // Bayar awal
+        { wch: 12 },  // Susulan
+        { wch: 11 },  // Sisa
+        { wch: 16 },  // Status
+        { wch: 12 },  // Sales
+        { wch: 11 },  // M Cash
+        { wch: 10 },  // M TF
+        { wch: 11 },  // R Cash
+        { wch: 10 },  // R TF
+        { wch: 10 },  // Section
+      ];
+
+      // Tinggi baris judul
+      ws['!rows'] = [{ hpt: 22 }, { hpt: 16 }, { hpt: 16 }];
+
+      // Freeze: baris header tabel tetap terlihat saat scroll
+      const freezeRow = headerRow; // 1-based index of header in aoa is headerRow, freeze after it
+      ws['!freeze'] = { xSplit: 0, ySplit: freezeRow, topLeftCell: 'A' + (freezeRow + 1), activePane: 'bottomLeft', state: 'frozen' };
+
+      // Print setup: landscape A4, fit width
+      ws['!pageSetup'] = {
+        orientation: 'landscape',
+        paperSize: 9, // A4
+        fitToWidth: 1,
+        fitToHeight: 0,
+        horizontalCentered: true
+      };
+      ws['!printHeader'] = 'Laporan TITIP — Minyak & Rupa-rupa';
+      // Margin (inches)
+      ws['!margins'] = { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 };
+
+      XLSX.utils.book_append_sheet(wb, ws, 'TITIP');
+
+      // Sheet ringkasan singkat (opsional, untuk arsip)
+      const ringkas = [
+        ['LAPORAN TITIP — RINGKASAN FILTER'],
+        [],
+        ['Bulan', monthText],
+        ['Tanggal', dateText],
+        ['Section', sectionText],
+        ['Status', statusText],
+        ['Pencarian', filters.q || '—'],
+        ['Dicetak', tglCetak],
+        [],
+        ['Jumlah Faktur', sum.n],
+        ['Total Tagihan', sum.tag],
+        ['Total Bayar Awal', sum.own],
+        ['Total Bayar Susulan', sum.sus],
+        ['Total Sisa TITIP', sum.sisa],
+        ['Lunas', sum.lunas],
+        ['Dibayar Sebagian', sum.sebagian],
+        ['Belum Dibayar', sum.belum]
+      ];
+      const wsRing = XLSX.utils.aoa_to_sheet(ringkas);
+      wsRing['!cols'] = [{ wch: 22 }, { wch: 28 }];
+      XLSX.utils.book_append_sheet(wb, wsRing, 'Ringkasan');
+
+      const fname = `TITIP_${monthFile}_${statusFile}_${dateFile}.xlsx`;
+      XLSX.writeFile(wb, fname);
+      toast(`Excel TITIP diunduh (${fmt(sum.n)} faktur) — ${statusText}`);
+    }
+
+
+    // ===================== RINCIAN TAB =====================
+    function renderRincianTab() {
+      populateMonthSelectsIfNeeded();        // perbaikan #3
+      populateDateSelectIfNeeded('rincian'); // perbaikan #2/#3
+
+      const key = document.getElementById('rincianMonth')?.value;
+      const tglFilter = document.getElementById('rincianDate')?.value || 'all';
+      const sectionF = document.getElementById('rincianSection')?.value || 'all';
+      const activeKetBtn = document.querySelector('#rincianKetGroup .filter-btn.active');
+      const ketF = activeKetBtn ? activeKetBtn.dataset.val : 'all';
+      const q = (document.getElementById('searchRincian')?.value || '').toLowerCase();
+      const tbody = document.getElementById('rincianTabBody');
+      if (!tbody) return;
+
+      if (!key || (key !== 'all' && !store[key])) {
+        tbody.innerHTML = '';
+        renderPagination('rincianPagination', 'rincian', 0);
+        return;
+      }
+
+      // Cache filter+summary — hemat CPU saat ganti halaman / re-render
+      const sig = ['rincian', key, tglFilter, sectionF, ketF, q].join('|');
+      let rows, sum;
+      const _fc = _fcGet(sig);
+      if (_fc) {
+        rows = _fc.rows;
+        sum = _fc.sum;
+      } else {
+        // Value tanggal mode "semua bulan" berbentuk "monthKey|tgl"
+        let tglMk = '', tglVal = tglFilter;
+        if (tglFilter.includes('|')) { const i = tglFilter.indexOf('|'); tglMk = tglFilter.slice(0, i); tglVal = tglFilter.slice(i + 1); }
+        if (key === 'all') {
+          rows = [];
+          for (const k of monthKeys()) {
+            if (tglMk && k !== tglMk) continue;
+            for (const r of getFlatTxns(k)) rows.push(r);
+          }
+        } else {
+          rows = getFlatTxns(key);
+        }
+        if (tglFilter !== 'all') rows = rows.filter(r => r.tgl === tglVal);
+        if (sectionF !== 'all') rows = rows.filter(r => r.section === sectionF);
+        rows = applyKetFilter(rows, ketF);
+        if (q) {
+          rows = rows.filter(r => {
+            if (r._search) return r._search.includes(q) || (r.tgl || '').toLowerCase().includes(q) || (r.section || '').toLowerCase().includes(q);
+            const blob = [r.tgl, r.sales, r.faktur, r.toko, r.alamat, r.ket, r.section].join(' ').toLowerCase();
+            return blob.includes(q);
+          });
+        }
+        sum = rows.reduce((a,x)=>({
+          mc: a.mc+(x.mCash||0), mt: a.mt+(x.mTf||0),
+          rc: a.rc+(x.rCash||0), rt: a.rt+(x.rTf||0),
+          tag: a.tag+(x.tagihan||0), n: a.n+1
+        }), {mc:0,mt:0,rc:0,rt:0,tag:0,n:0});
+        _fcSet(sig, rows, sum);
+      }
+      if (!rows.length) {
+        const hasTxns = key === 'all'
+          ? monthKeys().some(k => (store[k]?.days||[]).some(d => d.txns && d.txns.length))
+          : !!(store[key] && (store[key].days||[]).some(d => d.txns && d.txns.length));
+        tbody.innerHTML = `<tr><td colspan="13" class="empty-rincian">
+          Tidak ada data rincian.<br/>
+          ${!hasTxns
+            ? 'Upload ulang file Excel agar rincian faktur terbaca.'
+            : 'Coba ubah filter tanggal / section / status.'}
+        </td></tr>`;
+        renderPagination('rincianPagination', 'rincian', 0);
+        return;
+      }
+
+      const total = rows.length;
+      clampPage('rincian', total);
+      const start = (pagState.rincian.page - 1) * pagState.rincian.size;
+      const pageRows = rows.slice(start, start + pagState.rincian.size);
+
+      let html = pageRows.map((x,i) => `<tr>
+        <td class="center">${start + i + 1}</td>
+        <td class="text-left">${esc(x.tgl)}</td>
+        <td class="text-left">${ketBadge(getDisplayKet(x))}</td>
+        <td class="text-left">${esc(x.sales) || '—'}</td>
+        <td class="text-left">${esc(x.faktur)}</td>
+        <td class="text-left">${esc(x.toko)}</td>
+        <td class="text-left">${esc(x.alamat)}</td>
+        <td>${fmtCell(x.tagihan)}</td>
+        <td>${fmtCell(x.mCash)}</td>
+        <td>${fmtCell(x.mTf)}</td>
+        <td>${fmtCell(x.rCash)}</td>
+        <td>${fmtCell(x.rTf)}</td>
+        <td class="text-left">${x.section==='PIUTANG'?'Piutang':'Dropping'}</td>
+      </tr>`).join('');
+
+      html += `<tr class="total-row">
+        <td></td><td class="text-left" colspan="6">TOTAL (${fmt(total)} faktur)</td>
+        <td>${fmtCell(sum.tag)}</td>
+        <td>${fmtCell(sum.mc)}</td><td>${fmtCell(sum.mt)}</td>
+        <td>${fmtCell(sum.rc)}</td><td>${fmtCell(sum.rt)}</td>
+        <td></td>
+      </tr>`;
+      tbody.innerHTML = html;
+      renderPagination('rincianPagination', 'rincian', total);
+    }
+
+    // ===================== PIUTANG / DROPPING =====================
+    function collectSectionRows(section, monthKey, tglFilter, ketF, q, produkF) {
+      if (!monthKey || !store[monthKey]) return [];
+      // Perbaikan #2: pakai cache flat
+      let rows = getFlatTxns(monthKey).filter(r => r.section === section);
+      if (tglFilter !== 'all') rows = rows.filter(r => r.tgl === tglFilter);
+      rows = applyKetFilter(rows, ketF);
+      if (produkF && produkF !== 'all') {
+        rows = rows.filter(r => {
+          const mTotal = (r.mCash || 0) + (r.mTf || 0);
+          const rTotal = (r.rCash || 0) + (r.rTf || 0);
+          if (produkF === 'minyak') return mTotal > 0;
+          if (produkF === 'rupa') return rTotal > 0;
+          return true;
+        });
+      }
+      if (q) {
+        rows = rows.filter(r => {
+          if (r._search) return r._search.includes(q) || (r.tgl || '').toLowerCase().includes(q);
+          const blob = [r.tgl, r.sales, r.faktur, r.toko, r.alamat, r.ket, r.tglFaktur, r.jt].join(' ').toLowerCase();
+          return blob.includes(q);
+        });
+      }
+      return rows;
+    }
+
+    function renderSectionTab(section, prefix) {
+      populateMonthSelectsIfNeeded();        // perbaikan #3
+      populateDateSelectIfNeeded(prefix);    // perbaikan #2/#3
+
+      const key = document.getElementById(prefix + 'Month')?.value;
+      const tglFilter = document.getElementById(prefix + 'Date')?.value || 'all';
+      const activeKetBtn = document.querySelector('#' + prefix + 'KetGroup .filter-btn.active');
+      const ketF = activeKetBtn ? activeKetBtn.dataset.val : 'all';
+      const activeProdBtn = document.querySelector('#' + prefix + 'ProdukGroup .filter-btn.active');
+      const produkF = activeProdBtn ? activeProdBtn.dataset.val : 'all';
+      const q = (document.getElementById('search' + (prefix === 'piutang' ? 'Piutang' : 'Dropping'))?.value || '').toLowerCase();
+      const tbody = document.getElementById(prefix + 'Body');
+      const summary = document.getElementById(prefix + 'Summary');
+      if (!tbody) return;
+
+      // P2: cache filter+sum per tab (hemat CPU saat pagination)
+      const sig = [prefix, key, tglFilter, ketF, produkF, q].join('|');
+      let rows, sum;
+      const _fc = _fcGet(sig);
+      if (_fc) {
+        rows = _fc.rows;
+        sum = _fc.sum;
+      } else {
+        rows = collectSectionRows(section, key, tglFilter, ketF, q, produkF);
+        sum = rows.reduce((a,x)=>({
+          mc: a.mc+(x.mCash||0), mt: a.mt+(x.mTf||0),
+          rc: a.rc+(x.rCash||0), rt: a.rt+(x.rTf||0),
+          tag: a.tag+(x.tagihan||0), n: a.n+1
+        }), {mc:0,mt:0,rc:0,rt:0,tag:0,n:0});
+        _fcSet(sig, rows, sum);
+      }
+      const totalM = sum.mc+sum.mt, totalR = sum.rc+sum.rt;
+
+      if (summary) {
+        summary.innerHTML = `
+          <div class="card minyak"><div class="card-label">Minyak</div><div class="card-value">Rp ${fmt(totalM)}</div>
+            <div class="card-sub">Cash ${fmt(sum.mc)} · TF ${fmt(sum.mt)}</div></div>
+          <div class="card rupa"><div class="card-label">Rupa-rupa</div><div class="card-value">Rp ${fmt(totalR)}</div>
+            <div class="card-sub">Cash ${fmt(sum.rc)} · TF ${fmt(sum.rt)}</div></div>
+          <div class="card cash"><div class="card-label">Jumlah Faktur</div><div class="card-value">${sum.n}</div>
+            <div class="card-sub">Tagihan Rp ${fmt(sum.tag)}</div></div>
+          <div class="card total"><div class="card-label">Grand Total Bayar</div><div class="card-value">Rp ${fmt(totalM+totalR)}</div>
+            <div class="card-sub">${section === 'PIUTANG' ? 'Piutang Tempo' : 'Cash Dropping'}</div></div>`;
+      }
+
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="15" class="empty-rincian">Tidak ada data ${section === 'PIUTANG' ? 'Piutang Tempo' : 'Cash Dropping'}.<br/>Coba ubah filter atau upload ulang Excel.</td></tr>`;
+        renderPagination(prefix + 'Pagination', prefix, 0);
+        return;
+      }
+
+      const total = rows.length;
+      clampPage(prefix, total);
+      const start = (pagState[prefix].page - 1) * pagState[prefix].size;
+      const pageRows = rows.slice(start, start + pagState[prefix].size);
+
+      let html = pageRows.map((x,i) => {
+        const rowTotal = (x.mCash||0)+(x.mTf||0)+(x.rCash||0)+(x.rTf||0);
+        return `<tr>
+          <td class="center">${start + i + 1}</td>
+          <td class="text-left">${esc(x.tgl)}</td>
+          <td class="text-left">${ketBadge(getDisplayKet(x))}</td>
+          <td class="text-left">${esc(x.sales) || '—'}</td>
+          <td class="text-left">${esc(x.faktur)}</td>
+          <td class="text-left">${esc(x.toko)}</td>
+          <td class="text-left">${esc(x.alamat)}</td>
+          <td class="text-left">${esc(x.tglFaktur)}</td>
+          <td class="text-left">${esc(x.jt)}</td>
+          <td>${fmtCell(x.tagihan)}</td>
+          <td>${fmtCell(x.mCash)}</td><td>${fmtCell(x.mTf)}</td>
+          <td>${fmtCell(x.rCash)}</td><td>${fmtCell(x.rTf)}</td>
+          <td><strong>${fmtCell(rowTotal)}</strong></td>
+        </tr>`;
+      }).join('');
+
+      html += `<tr class="total-row">
+        <td></td><td class="text-left" colspan="8">TOTAL (${fmt(total)} faktur)</td>
+        <td>${fmtCell(sum.tag)}</td>
+        <td>${fmtCell(sum.mc)}</td><td>${fmtCell(sum.mt)}</td>
+        <td>${fmtCell(sum.rc)}</td><td>${fmtCell(sum.rt)}</td>
+        <td>${fmtCell(totalM+totalR)}</td>
+      </tr>`;
+      tbody.innerHTML = html;
+      renderPagination(prefix + 'Pagination', prefix, total);
+    }
+
+    function renderPiutangTab() { renderSectionTab('PIUTANG', 'piutang'); }
+    function renderDroppingTab() { renderSectionTab('DROPPING', 'dropping'); }
+
+    // ===================== MANAGE =====================
+    function renderManage() {
+      const grid = document.getElementById('monthGrid');
+      const keys = monthKeys();
+      if (!keys.length) {
+        grid.innerHTML = '<p style="color:var(--muted)">Belum ada bulan tersimpan.</p>';
+        updateDeleteBtn();
+        return;
+      }
+      grid.innerHTML = keys.map(k => {
+        const m = store[k];
+        const s = sumDays(m.days);
+        const g = s.mc + s.mt + s.rc + s.rt;
+        return `<div class="month-chip">
+          <input type="checkbox" class="month-check" value="${esc(k)}" onchange="updateDeleteBtn()" />
+          <div style="flex:1;min-width:0">
+            <div class="name">${esc(m.label)}</div>
+            <div class="days">${m.days.length} hari · Rp ${fmt(g)}</div>
+          </div>
+          <button class="btn-del-one" title="Hapus bulan ini" onclick="deleteOneMonth('${esc(k)}')">🗑️</button>
+        </div>`;
+      }).join('');
+      updateDeleteBtn();
+    }
+
+    function selectAllMonths(checked) {
+      document.querySelectorAll('.month-check').forEach(c => c.checked = checked);
+      updateDeleteBtn();
+    }
+
+    function updateDeleteBtn() {
+      const n = document.querySelectorAll('.month-check:checked').length;
+      const btn = document.getElementById('btnDelete');
+      if (btn) {
+        btn.textContent = n ? `🗑️ Hapus ${n} Bulan` : '🗑️ Hapus Bulan Terpilih';
+      }
+    }
+
+    function handleDeleteClick() {
+      const selected = [...document.querySelectorAll('.month-check:checked')].map(c => c.value);
+      if (selected.length) { confirmDelete(selected); return; }
+      const keys = monthKeys();
+      if (!keys.length) {
+        toast('Belum ada data bulan yang bisa dihapus', 'error');
+        return;
+      }
+      if (keys.length === 1) { confirmDelete(keys); return; }
+      switchTab('manage');
+      toast('Centang bulan yang ingin dihapus, lalu buka menu ☰ → Hapus Bulan Terpilih (atau klik 🗑️ di kanan)', 'error');
+    }
+
+    function confirmDelete(selected) {
+      selected = selected || [...document.querySelectorAll('.month-check:checked')].map(c => c.value);
+      if (!selected.length) {
+        const keys = monthKeys();
+        if (keys.length === 1) selected = keys;
+        else {
+          switchTab('manage');
+          toast('Centang bulan yang ingin dihapus terlebih dahulu', 'error');
+          return;
+        }
+      }
+      const names = selected.map(k => store[k]?.label || k).join(', ');
+      document.getElementById('deleteMsg').textContent =
+        `Anda akan menghapus: ${names}. Data tidak bisa dikembalikan (kecuali ada backup).`;
+      document.getElementById('deleteModal').classList.add('show');
+      window._pendingDelete = selected;
+    }
+
+    function deleteOneMonth(key) {
+      if (!store[key]) return;
+      document.getElementById('deleteMsg').textContent =
+        `Anda akan menghapus: ${store[key].label}. Data tidak bisa dikembalikan (kecuali ada backup).`;
+      document.getElementById('deleteModal').classList.add('show');
+      window._pendingDelete = [key];
+    }
+
+    function closeModal() {
+      document.getElementById('deleteModal').classList.remove('show');
+      window._pendingDelete = null;
+    }
+
+    async function doDelete() {
+      const selected = window._pendingDelete || [];
+      if (!selected.length) { closeModal(); return; }
+      const backup = JSON.parse(JSON.stringify(store));
+      const loadedBackup = new Set(_loadedMonths);
+      selected.forEach(k => { delete store[k]; _loadedMonths.delete(k); });
+      markStoreDirty();                          // perbaikan #3
+      try {
+        await deleteMonthsAsync(selected);       // perbaikan #1
+      } catch (saveErr) {
+        store = backup;
+        _loadedMonths = loadedBackup;            // restore status lazy-load
+        markStoreDirty();                        // rollback version
+        toast(saveErr.message || 'Gagal menyimpan', 'error');
+        return;
+      }
+      bridgeSync([], selected);                  // hapus bulan tsb dari data CEK
+      closeModal();
+      toast(`Berhasil menghapus ${selected.length} bulan`);
+      refreshCurrentTab();
+      renderManage();
+    }
+
+    function refreshCurrentTab() {
+      const active = document.querySelector('.tab.active')?.dataset.tab || 'dashboard';
+      if (active === 'dashboard') renderAll();
+      else if (active === 'detail') renderDetail();
+      else if (active === 'rincian') renderRincianTab();
+      else if (active === 'minyak') renderProdukTab('minyak');
+      else if (active === 'rupa') renderProdukTab('rupa');
+      else if (active === 'titip') loadAndRenderTitip();
+      else if (active === 'piutang') renderPiutangTab();
+      else if (active === 'dropping') renderDroppingTab();
+      else if (active === 'manage') renderManage();
+    }
+
+    // ===================== UPLOAD / PARSE =====================
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+
+    fileInput.addEventListener('change', e => {
+      if (e.target.files[0]) processFile(e.target.files[0]);
+      e.target.value = '';
+    });
+
+    ['dragenter','dragover'].forEach(ev => {
+      dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    });
+    ['dragleave','drop'].forEach(ev => {
+      dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('dragover'); });
+    });
+    dropZone.addEventListener('drop', e => {
+      const f = e.dataTransfer.files[0];
+      if (f) processFile(f);
+    });
+
+    function showProgress(pct) {
+      const bar = document.getElementById('progressBar');
+      const fill = document.getElementById('progressFill');
+      bar.classList.add('show');
+      fill.style.width = pct + '%';
+      if (pct >= 100) setTimeout(() => { bar.classList.remove('show'); fill.style.width = '0%'; }, 600);
+    }
+
+    // Lazy-load SheetJS hanya saat upload/export (hemat first-paint ~900 KB)
+    let _xlsxLoading = null;
+    async function ensureXLSX() {
+      if (window.XLSX) return window.XLSX;
+      // Kalau ada promise yang sedang berjalan, ikut itu
+      if (_xlsxLoading) {
+        try { return await _xlsxLoading; }
+        catch (e) { _xlsxLoading = null; throw e; }   // ← boleh retry
+      }
+      _xlsxLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+        s.onload = () => resolve(window.XLSX);
+        s.onerror = () => {
+          const s2 = document.createElement('script');
+          s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+          s2.onload = () => resolve(window.XLSX);
+          s2.onerror = () => reject(new Error('Gagal memuat library Excel (XLSX). Periksa koneksi internet lalu coba lagi.'));
+          document.head.appendChild(s2);
+        };
+        document.head.appendChild(s);
+      });
+      try {
+        return await _xlsxLoading;
+      } catch (e) {
+        _xlsxLoading = null;    // ← reset agar klik berikutnya retry
+        throw e;
+      }
+    }
+
+    // Perbaikan #6: yield per sheet — perbaikan #1: saveMonthAsync
+    async function processFile(file) {
+      showProgress(5);
+      try {
+        await ensureXLSX();
+        showProgress(10);
+        const buf = await file.arrayBuffer();
+        showProgress(30);
+        const wb = XLSX.read(buf, { type: 'array', cellDates: false });
+        showProgress(45);
+
+        const days = [];
+        const warnings = [];
+        const sheetNames = wb.SheetNames.filter(n => n !== 'SHEET' && /^\d{2}-\d{2}/.test(n));
+        const totalSheets = sheetNames.length || 1;
+        let processed = 0;
+
+        for (const name of sheetNames) {
+          const tglMatch = name.match(/^(\d{2}-\d{2})/);
+          if (tglMatch) {
+            const tgl = tglMatch[1];
+            const ws = wb.Sheets[name];
+            const data = extractFromSheet(ws);
+            if (data) {
+              days.push({ tgl, mc: data.mc, mt: data.mt, rc: data.rc, rt: data.rt, txns: data.txns || [] });
+              if (data.warning) warnings.push({ tgl, ...data.warning });
+            }
+          }
+          processed++;
+          showProgress(45 + Math.round((processed / totalSheets) * 35));
+          await new Promise(r => setTimeout(r, 0)); // beri UI bernapas
+        }
+
+        if (!days.length) {
+          toast('Tidak menemukan data harian di file. Pastikan sheet bernama seperti 01-09, 02-09, dst.', 'error');
+          showProgress(100);
+          return;
+        }
+
+        const yearMonth = detectYearMonth(wb, days, file.name);
+        const label = formatMonthLabel(yearMonth);
+
+        if (store[yearMonth]) {
+          const ok = confirm(`Data ${label} sudah ada (${store[yearMonth].days.length} hari).\nGanti dengan data baru (${days.length} hari)?`);
+          if (!ok) { showProgress(100); return; }
+        }
+
+        const prev = store[yearMonth];
+        store[yearMonth] = { label, days };
+        _loadedMonths.add(yearMonth);              // P1: sudah di RAM
+        markStoreDirty();                          // perbaikan #3
+        try {
+          await saveMonthAsync(yearMonth);         // perbaikan #1
+        } catch (saveErr) {
+          if (prev) store[yearMonth] = prev;
+          else delete store[yearMonth];
+          // Rollback _loadedMonths: jangan anggap "loaded" jika hasil restore
+          // masih metadata kosong (lazy) — cegah overwrite data lama di IDB
+          if (!store[yearMonth] || !monthHasTxns(store[yearMonth])) {
+            _loadedMonths.delete(yearMonth);
+          }
+          markStoreDirty();
+          showProgress(100);
+          toast(saveErr.message || 'Gagal menyimpan data.', 'error');
+          return;
+        }
+
+        bridgeSync([yearMonth], []);               // kirim bulan ini ke CEK
+        showProgress(100);
+        if (warnings.length) {
+          console.warn('[parse] selisih total sheet vs faktur:', warnings);
+          toast(`Berhasil import ${days.length} hari — ${label}. Perhatian: ${warnings.length} hari punya selisih total sheet vs jumlah faktur (lihat console).`, 'error');
+        } else {
+          toast(`Berhasil import ${days.length} hari — ${label}`);
+        }
+
+        populateMonthSelectsIfNeeded();            // pastikan <option> bulan baru sudah ada
+        const fm = document.getElementById('filterMonth');
+        if (fm) { fm.dataset.inited = '1'; fm.value = yearMonth; }
+        switchTab('dashboard');
+        renderManage();
+      } catch (err) {
+        console.error(err);
+        toast('Gagal membaca file: ' + (err && err.message ? err.message : 'unknown'), 'error');
+        showProgress(100);
+      }
+    }
+
+    function extractFromSheet(ws) {
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+      let mc = 0, mt = 0, rc = 0, rt = 0;
+      let found = false;
+      const txns = [];
+      let section = 'PIUTANG';
+      let salesHint = '';
+
+      function fmtDateCell(v) {
+        if (v == null || v === '') return '';
+        if (v instanceof Date && !isNaN(v.getTime())) {
+          const dd = String(v.getDate()).padStart(2,'0');
+          const mm = String(v.getMonth()+1).padStart(2,'0');
+          return `${dd}/${mm}/${v.getFullYear()}`;
+        }
+        if (typeof v === 'number' && v > 30000 && v < 60000) {
+          const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+          const dd = String(d.getUTCDate()).padStart(2,'0');
+          const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+          return `${dd}/${mm}/${d.getUTCFullYear()}`;
+        }
+        if (typeof v === 'string') {
+          const m = v.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+          if (m) return v.trim();
+        }
+        return '';
+      }
+
+      function fmtDateCellStrict(v, isDateFmt) {
+        if (v == null || v === '') return '';
+        if (v instanceof Date && !isNaN(v.getTime())) {
+          const dd = String(v.getDate()).padStart(2,'0');
+          const mm = String(v.getMonth()+1).padStart(2,'0');
+          return `${dd}/${mm}/${v.getFullYear()}`;
+        }
+        // Serial tanggal Excel: HANYA jika sel berformat tanggal (isDateFmt),
+        // supaya nominal rupiah 30.000–60.000 tidak salah dibaca sebagai tanggal.
+        if (isDateFmt && typeof v === 'number' && v > 30000 && v < 60000) {
+          const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+          if (!isNaN(d.getTime())) {
+            return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`;
+          }
+        }
+        if (typeof v === 'string') {
+          const m = v.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+          if (m) return v.trim();
+        }
+        return '';
+      }
+
+      const _rng0 = (() => { try { return XLSX.utils.decode_range(ws['!ref']); } catch { return { s: { r: 0, c: 0 } }; } })();
+      function isDateFmtCell(i, j) {
+        const cell = ws[XLSX.utils.encode_cell({ r: _rng0.s.r + i, c: _rng0.s.c + j })];
+        if (!cell || cell.t !== 'n' || !cell.z) return false;
+        return (XLSX.SSF && typeof XLSX.SSF.is_date === 'function')
+          ? !!XLSX.SSF.is_date(cell.z) : /[dmy]/i.test(cell.z);
+      }
+
+      function isFaktur(v, strict) {
+        if (v == null) return false;
+        if (typeof v === 'number') {
+          // strict (fallback scan): nominal rupiah bulat/berdesimal ≥ 1 miliar bukan faktur
+          if (strict && (!Number.isInteger(v) || v % 1000 === 0)) return false;
+          const s = String(Math.trunc(v));
+          return s.length >= 10 && s.length <= 18;
+        }
+        const s = String(v).trim();
+        return /^0?\d{10,18}$/.test(s) || /^011\d{8,}$/.test(s);
+      }
+
+      function asFakturStr(v) {
+        if (typeof v === 'number') return String(Math.trunc(v));
+        return String(v).trim();
+      }
+
+      function numOr0(v) {
+        if (typeof v === 'number' && isFinite(v)) return v;
+        if (typeof v === 'string') {
+          let s = v.trim();
+          let neg = false;
+          if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+          s = s.replace(/[^\d,.-]/g, '');
+          if (!s) return 0;
+          if (s.includes(',') && !s.includes('.')) {
+            // Format desimal Indonesia tanpa pemisah ribuan: 1234,56
+            s = s.replace(',', '.');
+          } else if (/^-?\d{1,3}(\.\d{3})+,\d+$/.test(s)) {
+            // Format Indonesia dengan pemisah ribuan: 1.234,56
+            s = s.replace(/\./g, '').replace(',', '.');
+          } else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) {
+            // Bilangan bulat dengan pemisah ribuan: 1.234
+            s = s.replace(/\./g, '');
+          } else {
+            // Format desimal titik / format angka lain: 1234.56
+            s = s.replace(/,/g, '');
+          }
+          let n = Number(s);
+          if (!isFinite(n)) return 0;
+          if (neg && n > 0) n = -n;
+          return n;
+        }
+        return 0;
+      }
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i] || [];
+        const rowStr = row.map(c => (c == null ? '' : String(c))).join(' ').toUpperCase();
+
+        if (rowStr.includes('CASH DROPPING')) { section = 'DROPPING'; salesHint = ''; continue; }
+        if (rowStr.includes('PIUTANG TEMPO')) { section = 'PIUTANG'; salesHint = ''; continue; }
+
+        if (rowStr.includes('TOTAL UANG MASUK')) {
+          for (let off = 1; off <= 4; off++) {
+            const r2 = rows[i + off] || [];
+            const j = numOr0(r2[9]), k = numOr0(r2[10]), l = numOr0(r2[11]), m = numOr0(r2[12]);
+            if (j || k || l || m) {
+              mc = j; mt = k; rc = l; rt = m; found = true; break;
+            }
+            const nums = [];
+            for (let c = 0; c < r2.length; c++) {
+              if (typeof r2[c] === 'number') nums.push({ col: c, val: r2[c] });
+            }
+            if (nums.length >= 2) {
+              const near = nums.filter(n => n.col >= 8 && n.col <= 14);
+              const selected = (near.length >= 2 ? near : nums).slice(0, 4);
+              mc = selected[0]?.val || 0;
+              mt = selected[1]?.val || 0;
+              rc = selected[2]?.val || 0;
+              rt = selected[3]?.val || 0;
+              found = true;
+              break;
+            }
+          }
+          continue;
+        }
+
+        if (/^\s*TOTAL\b/i.test(rowStr) && !rowStr.match(/\d{10,}/)) continue;
+        if (rowStr.includes('NO FAKTUR') || rowStr.includes('NAMA TOKO')) continue;
+        if (rowStr.includes('PEMBAYARAN') || rowStr.includes('MENGETAHUI')) continue;
+        if (rowStr.includes('UANG MASUK CASH') || rowStr.includes('UANG MASUK DARI')) continue;
+        if (rowStr.includes('TRANSFER/BG') && rowStr.includes('CASH')) continue;
+
+        let faktur = null, fakturCol = -1;
+        if (isFaktur(row[3])) { faktur = asFakturStr(row[3]); fakturCol = 3; }
+        else {
+          for (let j = 0; j < row.length; j++) {
+            if (isFaktur(row[j], true)) { faktur = asFakturStr(row[j]); fakturCol = j; break; }
+          }
+        }
+
+        if (!faktur) {
+          for (let j = 0; j < Math.min(row.length, 5); j++) {
+            const v = row[j];
+            if (typeof v === 'string' && v.trim()) {
+              const up = v.toUpperCase();
+              if (['RAJU','JOSSY','HAFID','ZEIN','ALIM','INDI','ANAM','PAK ITO'].some(x => up.includes(x)) || up.includes('(')) {
+                salesHint = v.trim();
+              }
+            }
+          }
+          continue;
+        }
+
+        let toko = '', alamat = '', tglFaktur = '', jt = '', ket = '';
+        let tagihan = 0, mCash = 0, mTf = 0, rCash = 0, rTf = 0;
+
+        if (fakturCol === 3) {
+          toko = row[4] != null ? String(row[4]).trim() : '';
+          alamat = row[5] != null ? String(row[5]).trim() : '';
+          tglFaktur = fmtDateCell(row[6]);
+          jt = fmtDateCell(row[7]);
+          tagihan = numOr0(row[8]);
+          mCash = numOr0(row[9]);
+          mTf = numOr0(row[10]);
+          rCash = numOr0(row[11]);
+          rTf = numOr0(row[12]);
+          if (row[13] != null && String(row[13]).trim()) ket = String(row[13]).trim();
+        } else {
+          const after = fakturCol + 1;
+          toko = row[after] != null ? String(row[after]).trim() : '';
+          alamat = row[after+1] != null ? String(row[after+1]).trim() : '';
+          const dateStrs = [];
+          const nums = [];
+          for (let j = after + 2; j < row.length; j++) {
+            const v = row[j];
+            if (v == null || v === '') continue;
+            const ds = fmtDateCellStrict(v, isDateFmtCell(i, j));
+            if (ds) { dateStrs.push(ds); continue; }
+            if (typeof v === 'number') nums.push(v);
+            else if (String(v).trim() && typeof v !== 'object') {
+              const s = String(v).trim().toUpperCase();
+              if (s.includes('LUNAS') || s.includes('TITIP') || s.includes('TF') || s.includes('BG') || s.includes('TRANSFER')) ket = String(v).trim();
+            }
+          }
+          tglFaktur = dateStrs[0] || '';
+          jt = dateStrs[1] || '';
+          if (nums.length >= 5) {
+            tagihan = nums[0]; mCash = nums[1]||0; mTf = nums[2]||0; rCash = nums[3]||0; rTf = nums[4]||0;
+          } else if (nums.length === 4) {
+            mCash = nums[0]; mTf = nums[1]; rCash = nums[2]; rTf = nums[3];
+            tagihan = mCash + mTf + rCash + rTf;
+          } else if (nums.length === 3) {
+            tagihan = nums[0]; mCash = nums[1]; rCash = nums[2];
+          } else if (nums.length === 2) {
+            tagihan = nums[0]; mCash = nums[1];
+          } else if (nums.length === 1) {
+            mCash = nums[0]; tagihan = nums[0];
+          }
+        }
+
+        let sales = salesHint;
+        for (let j = 0; j < fakturCol; j++) {
+          const v = row[j];
+          if (typeof v === 'string' && v.trim()) {
+            const up = v.toUpperCase();
+            if (['RAJU','JOSSY','HAFID','ZEIN','ALIM','INDI','ANAM','PAK ITO'].some(x => up.includes(x)) || up.includes('(')) {
+              sales = v.trim(); salesHint = sales;
+            }
+          }
+        }
+
+        if (!toko && !mCash && !mTf && !rCash && !rTf && !tagihan) continue;
+
+        const txnObj = {
+          section,
+          sales: sales || '',
+          faktur,
+          toko,
+          alamat,
+          tglFaktur,
+          jt,
+          tagihan,
+          mCash, mTf, rCash, rTf,
+          ket
+        };
+        // Precompute search blob (hemat CPU saat filter keystroke)
+        txnObj._search = [txnObj.sales, txnObj.faktur, txnObj.toko, txnObj.alamat, txnObj.ket, txnObj.tglFaktur, txnObj.jt]
+          .join(' ').toLowerCase();
+        txns.push(txnObj);
+      }
+
+      let warning = null;
+      if (txns.length) {
+        const tmc = txns.reduce((a,x)=>a+(x.mCash||0),0);
+        const tmt = txns.reduce((a,x)=>a+(x.mTf||0),0);
+        const trc = txns.reduce((a,x)=>a+(x.rCash||0),0);
+        const trt = txns.reduce((a,x)=>a+(x.rTf||0),0);
+        if (found) {
+          const sheetTotal = mc + mt + rc + rt;
+          const txnTotal = tmc + tmt + trc + trt;
+          const diff = Math.abs(sheetTotal - txnTotal);
+          if (diff > 1) {
+            warning = { sheetTotal, txnTotal, diff };
+          }
+        }
+        mc = tmc; mt = tmt; rc = trc; rt = trt;
+        found = true;
+      }
+      if (!found && mc === 0 && rc === 0) return null;
+      return { mc, mt, rc, rt, txns, warning };
+    }
+
+    function detectYearMonth(wb, days, filename) {
+      for (const name of wb.SheetNames) {
+        const ws = wb.Sheets[name];
+        if (!ws || !ws['!ref']) continue;
+        let range;
+        try { range = XLSX.utils.decode_range(ws['!ref']); } catch { continue; }
+        const maxRow = Math.min(range.e.r, 9);
+        for (let r = range.s.r; r <= maxRow; r++) {
+          for (let c = range.s.c; c <= range.e.c; c++) {
+            const cell = ws[XLSX.utils.encode_cell({ r, c })];
+            if (!cell) continue;
+            const v = cell.v;
+            // XLSX.read memakai cellDates:false, sehingga tanggal Excel umumnya berupa serial.
+            // Periksa format sel agar angka nominal tidak keliru dibaca sebagai tanggal.
+            if (typeof v === 'number' && v > 30000 && v < 60000) {
+              const isDateFormat = cell.z && (
+                (XLSX.SSF && typeof XLSX.SSF.is_date === 'function' && XLSX.SSF.is_date(cell.z)) ||
+                /[dmy]/i.test(cell.z)
+              );
+              if (isDateFormat) {
+                const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+                if (!Number.isNaN(d.getTime())) {
+                  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+                }
+              }
+            }
+            if (typeof v === 'string') {
+              const m1 = v.match(/(\d{1,2})\/(\d{1,2})\/(20\d{2})/);
+              if (m1) {
+                const a = parseInt(m1[1], 10);
+                const b = parseInt(m1[2], 10);
+                const y = m1[3];
+                // Validasi bulan 1–12. Prefer format ID (D/M/YYYY).
+                // Jika b > 12 → pasti format US (M/D): a=bulan, b=hari.
+                // Jika a > 12 → pasti format ID (D/M): a=hari, b=bulan.
+                // Jika keduanya ≤ 12 → prefer D/M (lokal Indonesia).
+                let mm;
+                if (b > 12 && a >= 1 && a <= 12) mm = a;       // M/D (b = day)
+                else if (a > 12 && b >= 1 && b <= 12) mm = b;  // D/M (a = day)
+                else if (b >= 1 && b <= 12) mm = b;            // prefer D/M
+                else if (a >= 1 && a <= 12) mm = a;            // fallback M/D
+                else continue; // tidak valid
+                return `${y}-${String(mm).padStart(2, '0')}`;
+              }
+              const m2 = v.match(/(20\d{2})-(\d{2})/);
+              if (m2) {
+                const mm = parseInt(m2[2], 10);
+                if (mm >= 1 && mm <= 12) return `${m2[1]}-${m2[2]}`;
+              }
+            }
+          }
+        }
+      }
+      const fm = filename.match(/(20\d{2})[^\d]*?(\d{1,2})/);
+      if (fm && fm[2]) {
+        const mo = parseInt(fm[2], 10);
+        if (mo >= 1 && mo <= 12) return `${fm[1]}-${String(mo).padStart(2, '0')}`;
+      }
+      const monthNames = {
+        januari:1, februari:2, maret:3, april:4, mei:5, juni:6, juli:7, agustus:8, september:9, oktober:10, november:11, desember:12,
+        january:1, february:2, march:3, may:5, june:6, july:7, august:8, october:10, december:12
+      };
+      const lower = filename.toLowerCase();
+      for (const [name, num] of Object.entries(monthNames)) {
+        if (lower.includes(name)) {
+          const ym = filename.match(/(20\d{2})/);
+          if (ym) return `${ym[1]}-${String(num).padStart(2, '0')}`;
+        }
+      }
+      if (days[0]) {
+        const parts = days[0].tgl.split('-');
+        if (parts.length === 2) {
+          const existing = monthKeys();
+          const year = existing.length
+            ? existing[existing.length - 1].slice(0, 4)
+            : new Date().getFullYear().toString();
+          return `${year}-${parts[1]}`;
+        }
+      }
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function formatMonthLabel(ym) {
+      const [y, m] = ym.split('-');
+      const names = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      return `${names[parseInt(m,10)] || m} ${y}`;
+    }
+
+
+    // ===================== PRODUK TAB (Minyak / Rupa) =====================
+    function renderProdukTab(produk) {
+      // produk = 'minyak' | 'rupa'
+      populateMonthSelectsIfNeeded();
+      populateDateSelectIfNeeded(produk);
+
+      const key = document.getElementById(produk + 'Month')?.value;
+      const tglFilter = document.getElementById(produk + 'Date')?.value || 'all';
+      const sectionF = document.getElementById(produk + 'Section')?.value || 'all';
+      const activeKetBtn = document.querySelector('#' + produk + 'KetGroup .filter-btn.active');
+      const ketF = activeKetBtn ? activeKetBtn.dataset.val : 'all';
+      const q = (document.getElementById('search' + (produk === 'minyak' ? 'Minyak' : 'Rupa'))?.value || '').toLowerCase();
+      const tbody = document.getElementById(produk + 'Body');
+      const summary = document.getElementById(produk + 'Summary');
+      if (!tbody) return;
+
+      if (!key || !store[key]) {
+        tbody.innerHTML = '';
+        if (summary) summary.innerHTML = '';
+        renderPagination(produk + 'Pagination', produk, 0);
+        return;
+      }
+
+      // P2: cache filter+sum
+      const sig = [produk, key, tglFilter, sectionF, ketF, q].join('|');
+      let rows, sum;
+      const _fc = _fcGet(sig);
+      if (_fc) {
+        rows = _fc.rows;
+        sum = _fc.sum;
+      } else {
+        rows = getFlatTxns(key);
+        if (tglFilter !== 'all') rows = rows.filter(r => r.tgl === tglFilter);
+        if (sectionF !== 'all') rows = rows.filter(r => r.section === sectionF);
+        rows = applyKetFilter(rows, ketF);
+        if (produk === 'minyak') {
+          rows = rows.filter(r => ((r.mCash || 0) + (r.mTf || 0)) > 0);
+        } else {
+          rows = rows.filter(r => ((r.rCash || 0) + (r.rTf || 0)) > 0);
+        }
+        if (q) {
+          rows = rows.filter(r => {
+            if (r._search) return r._search.includes(q) || (r.tgl || '').toLowerCase().includes(q) || (r.section || '').toLowerCase().includes(q);
+            const blob = [r.tgl, r.sales, r.faktur, r.toko, r.alamat, r.ket, r.section].join(' ').toLowerCase();
+            return blob.includes(q);
+          });
+        }
+        sum = rows.reduce((a, x) => ({
+          mc: a.mc + (x.mCash || 0), mt: a.mt + (x.mTf || 0),
+          rc: a.rc + (x.rCash || 0), rt: a.rt + (x.rTf || 0),
+          tag: a.tag + (x.tagihan || 0), n: a.n + 1
+        }), { mc: 0, mt: 0, rc: 0, rt: 0, tag: 0, n: 0 });
+        _fcSet(sig, rows, sum);
+      }
+
+      if (summary) {
+        if (produk === 'minyak') {
+          const totalM = sum.mc + sum.mt;
+          summary.innerHTML = `
+            <div class="card minyak"><div class="card-label">Total Minyak</div><div class="card-value">Rp ${fmt(totalM)}</div>
+              <div class="card-sub">Cash ${fmt(sum.mc)} · TF ${fmt(sum.mt)}</div></div>
+            <div class="card cash"><div class="card-label">Jumlah Faktur</div><div class="card-value">${sum.n}</div>
+              <div class="card-sub">Tagihan Rp ${fmt(sum.tag)}</div></div>
+            <div class="card minyak"><div class="card-label">Minyak Cash</div><div class="card-value">Rp ${fmt(sum.mc)}</div>
+              <div class="card-sub">Tunai</div></div>
+            <div class="card total"><div class="card-label">Minyak TF/BG</div><div class="card-value">Rp ${fmt(sum.mt)}</div>
+              <div class="card-sub">Transfer / BG</div></div>`;
+        } else {
+          const totalR = sum.rc + sum.rt;
+          summary.innerHTML = `
+            <div class="card rupa"><div class="card-label">Total Rupa-rupa</div><div class="card-value">Rp ${fmt(totalR)}</div>
+              <div class="card-sub">Cash ${fmt(sum.rc)} · TF ${fmt(sum.rt)}</div></div>
+            <div class="card cash"><div class="card-label">Jumlah Faktur</div><div class="card-value">${sum.n}</div>
+              <div class="card-sub">Tagihan Rp ${fmt(sum.tag)}</div></div>
+            <div class="card rupa"><div class="card-label">Rupa Cash</div><div class="card-value">Rp ${fmt(sum.rc)}</div>
+              <div class="card-sub">Tunai</div></div>
+            <div class="card total"><div class="card-label">Rupa TF/BG</div><div class="card-value">Rp ${fmt(sum.rt)}</div>
+              <div class="card-sub">Transfer / BG</div></div>`;
+        }
+      }
+
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="12" class="empty-rincian">
+          Tidak ada data ${produk === 'minyak' ? 'Minyak' : 'Rupa-rupa'}.<br/>
+          Coba ubah filter tanggal / section / status.
+        </td></tr>`;
+        renderPagination(produk + 'Pagination', produk, 0);
+        return;
+      }
+
+      const total = rows.length;
+      clampPage(produk, total);
+      const start = (pagState[produk].page - 1) * pagState[produk].size;
+      const pageRows = rows.slice(start, start + pagState[produk].size);
+
+      let html = '';
+      if (produk === 'minyak') {
+        html = pageRows.map((x, i) => {
+          const tot = (x.mCash || 0) + (x.mTf || 0);
+          return `<tr>
+            <td class="center">${start + i + 1}</td>
+            <td class="text-left">${esc(x.tgl)}</td>
+            <td class="text-left">${ketBadge(getDisplayKet(x))}</td>
+            <td class="text-left">${esc(x.sales) || '—'}</td>
+            <td class="text-left">${esc(x.faktur)}</td>
+            <td class="text-left">${esc(x.toko)}</td>
+            <td class="text-left">${esc(x.alamat)}</td>
+            <td>${fmtCell(x.tagihan)}</td>
+            <td>${fmtCell(x.mCash)}</td>
+            <td>${fmtCell(x.mTf)}</td>
+            <td><strong>${fmtCell(tot)}</strong></td>
+            <td class="text-left">${x.section === 'PIUTANG' ? 'Piutang' : 'Dropping'}</td>
+          </tr>`;
+        }).join('');
+        const totalM = sum.mc + sum.mt;
+        html += `<tr class="total-row">
+          <td></td><td class="text-left" colspan="6">TOTAL (${fmt(total)} faktur)</td>
+          <td>${fmtCell(sum.tag)}</td>
+          <td>${fmtCell(sum.mc)}</td><td>${fmtCell(sum.mt)}</td>
+          <td><strong>${fmtCell(totalM)}</strong></td>
+          <td></td>
+        </tr>`;
+      } else {
+        html = pageRows.map((x, i) => {
+          const tot = (x.rCash || 0) + (x.rTf || 0);
+          return `<tr>
+            <td class="center">${start + i + 1}</td>
+            <td class="text-left">${esc(x.tgl)}</td>
+            <td class="text-left">${ketBadge(getDisplayKet(x))}</td>
+            <td class="text-left">${esc(x.sales) || '—'}</td>
+            <td class="text-left">${esc(x.faktur)}</td>
+            <td class="text-left">${esc(x.toko)}</td>
+            <td class="text-left">${esc(x.alamat)}</td>
+            <td>${fmtCell(x.tagihan)}</td>
+            <td>${fmtCell(x.rCash)}</td>
+            <td>${fmtCell(x.rTf)}</td>
+            <td><strong>${fmtCell(tot)}</strong></td>
+            <td class="text-left">${x.section === 'PIUTANG' ? 'Piutang' : 'Dropping'}</td>
+          </tr>`;
+        }).join('');
+        const totalR = sum.rc + sum.rt;
+        html += `<tr class="total-row">
+          <td></td><td class="text-left" colspan="6">TOTAL (${fmt(total)} faktur)</td>
+          <td>${fmtCell(sum.tag)}</td>
+          <td>${fmtCell(sum.rc)}</td><td>${fmtCell(sum.rt)}</td>
+          <td><strong>${fmtCell(totalR)}</strong></td>
+          <td></td>
+        </tr>`;
+      }
+      tbody.innerHTML = html;
+      renderPagination(produk + 'Pagination', produk, total);
+    }
+
+    // ===================== EXPORT EXCEL =====================
+    function getActiveMonthKey() {
+      const active = document.querySelector('.tab.active')?.dataset.tab || 'dashboard';
+      const map = {
+        dashboard: 'filterMonth',
+        detail: 'detailMonth',
+        rincian: 'rincianMonth',
+        minyak: 'minyakMonth',
+        rupa: 'rupaMonth',
+        titip: 'titipMonth',
+        piutang: 'piutangMonth',
+        dropping: 'droppingMonth',
+        manage: 'filterMonth'
+      };
+      const id = map[active] || 'filterMonth';
+      const el = document.getElementById(id);
+      let key = el ? el.value : '';
+      if (!key || key === 'all') {
+        const keys = monthKeys();
+        key = keys.length ? keys[keys.length - 1] : '';
+      }
+      return key;
+    }
+
+    async function exportExcelByFilter() {
+      const activeTab = document.querySelector('.tab.active')?.dataset.tab || 'dashboard';
+      // Tab TITIP: ekspor sesuai filter UI (bulan/tgl/section/status/cari)
+      if (activeTab === 'titip') {
+        await exportTitipExcel();
+        return;
+      }
+      const key = getActiveMonthKey();
+      if (!key || !store[key]) {
+        toast('Tidak ada data bulan untuk diekspor. Pilih bulan terlebih dahulu.', 'error');
+        return;
+      }
+      // Filter "Semua Bulan" aktif tapi export hanya mendukung satu bulan → minta konfirmasi
+      {
+        const selIds = { dashboard:'filterMonth', detail:'detailMonth', rincian:'rincianMonth', minyak:'minyakMonth',
+          rupa:'rupaMonth', piutang:'piutangMonth', dropping:'droppingMonth', manage:'filterMonth' };
+        const selVal = document.getElementById(selIds[activeTab] || 'filterMonth')?.value;
+        if (selVal === 'all' && monthKeys().length > 1) {
+          const ok = confirm(`Filter "Semua Bulan" sedang aktif, tetapi export Excel hanya mendukung satu bulan.\nYang akan diekspor: ${store[key].label || key} (bulan terbaru).\n\nLanjutkan?`);
+          if (!ok) return;
+        }
+      }
+      const loaded = await ensureMonthLoaded(key);
+      if (!loaded) {
+        toast('Gagal memuat data bulan ini dari storage. Coba reload halaman.', 'error');
+        return;
+      }
+      try {
+        await ensureXLSX();
+      } catch (e) {
+        toast(e.message || 'Gagal memuat library Excel', 'error');
+        return;
+      }
+      const m = store[key];
+      const label = m.label || key;
+      const days = m.days || [];
+      const rows = getFlatTxns(key);
+      // P5: peringatan dataset besar
+      if (rows.length > 80000) {
+        const ok = confirm(`Data sangat besar (${fmt(rows.length)} faktur).\nExport bisa lambat / membebani browser.\nLanjutkan?`);
+        if (!ok) return;
+      } else if (rows.length > 30000) {
+        toast(`Menyiapkan Excel (${fmt(rows.length)} faktur)...`, 'success');
+      }
+
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Ringkasan Harian
+      const dailyHeader = ['No', 'Tanggal', 'Minyak Cash', 'Minyak TF', 'Total Minyak', 'Rupa Cash', 'Rupa TF', 'Total Rupa', 'Total Cash', 'Total TF', 'Grand Total'];
+      const dailyData = [dailyHeader];
+      let smc = 0, smt = 0, src = 0, srt = 0;
+      days.forEach((d, i) => {
+        const tm = (d.mc || 0) + (d.mt || 0);
+        const tr = (d.rc || 0) + (d.rt || 0);
+        const tc = (d.mc || 0) + (d.rc || 0);
+        const tf = (d.mt || 0) + (d.rt || 0);
+        const g = tm + tr;
+        smc += d.mc || 0; smt += d.mt || 0; src += d.rc || 0; srt += d.rt || 0;
+        dailyData.push([i + 1, d.tgl, d.mc || 0, d.mt || 0, tm, d.rc || 0, d.rt || 0, tr, tc, tf, g]);
+      });
+      const tm = smc + smt, tr = src + srt;
+      dailyData.push(['', 'TOTAL', smc, smt, tm, src, srt, tr, smc + src, smt + srt, tm + tr]);
+      const wsDaily = XLSX.utils.aoa_to_sheet(dailyData);
+      XLSX.utils.book_append_sheet(wb, wsDaily, 'Detail Harian');
+
+      // Sheet 2: Semua Rincian
+      const rinciHeader = ['No', 'Tgl', 'Ket', 'Sales', 'No Faktur', 'Nama Toko', 'Alamat', 'Tgl Faktur', 'JT', 'Tagihan', 'Minyak Cash', 'Minyak TF', 'Rupa Cash', 'Rupa TF', 'Section'];
+      const rinciData = [rinciHeader];
+      rows.forEach((x, i) => {
+        rinciData.push([
+          i + 1, x.tgl, getDisplayKet(x) || x.ket || '', x.sales || '', x.faktur || '',
+          x.toko || '', x.alamat || '', x.tglFaktur || '', x.jt || '',
+          x.tagihan || 0, x.mCash || 0, x.mTf || 0, x.rCash || 0, x.rTf || 0,
+          x.section === 'PIUTANG' ? 'Piutang' : 'Dropping'
+        ]);
+      });
+      const sumR = rows.reduce((a, x) => ({
+        t: a.t + (x.tagihan || 0), mc: a.mc + (x.mCash || 0), mt: a.mt + (x.mTf || 0),
+        rc: a.rc + (x.rCash || 0), rt: a.rt + (x.rTf || 0)
+      }), { t: 0, mc: 0, mt: 0, rc: 0, rt: 0 });
+      rinciData.push(['', 'TOTAL', '', '', '', '', '', '', '', sumR.t, sumR.mc, sumR.mt, sumR.rc, sumR.rt, '']);
+      const wsRinci = XLSX.utils.aoa_to_sheet(rinciData);
+      XLSX.utils.book_append_sheet(wb, wsRinci, 'Rincian Faktur');
+
+      // Sheet 3: Minyak only
+      const minyakRows = rows.filter(r => ((r.mCash || 0) + (r.mTf || 0)) > 0);
+      const mHeader = ['No', 'Tgl', 'Ket', 'Sales', 'No Faktur', 'Nama Toko', 'Alamat', 'Tagihan', 'Minyak Cash', 'Minyak TF', 'Total Minyak', 'Section'];
+      const mData = [mHeader];
+      let mmc = 0, mmt = 0, mtag = 0;
+      minyakRows.forEach((x, i) => {
+        const tot = (x.mCash || 0) + (x.mTf || 0);
+        mmc += x.mCash || 0; mmt += x.mTf || 0; mtag += x.tagihan || 0;
+        mData.push([i + 1, x.tgl, getDisplayKet(x) || x.ket || '', x.sales || '', x.faktur || '',
+          x.toko || '', x.alamat || '', x.tagihan || 0, x.mCash || 0, x.mTf || 0, tot,
+          x.section === 'PIUTANG' ? 'Piutang' : 'Dropping']);
+      });
+      mData.push(['', 'TOTAL', '', '', '', '', '', mtag, mmc, mmt, mmc + mmt, '']);
+      const wsM = XLSX.utils.aoa_to_sheet(mData);
+      XLSX.utils.book_append_sheet(wb, wsM, 'Minyak');
+
+      // Sheet 4: Rupa only
+      const rupaRows = rows.filter(r => ((r.rCash || 0) + (r.rTf || 0)) > 0);
+      const rHeader = ['No', 'Tgl', 'Ket', 'Sales', 'No Faktur', 'Nama Toko', 'Alamat', 'Tagihan', 'Rupa Cash', 'Rupa TF', 'Total Rupa', 'Section'];
+      const rData = [rHeader];
+      let rrc = 0, rrt = 0, rtag = 0;
+      rupaRows.forEach((x, i) => {
+        const tot = (x.rCash || 0) + (x.rTf || 0);
+        rrc += x.rCash || 0; rrt += x.rTf || 0; rtag += x.tagihan || 0;
+        rData.push([i + 1, x.tgl, getDisplayKet(x) || x.ket || '', x.sales || '', x.faktur || '',
+          x.toko || '', x.alamat || '', x.tagihan || 0, x.rCash || 0, x.rTf || 0, tot,
+          x.section === 'PIUTANG' ? 'Piutang' : 'Dropping']);
+      });
+      rData.push(['', 'TOTAL', '', '', '', '', '', rtag, rrc, rrt, rrc + rrt, '']);
+      const wsR = XLSX.utils.aoa_to_sheet(rData);
+      XLSX.utils.book_append_sheet(wb, wsR, 'Rupa-rupa');
+
+      // Sheet 5: Piutang
+      const piutangRows = rows.filter(r => r.section === 'PIUTANG');
+      const pHeader = ['No', 'Tgl', 'Ket', 'Sales', 'No Faktur', 'Nama Toko', 'Alamat', 'Tgl Faktur', 'JT', 'Tagihan', 'Minyak Cash', 'Minyak TF', 'Rupa Cash', 'Rupa TF', 'Total'];
+      const pData = [pHeader];
+      let psum = { t: 0, mc: 0, mt: 0, rc: 0, rt: 0 };
+      piutangRows.forEach((x, i) => {
+        const tot = (x.mCash || 0) + (x.mTf || 0) + (x.rCash || 0) + (x.rTf || 0);
+        psum.t += x.tagihan || 0; psum.mc += x.mCash || 0; psum.mt += x.mTf || 0;
+        psum.rc += x.rCash || 0; psum.rt += x.rTf || 0;
+        pData.push([i + 1, x.tgl, getDisplayKet(x) || x.ket || '', x.sales || '', x.faktur || '',
+          x.toko || '', x.alamat || '', x.tglFaktur || '', x.jt || '',
+          x.tagihan || 0, x.mCash || 0, x.mTf || 0, x.rCash || 0, x.rTf || 0, tot]);
+      });
+      pData.push(['', 'TOTAL', '', '', '', '', '', '', '', psum.t, psum.mc, psum.mt, psum.rc, psum.rt, psum.mc + psum.mt + psum.rc + psum.rt]);
+      const wsP = XLSX.utils.aoa_to_sheet(pData);
+      XLSX.utils.book_append_sheet(wb, wsP, 'Piutang Tempo');
+
+      // Sheet 6: Dropping
+      const dropRows = rows.filter(r => r.section === 'DROPPING');
+      const dHeader = pHeader;
+      const dData = [dHeader];
+      let dsum = { t: 0, mc: 0, mt: 0, rc: 0, rt: 0 };
+      dropRows.forEach((x, i) => {
+        const tot = (x.mCash || 0) + (x.mTf || 0) + (x.rCash || 0) + (x.rTf || 0);
+        dsum.t += x.tagihan || 0; dsum.mc += x.mCash || 0; dsum.mt += x.mTf || 0;
+        dsum.rc += x.rCash || 0; dsum.rt += x.rTf || 0;
+        dData.push([i + 1, x.tgl, getDisplayKet(x) || x.ket || '', x.sales || '', x.faktur || '',
+          x.toko || '', x.alamat || '', x.tglFaktur || '', x.jt || '',
+          x.tagihan || 0, x.mCash || 0, x.mTf || 0, x.rCash || 0, x.rTf || 0, tot]);
+      });
+      dData.push(['', 'TOTAL', '', '', '', '', '', '', '', dsum.t, dsum.mc, dsum.mt, dsum.rc, dsum.rt, dsum.mc + dsum.mt + dsum.rc + dsum.rt]);
+      const wsD = XLSX.utils.aoa_to_sheet(dData);
+      XLSX.utils.book_append_sheet(wb, wsD, 'Cash Dropping');
+
+      // Sheet 0 / Ringkasan
+      const ringkas = [
+        ['Laporan Uang Masuk — Minyak & Rupa-rupa'],
+        ['Bulan', label],
+        ['Hari aktif', days.length],
+        [],
+        ['Kategori', 'Cash', 'TF/BG', 'Total'],
+        ['Minyak', smc, smt, tm],
+        ['Rupa-rupa', src, srt, tr],
+        ['TOTAL', smc + src, smt + srt, tm + tr],
+        [],
+        ['Jumlah Faktur', rows.length],
+        ['Faktur Minyak', minyakRows.length],
+        ['Faktur Rupa-rupa', rupaRows.length],
+        ['Piutang Tempo', piutangRows.length],
+        ['Cash Dropping', dropRows.length]
+      ];
+      const wsRing = XLSX.utils.aoa_to_sheet(ringkas);
+      XLSX.utils.book_append_sheet(wb, wsRing, 'Ringkasan');
+      // Move Ringkasan to first
+      const sheets = wb.SheetNames;
+      const idx = sheets.indexOf('Ringkasan');
+      if (idx > 0) {
+        sheets.splice(idx, 1);
+        sheets.unshift('Ringkasan');
+        wb.SheetNames = sheets;
+      }
+
+      const fname = `Laporan_Uang_Masuk_${label.replace(/\s+/g, '_')}_${key}.xlsx`;
+      XLSX.writeFile(wb, fname);
+      toast(`Excel berhasil diunduh: ${label}`);
+    }
+
+    // ===================== BACKUP =====================
+    async function exportAllJSON() {
+      const keys = monthKeys();
+      if (!keys.length) {
+        toast('Belum ada data untuk di-backup', 'error');
+        return;
+      }
+      toast(`Menyiapkan backup ${keys.length} bulan...`, 'success');
+      // Wajib: load SEMUA bulan dulu agar txns tidak kosong di JSON
+      await loadMonthsConcurrent(keys);
+
+      // Bulan lama tanpa rincian faktur tetap valid jika storage berhasil dimuat.
+      const missing = keys.filter(k => !isMonthFullyLoaded(k));
+      if (missing.length === keys.length) {
+        // Semua kosong — mungkin memang 0 faktur, atau storage rusak
+        const anyDays = keys.some(k => (store[k].days || []).length > 0);
+        if (anyDays) {
+          toast('Gagal memuat rincian faktur dari storage. Backup dibatalkan agar data tidak hilang.', 'error');
+          return;
+        }
+      } else if (missing.length) {
+        const ok = confirm(
+          `${missing.length} dari ${keys.length} bulan gagal dimuat rinciannya.\n` +
+          `Bulan: ${missing.map(k => store[k]?.label || k).join(', ')}\n\n` +
+          `Lanjutkan backup (bulan tersebut akan tanpa rincian faktur)?`
+        );
+        if (!ok) return;
+      }
+
+      // Bersihkan field runtime sebelum export
+      const clean = {};
+      for (const k of keys) clean[k] = cleanMonthForPersist(store[k]);
+
+      const blob = new Blob([JSON.stringify(clean, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `backup_laporan_uang_masuk_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      toast('Backup JSON berhasil diunduh');
+    }
+
+    async function importJSON(e) {
+      const f = e.target.files[0];
+      if (!f) return;
+      let data;
+      try {
+        data = JSON.parse(await f.text());
+      } catch {
+        toast('Gagal restore: file JSON tidak valid', 'error');
+        e.target.value = '';
+        return;
+      }
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        toast('Gagal restore: format backup harus object berisi bulan', 'error');
+        e.target.value = '';
+        return;
+      }
+      const sanitized = sanitizeStore(data);
+      if (Object.keys(data).length > 0 && Object.keys(sanitized).length === 0) {
+        toast('Gagal restore: format backup tidak valid (harus object dengan field days array)', 'error');
+        e.target.value = '';
+        return;
+      }
+      const oldStore = store;
+      const oldVersion = _storeVersion;
+      store = sanitized;
+      _loadedMonths = new Set(Object.keys(sanitized)); // P1: full data dari JSON
+      markStoreDirty();                          // perbaikan #3
+      try {
+        await saveStoreAsync();
+      } catch (saveErr) {
+        store = oldStore;
+        _storeVersion = oldVersion;
+        toast('Gagal restore: ' + saveErr.message, 'error');
+        e.target.value = '';
+        return;
+      }
+      bridgeRebuild(false);                      // sinkron penuh ke CEK
+      toast('Restore berhasil');
+      refreshCurrentTab();
+      renderManage();
+      e.target.value = '';
+    }
+
+    // ===================== EVENT LISTENERS (debounced search) =====================
+    const debouncedDetailSearch = debounce(() => { closeRincian(); renderDetail(); }, 250);
+    const debouncedRincianSearch = debounce(() => { pagState.rincian.page = 1; renderRincianTab(); }, 250);
+    const debouncedPiutangSearch = debounce(() => { pagState.piutang.page = 1; renderPiutangTab(); }, 250);
+    const debouncedDroppingSearch = debounce(() => { pagState.dropping.page = 1; renderDroppingTab(); }, 250);
+
+    document.getElementById('searchDetail').addEventListener('input', debouncedDetailSearch);
+    document.getElementById('searchRincian').addEventListener('input', debouncedRincianSearch);
+    document.getElementById('searchTitip')?.addEventListener('input', debounce(() => { pagState.titip.page=1; renderTitipTab(); }, 250));
+    document.getElementById('searchPiutang').addEventListener('input', debouncedPiutangSearch);
+    document.getElementById('searchDropping').addEventListener('input', debouncedDroppingSearch);
+    const debouncedMinyakSearch = debounce(() => { pagState.minyak.page = 1; renderProdukTab('minyak'); }, 250);
+    const debouncedRupaSearch = debounce(() => { pagState.rupa.page = 1; renderProdukTab('rupa'); }, 250);
+    document.getElementById('searchMinyak')?.addEventListener('input', debouncedMinyakSearch);
+    document.getElementById('searchRupa')?.addEventListener('input', debouncedRupaSearch);
+
+    // ===================== INIT =====================
+    (async function init() {
+      try {
+        store = await loadStoreAsync();
+      } catch (e) {
+        console.error('[init] load failed:', e);
+        store = {};
+      }
+      // Tandai bulan yang sudah punya txns di RAM (mis. dari LS fallback)
+      for (const k of Object.keys(store)) {
+        if (monthHasTxns(store[k])) _loadedMonths.add(k);
+      }
+      renderAll();
+      renderManage();
+      setTimeout(bridgeEnsureFresh, 1500);        // pastikan CEK punya data Uang Masuk terbaru
+      // Preload bulan terakhir di background (lazy → full)
+      const keys = monthKeys();
+      if (keys.length) {
+        const last = keys[keys.length - 1];
+        ensureMonthLoaded(last).then(() => {
+          const active = document.querySelector('.tab.active')?.dataset.tab;
+          if (active === 'detail') renderDetail();
+        });
+      }
+    })();
+  </script>
+
+  <script>
+    // ===== PWA: Service Worker + Install prompt =====
+    let _deferredPrompt = null;
+
+    // Deteksi mode terinstal (termasuk iOS)
+    (function markStandalone() {
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches
+        || window.matchMedia('(display-mode: fullscreen)').matches
+        || window.navigator.standalone === true;
+      if (isPWA) {
+        document.documentElement.classList.add('pwa-standalone');
+        document.body.classList.add('pwa-standalone');
+        // Title bar sudah cukup; document.title tetap singkat
+        document.title = 'Uang Masuk';
+      }
+    })();
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then((reg) => {
+          console.log('[PWA] SW registered', reg.scope);
+          // Cek update
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                toast('Versi baru tersedia. Refresh untuk update.', 'success');
+              }
+            });
+          });
+        }).catch((err) => console.warn('[PWA] SW failed', err));
+      });
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      _deferredPrompt = e;
+      const btn = document.getElementById('btnInstall');
+      if (btn) btn.style.display = 'flex';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      _deferredPrompt = null;
+      const btn = document.getElementById('btnInstall');
+      if (btn) btn.style.display = 'none';
+      toast('Aplikasi berhasil diinstal', 'success');
+    });
+
+    async function installPWA() {
+      if (!_deferredPrompt) {
+        toast('Di Chrome/Edge: menu ⋮ → Install app. Di HP: Tambahkan ke layar utama.', 'error');
+        return;
+      }
+      _deferredPrompt.prompt();
+      const { outcome } = await _deferredPrompt.userChoice;
+      _deferredPrompt = null;
+      const btn = document.getElementById('btnInstall');
+      if (btn) btn.style.display = 'none';
+      if (outcome === 'accepted') toast('Aplikasi diinstal', 'success');
+    }
+  </script>
+
+</body></html>

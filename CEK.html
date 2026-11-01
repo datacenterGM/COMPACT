@@ -83,7 +83,7 @@
 </head>
 <body>
 <div class="bar">
-  
+  <a class="btn" href="index.html" title="Kembali ke Dashboard (menu utama)" style="text-decoration:none">🏠 Dashboard</a>
   <select id="fBasis" title="Bulan dihitung berdasarkan apa"><option value="F">Bulan: tanggal faktur</option><option value="U">Bulan: tanggal uang masuk</option></select>
   <select id="fMonth" title="Bulan"></select>
   <select id="fSales" title="Sales"><option value="">Semua Sales</option></select>
@@ -183,6 +183,10 @@ async function loadData() {
   coverage();
   populate();
   render();
+  const miss = [];
+  if (!SALES_ROWS.length) miss.push('Penjualan (buka PJ, upload file penjualan)');
+  if (!UM_ROWS.length) miss.push('Uang Masuk (buka UM_V2 → Kelola Bulan → “Sinkron ke CEK”)');
+  if (miss.length) $('cov').innerHTML += '<br><b style="color:#e0a030">Belum ada data: ' + miss.join(' · ') + '. Semua file harus dibuka di browser yang sama.</b>';
 }
 
 /* ===== bangun pasangan faktur penjualan ↔ uang masuk ===== */
@@ -522,9 +526,22 @@ $('bXls').addEventListener('click', () => {
 });
 
 /* ===== sinkron dengan shell ===== */
-let stale = false;
+let stale = false, reloadTimer = null;
 window.onTabShow = function () { if (stale || !SALES_ROWS.length) { stale = false; loadData(); } };
-try { new BroadcastChannel('laporan-data').onmessage = () => { stale = true; }; } catch (e) {}
+/* Mode berdiri sendiri (PJ / UM_V2 / CEK = file terpisah): data berubah di file lain → muat ulang otomatis */
+function reloadIfStale() {
+  if (!stale || document.visibilityState !== 'visible' || $('ov').classList.contains('show')) return;
+  stale = false; loadData();
+}
+try {
+  new BroadcastChannel('laporan-data').onmessage = e => {
+    if (e.data === 'cek') return;                 /* pesan dari CEK sendiri (simpan keputusan) → abaikan */
+    stale = true;
+    clearTimeout(reloadTimer); reloadTimer = setTimeout(reloadIfStale, 800);
+  };
+} catch (e) {}
+document.addEventListener('visibilitychange', reloadIfStale);
+window.addEventListener('focus', reloadIfStale);
 loadData();
 </script>
 </body>

@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Penjualan - Multi Bulan</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --primary: #1b5e20;
+      --primary-light: #4caf50;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --border: #e0e0e0;
+      --text: #212121;
+      --muted: #757575;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 100%;
+      padding: 1rem 1.25rem 2rem;
+    }
+    
+    /* BARIS ATAS: TAB, SEARCH BOX, DAN MENU */
+    .top-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      min-height: 40px;
+    }
+    
+    /* TABS */
+    .tabs {
+      display: none;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+    .tab {
+      padding: 0.45rem 1rem;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .tab:hover { background: #e0e0e0; color: var(--text); }
+    .tab.active {
+      background: #1b5e20;
+      color: white;
+    }
+    
+    /* SEARCH & MENU GROUP (KANAN) */
+    .right-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-left: auto;
+    }
+    .search-box {
+      padding: 0.35rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      width: 250px;
+      outline: none;
+      background: white;
+      display: none;
+    }
+    .search-box:focus { border-color: #0d47a1; }
+    .month-sel {
+      padding: 0.35rem 0.6rem; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 0.85rem; outline: none; background: white; color: var(--text);
+      display: none; cursor: pointer; max-width: 180px;
+    }
+    .month-sel:focus { border-color: #0d47a1; }
+    
+    /* MENU BUTTON & DROPDOWN */
+    .menu-wrap { position: relative; }
+    .menu-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: white;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .menu-btn:hover { background: #f0f0f0; }
+    .menu-btn svg { width: 16px; height: 16px; }
+    
+    .dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      background: white;
+      color: var(--text);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+      min-width: 300px;
+      z-index: 200;
+      overflow: hidden;
+    }
+    .dropdown.open { display: block; }
+    .dropdown-section {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .dropdown-section:last-child { border-bottom: none; }
+    .dropdown-section h4 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .file-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.4rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .file-row:hover { background: #f5f5f5; }
+    .file-row .fname {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #0f172a;
+    }
+    .file-row .del-btn {
+      background: none;
+      border: none;
+      color: #c62828;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0 0.3rem;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .file-row .del-btn:hover { background: #ffebee; }
+    .empty-files {
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 0.3rem 0;
+    }
+    .btn-sm {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.85rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      justify-content: center;
+    }
+    .btn-upload {
+      background: #0f172a;
+      color: white;
+    }
+    .btn-upload:hover { background: #1e293b; }
+    .btn-danger {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .btn-danger:hover { background: #ffcdd2; }
+    input[type="file"] { display: none; }
+
+    /* TABLE AREA */
+    .tab-content {
+      display: none;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .tab-content.active { display: block; }
+    
+    .table-wrapper {
+      overflow: auto;
+      max-height: calc(100vh - 205px);
+    }
+    /* ===== CARD TOTAL PENJUALAN ===== */
+    .kpi-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+    .kpi { background: var(--card); border: 1px solid var(--border); border-left: 3px solid #1b5e20;
+      border-radius: 6px; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .kpi .kl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+    .kpi .kv { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kpi .ks { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kpi.k-faktur { border-left-color: #1f3b73; } .kpi.k-faktur .kv { color: #1f3b73; }
+    .kpi.k-jual { border-left-color: #2e7d32; } .kpi.k-jual .kv { color: #2e7d32; }
+    .kpi.k-modal { border-left-color: #ef6c00; } .kpi.k-modal .kv { color: #ef6c00; }
+    .kpi.k-profit { border-left-color: #c62828; } .kpi.k-profit .kv { color: #c62828; }
+    .kpi.k-profit.pos { border-left-color: #1b5e20; } .kpi.k-profit.pos .kv { color: #1b5e20; }
+    :root[data-theme="dark"] .kpi.k-faktur .kv { color: #58a6ff; } :root[data-theme="dark"] .kpi.k-faktur { border-left-color: #58a6ff; }
+    :root[data-theme="dark"] .kpi.k-jual .kv { color: #56d364; } :root[data-theme="dark"] .kpi.k-jual { border-left-color: #56d364; }
+    :root[data-theme="dark"] .kpi.k-modal .kv { color: #f0883e; } :root[data-theme="dark"] .kpi.k-modal { border-left-color: #f0883e; }
+    :root[data-theme="dark"] .kpi.k-profit.pos .kv { color: #56d364; } :root[data-theme="dark"] .kpi.k-profit.pos { border-left-color: #56d364; }
+    :root[data-theme="dark"] .kpi.k-profit .kv { color: #ff7b72; }
+    @media (max-width: 720px) { .kpi-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    thead { position: sticky; top: 0; z-index: 10; }
+    
+    /* HEADER TABEL BIRU TUA */
+    th {
+      padding: 0.35rem 0.4rem;
+      text-align: center;
+      font-weight: 600;
+      color: white;
+      white-space: nowrap;
+      background-color: #0d47a1; 
+      border-right: 1px solid rgba(255,255,255,0.2);
+    }
+    th:last-child { border-right: none; }
+    
+    /* TINGGI BARIS RAPAT */
+    td {
+      padding: 0.2rem 0.4rem;
+      border-bottom: 1px solid #eee;
+      border-right: 1px solid #f0f0f0;
+      vertical-align: middle;
+    }
+    td:last-child { border-right: none; }
+    tr:hover td { background: #f0f7ff; }
+    
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .center { text-align: center; }
+    
+    /* LEBAR KOLOM KUSTOM */
+    .col-produk { white-space: nowrap; }
+    .col-customer { white-space: nowrap; min-width: 140px; }
+    .col-alamat { white-space: nowrap; min-width: 200px; }
+
+    .total-faktur-cell {
+      background: #FFF3E0 !important;
+      font-weight: 600;
+    }
+    .empty-msg {
+      padding: 3rem;
+      text-align: center;
+      color: var(--muted);
+    }
+    .welcome {
+      text-align: center;
+      padding: 4rem 1rem;
+      color: var(--muted);
+    }
+    .welcome h2 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 1.3rem;
+    }
+    .welcome p { font-size: 0.95rem; }
+
+    /* PAGINATION TIPIS */
+    .pagination {
+      display: flex;
+      gap: 0.2rem;
+      align-items: center;
+      justify-content: center;
+      padding: 0.4rem;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .pagination button {
+      min-width: 24px;
+      height: 24px;
+      border: 1px solid #d1d5db;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 0 4px;
+      line-height: 1;
+    }
+    .pagination button:hover:not(:disabled) { background: #f3f4f6; }
+    .pagination button.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .pagination button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .pagination span { 
+      font-size: 0.75rem; 
+      color: var(--muted); 
+      margin: 0 0.3rem; 
+    }
+    
+    @media (max-width: 768px) {
+      .search-box { width: 160px; }
+      .dropdown { min-width: 260px; }
+      .top-controls { flex-direction: column; align-items: stretch; }
+      .right-controls { justify-content: space-between; margin-left: 0; }
+      .search-box { flex: 1; width: auto; }
+      .month-sel { flex: 0 0 auto; }
+    }
+
+    /* === Mode gelap === */
+    :root[data-theme="dark"] {
+      --bg:#0d1117; --card:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e;
+      --primary:#58a6ff; color-scheme: dark;
+    }
+    :root[data-theme="dark"] .tab:hover { background:#21262d; color:var(--text); }
+    :root[data-theme="dark"] .tab.active { background:#1f4e8c; color:#fff; }
+    :root[data-theme="dark"] .search-box,
+    :root[data-theme="dark"] .menu-btn,
+    :root[data-theme="dark"] .dropdown,
+    :root[data-theme="dark"] .pagination button { background:#161b22; color:var(--text); border-color:var(--border); }
+    :root[data-theme="dark"] .month-sel { background:#161b22; color:var(--text); border-color:var(--border); }
+    :root[data-theme="dark"] .menu-btn:hover,
+    :root[data-theme="dark"] .pagination button:hover:not(:disabled) { background:#21262d; }
+    :root[data-theme="dark"] .pagination button.active { background:#1f4e8c; color:#fff; border-color:#1f4e8c; }
+    :root[data-theme="dark"] .file-row:hover { background:#21262d; }
+    :root[data-theme="dark"] .file-row .fname { color:var(--text); }
+    :root[data-theme="dark"] .file-row .del-btn:hover,
+    :root[data-theme="dark"] .btn-danger { background:#3b1a1f; color:#ff7b72; }
+    :root[data-theme="dark"] .btn-upload { background:#1f4e8c; }
+    :root[data-theme="dark"] td { background:var(--card); color:var(--text); border-color:var(--border); }
+    :root[data-theme="dark"] tr:hover td { background:#1c2533; }
+    :root[data-theme="dark"] .total-faktur-cell { background:#3a2e12 !important; color:#ffd58a; }
+    :root[data-theme="dark"] th { background-color:#1f4e8c; }
+
+    /* === Pelacak faktur batal === */
+    tr.row-batal td, tr.row-pair td:nth-child(n+3):nth-child(-n+9) { text-decoration: line-through; text-decoration-color:#9ca3af; color:#9ca3af; }
+    tr.row-batal td { background:#f3f4f6; }
+    tr.row-batal td.total-faktur-cell { background:#f3f4f6 !important; }
+    .bd { display:inline-block; margin-left:5px; padding:0 6px; border-radius:4px; font-size:.64rem; font-weight:700; text-decoration:none; vertical-align:middle; }
+    .bd-batal { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
+    .bd-nol { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+    .bd-parsial { background:#e0e7ff; color:#3730a3; border:1px solid #a5b4fc; }
+    .tab-n { display:inline-block; min-width:18px; padding:0 5px; margin-left:3px; border-radius:9px; background:#f59e0b; color:#fff; font-size:.68rem; font-weight:700; text-align:center; }
+    .tab-n:empty { display:none; }
+    .pb-bar { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; padding:.5rem .75rem; border-bottom:1px solid var(--border); font-size:.8rem; }
+    .pb-bar select, .pb-btn { padding:.3rem .6rem; border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--text); font-size:.8rem; cursor:pointer; }
+    .pb-btn:hover:not(:disabled) { background:#f0f0f0; }
+    .pb-btn:disabled { opacity:.45; cursor:not-allowed; }
+    .pb-btn.danger { background:#c62828; color:#fff; border-color:#c62828; }
+    .pb-btn.danger:hover:not(:disabled) { background:#b71c1c; }
+    .pb-info { color:var(--muted); font-size:.76rem; width:100%; line-height:1.5; }
+    #table-batal td { white-space:nowrap; }
+    #table-batal td.wrap { white-space:normal; min-width:260px; }
+    #pbToast { position:fixed; bottom:16px; right:16px; background:#1e293b; color:#fff; padding:9px 14px; border-radius:8px; font-size:.82rem; opacity:0; transition:opacity .2s; pointer-events:none; z-index:300; }
+    #pbToast.show { opacity:1; }
+    :root[data-theme="dark"] tr.row-batal td, :root[data-theme="dark"] tr.row-pair td:nth-child(n+3):nth-child(-n+9) { color:#6b7280; }
+    :root[data-theme="dark"] tr.row-batal td, :root[data-theme="dark"] tr.row-batal td.total-faktur-cell { background:#12161c !important; }
+    :root[data-theme="dark"] .pb-bar select, :root[data-theme="dark"] .pb-btn { background:#161b22; color:var(--text); border-color:var(--border); }
+    :root[data-theme="dark"] .pb-btn:hover:not(:disabled) { background:#21262d; }
+    :root[data-theme="dark"] .pb-btn.danger { background:#b3261e; color:#fff; }
+
+    /* === Menu Rubah Harga Beli === */
+    .dropdown { max-height: calc(100vh - 70px); overflow-y: auto; }
+    .hb-desc { font-size:.78rem; color:var(--muted); line-height:1.45; margin-bottom:.5rem; }
+    .hb-lbl { display:block; font-size:.72rem; color:var(--muted); margin:.35rem 0 .15rem; }
+    .hb-in { width:100%; padding:.4rem .55rem; border:1px solid var(--border); border-radius:6px; font-size:.85rem; background:#fff; color:var(--text); font-family:inherit; margin-bottom:.1rem; }
+    .hb-in:focus { outline:2px solid #bbdefb; border-color:#0d47a1; }
+    #hbProduk { margin-top:.5rem; }
+    #hbHarga { margin-top:.5rem; margin-bottom:.5rem; }
+    .btn-hb { background:#0d47a1; color:#fff; }
+    .btn-hb:hover { background:#0a3a85; }
+    .hb-info { margin-top:.5rem; padding:.4rem .55rem; border-radius:6px; background:#f1f5f9; font-size:.75rem; line-height:1.45; color:var(--text); }
+    .hb-info.warn { background:#fff8e1; color:#8d6e00; }
+    .hb-info.ok { background:#e8f5e9; color:#1b5e20; }
+    .hb-item { display:flex; align-items:flex-start; justify-content:space-between; gap:.4rem; padding:.35rem .4rem; border-radius:6px; font-size:.74rem; line-height:1.4; }
+    .hb-item:hover { background:#f5f5f5; }
+    .hb-item .t { flex:1; min-width:0; }
+    .hb-item .t b { word-break:break-word; }
+    .hb-item button { background:none; border:1px solid var(--border); border-radius:5px; padding:.1rem .45rem; font-size:.7rem; cursor:pointer; color:#c62828; white-space:nowrap; }
+    .hb-item button:hover { background:#ffebee; }
+    td.hb-mod { background:#fff8e1; color:#8d6e00; font-weight:600; cursor:help; }
+    :root[data-theme="dark"] .hb-in { background:#0d1117; color:var(--text); border-color:var(--border); }
+    :root[data-theme="dark"] .hb-info { background:#21262d; }
+    :root[data-theme="dark"] .hb-info.warn { background:#3a2e12; color:#ffd58a; }
+    :root[data-theme="dark"] .hb-info.ok { background:#12301c; color:#7ee2a0; }
+    :root[data-theme="dark"] .hb-item:hover { background:#21262d; }
+    :root[data-theme="dark"] .hb-item button { color:#ff7b72; }
+    :root[data-theme="dark"] td.hb-mod { background:#3a2e12; color:#ffd58a; }
+
+    /* === Tab -> Dropdown === */
+    .tabs .tab { display: none; }
+    .tab-sel {
+      padding: 0.4rem 2rem 0.4rem 0.8rem; border: 1px solid #1b5e20; border-radius: 6px;
+      font-size: 0.88rem; font-weight: 600; color: #fff; cursor: pointer; outline: none; min-width: 230px;
+      background: #1b5e20 url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 0.65rem center;
+      background-size: 12px; appearance: none; -webkit-appearance: none;
+    }
+    .tab-sel option { background: #fff; color: #212121; font-weight: 500; }
+    :root[data-theme="dark"] .tab-sel { background-color: #1f4e8c; border-color: #1f4e8c; }
+    :root[data-theme="dark"] .tab-sel option { background: #161b22; color: #e6edf3; }
+    @media (max-width: 768px) { .tab-sel { width: 100%; } }
+
+    /* === Filter Data Lengkap === */
+    .lengkap-bar {
+      display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+      padding: .5rem .75rem; border-bottom: 1px solid var(--border); font-size: .8rem;
+    }
+    .lengkap-bar select {
+      padding: .3rem .6rem; border: 1px solid var(--border); border-radius: 6px;
+      background: #fff; color: var(--text); font-size: .8rem; cursor: pointer;
+    }
+    :root[data-theme="dark"] .lengkap-bar select {
+      background: #161b22; color: var(--text); border-color: var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- BARIS ATAS: SELALU TAMPIL (Menu bisa diakses kapan saja) -->
+    <div class="top-controls">
+      <div class="tabs" id="tabs">
+        <select class="tab-sel" id="tabSel" title="Pilih tampilan"></select>
+        <button class="tab active" data-tab="lengkap">Data Lengkap</button>
+        <button class="tab" data-tab="cash_fitri">Cash • Minyak Fitri</button>
+        <button class="tab" data-tab="cash_rupa">Cash • Rupa-Rupa</button>
+        <button class="tab" data-tab="tempo_fitri">Tempo • Minyak Fitri</button>
+        <button class="tab" data-tab="tempo_rupa">Tempo • Rupa-Rupa</button>
+        <button class="tab" data-tab="batal">⚠ Pelacak Batal <span class="tab-n" id="batalN"></span></button>
+      </div>
+      
+      <div class="right-controls">
+        <select class="month-sel" id="monthFilter" title="Filter bulan"><option value="">Semua Bulan</option></select>
+        <select class="month-sel" id="salesFilter" title="Filter sales"><option value="">Semua Sales</option></select>
+        <input type="text" class="search-box" id="globalSearch" placeholder="Cari produk / customer / faktur...">
+        
+        <a class="menu-btn" href="index.html" title="Kembali ke Dashboard (menu utama)" style="text-decoration:none">🏠 Dashboard</a>
+        <div class="menu-wrap">
+          <button class="menu-btn" id="menuBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+            Menu
+          </button>
+          <div class="dropdown" id="dropdown">
+            <div class="dropdown-section">
+              <h4>Upload Data</h4>
+              <button class="btn-sm btn-upload" onclick="document.getElementById('fileInput').click()">
+                📂 Upload File Excel
+              </button>
+              <input type="file" id="fileInput" accept=".xlsx,.xls" multiple>
+            </div>
+            <div class="dropdown-section">
+              <h4>Data Terupload</h4>
+              <div id="fileListMenu">
+                <div class="empty-files">Belum ada file</div>
+              </div>
+            </div>
+            <div class="dropdown-section" id="hbSection">
+              <h4>✏️ Menu Rubah Harga Beli</h4>
+              <p class="hb-desc">Fitur ini untuk edit massal. Pilih rentang tanggal (boleh satu hari saja, atau satu bulan penuh) + produk, lalu isi harga beli baru.</p>
+              <label class="hb-lbl" for="hbStart">Tanggal mulai</label>
+              <input type="date" class="hb-in" id="hbStart">
+              <label class="hb-lbl" for="hbEnd">Tanggal akhir</label>
+              <input type="date" class="hb-in" id="hbEnd">
+              <select class="hb-in" id="hbProduk"><option value="">Pilih produk...</option></select>
+              <input type="text" class="hb-in" id="hbHarga" inputmode="decimal" placeholder="Masukkan harga beli baru" autocomplete="off">
+              <button class="btn-sm btn-hb" id="hbApply" type="button">Ubah Harga Beli Produk</button>
+              <div class="hb-info" id="hbInfo">Pilih rentang tanggal + produk, isi harga beli baru.</div>
+              <div id="hbList"></div>
+            </div>
+            <div class="dropdown-section" id="clearAllSection" style="display:none;">
+              <button class="btn-sm btn-danger" onclick="clearAllData()">
+                🗑️ Hapus Semua Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESAN SELAMAT DATANG -->
+    <div id="welcome" class="welcome">
+      <h2>Selamat Datang</h2>
+      <p>Klik <strong>Menu</strong> di pojok kanan atas → <strong>Upload File Excel</strong><br>
+         untuk memulai. Bisa upload banyak file (per bulan).</p>
+    </div>
+
+    <!-- KONTEN TAB (Tabel) -->
+    <div id="mainContent" style="display:none;">
+      <div class="kpi-cards" id="kpiCards">
+        <div class="kpi k-faktur"><div class="kl">Total Faktur</div><div class="kv" id="kpiFaktur">0</div><div class="ks" id="kpiFakturSub">0 baris item</div></div>
+        <div class="kpi k-jual"><div class="kl">Total Penjualan</div><div class="kv" id="kpiJual">Rp 0</div><div class="ks" id="kpiJualSub">Cash: 0 • Tempo: 0</div></div>
+        <div class="kpi k-modal"><div class="kl">Total Modal (HPP)</div><div class="kv" id="kpiModal">Rp 0</div><div class="ks" id="kpiModalSub">Harga beli × qty</div></div>
+        <div class="kpi k-profit" id="kpiProfitBox"><div class="kl">Total Profit</div><div class="kv" id="kpiProfit">Rp 0</div><div class="ks" id="kpiProfitSub">Margin 0%</div></div>
+      </div>
+      <div class="tab-content active" id="tab-lengkap">
+        <div class="lengkap-bar">
+          <select id="payFilter" title="Filter pembayaran">
+            <option value="">Semua Pembayaran</option>
+            <option value="CASH">Cash</option>
+            <option value="TEMPO">Tempo</option>
+          </select>
+          <select id="prodFilter" title="Filter produk">
+            <option value="">Semua Produk</option>
+            <option value="MINYAK">Minyak Fitri</option>
+            <option value="RUPA">Rupa-Rupa</option>
+          </select>
+        </div>
+        <div class="table-wrapper"><div id="table-lengkap"></div></div>
+        <div class="pagination" id="page-lengkap"></div>
+      </div>
+      <div class="tab-content" id="tab-cash_fitri">
+        <div class="table-wrapper"><div id="table-cash_fitri"></div></div>
+        <div class="pagination" id="page-cash_fitri"></div>
+      </div>
+      <div class="tab-content" id="tab-cash_rupa">
+        <div class="table-wrapper"><div id="table-cash_rupa"></div></div>
+        <div class="pagination" id="page-cash_rupa"></div>
+      </div>
+      <div class="tab-content" id="tab-tempo_fitri">
+        <div class="table-wrapper"><div id="table-tempo_fitri"></div></div>
+        <div class="pagination" id="page-tempo_fitri"></div>
+      </div>
+      <div class="tab-content" id="tab-tempo_rupa">
+        <div class="table-wrapper"><div id="table-tempo_rupa"></div></div>
+        <div class="pagination" id="page-tempo_rupa"></div>
+      </div>
+
+      <div class="tab-content" id="tab-batal">
+        <div class="pb-bar">
+          <select id="pbView" title="Tampilkan">
+            <option value="NOL_BELUM">Faktur nol — belum dibatalkan</option>
+            <option value="NOL_SUDAH">Faktur nol — sudah dibatalkan</option>
+            <option value="PARSIAL">Batal sebagian (item dicoret otomatis)</option>
+            <option value="ALL">Semua</option>
+          </select>
+          <button class="pb-btn" id="pbAll" type="button">☑ Pilih semua</button>
+          <button class="pb-btn" id="pbNone" type="button">☐ Kosongkan</button>
+          <button class="pb-btn danger" id="pbDo" type="button">✖ Batalkan terpilih</button>
+          <button class="pb-btn" id="pbUndo" type="button">↺ Kembalikan terpilih</button>
+          <div class="pb-info" id="pbInfo"></div>
+        </div>
+        <div class="table-wrapper"><div id="table-batal"></div></div>
+        <div class="pagination" id="page-batal"></div>
+      </div>
+    </div>
+    
+  </div>
+
+  <div id="pbToast"></div>
+
+  <script>
+    let allData = [];
+    let invTotals = new Map();
+    let filesMap = new Map();
+    const ROWS_PER_PAGE = 100;
+    let currentTab = 'lengkap'; 
+
+    const tabState = {
+      lengkap:     { data: [], filtered: [], page: 1, search: '' },
+      cash_fitri:  { data: [], filtered: [], page: 1, search: '' },
+      cash_rupa:   { data: [], filtered: [], page: 1, search: '' },
+      tempo_fitri: { data: [], filtered: [], page: 1, search: '' },
+      tempo_rupa:  { data: [], filtered: [], page: 1, search: '' },
+      batal:       { data: [], filtered: [], page: 1, search: '' },
+    };
+
+    const menuBtn = document.getElementById('menuBtn');
+    const dropdown = document.getElementById('dropdown');
+    const globalSearch = document.getElementById('globalSearch');
+    const tabsContainer = document.getElementById('tabs');
+    const monthSel = document.getElementById('monthFilter');
+    let monthFilter = '';
+    let monthDefaultDone = false;
+    const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    function monthKey(t) {
+      const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      if (!m) return '';
+      const y = m[3].length === 2 ? '20' + m[3] : m[3];
+      return y + '-' + m[2].padStart(2, '0');
+    }
+    const salesSel = document.getElementById('salesFilter');
+    let salesFilter = '';
+    function sKey(r) { return String(r.Sales || '').trim().toUpperCase(); }
+    function populateSales() {
+      const m = new Map();
+      allData.forEach(r => {
+        if (monthFilter && monthKey(r.Tanggal) !== monthFilter) return;
+        const k = sKey(r);
+        if (!m.has(k)) m.set(k, String(r.Sales || '').trim() || '(tanpa sales)');
+      });
+      if (salesFilter && !m.has(salesFilter)) salesFilter = '';
+      const arr = Array.from(m.entries()).sort((a, b) => a[1].localeCompare(b[1], 'id'));
+      salesSel.innerHTML = '<option value="">Semua Sales</option>' + arr.map(e => '<option value="' + e[0].replace(/"/g, '&quot;') + '">' + e[1].replace(/</g, '&lt;') + '</option>').join('');
+      salesSel.value = salesFilter;
+    }
+    function invalidateAll() { for (const k in tabState) { tabState[k].dirty = true; tabState[k].page = 1; } }
+    salesSel.addEventListener('change', () => {
+      salesFilter = salesSel.value;
+      invalidateAll();
+      renderTab(currentTab);
+    });
+    function populateMonths() {
+      const set = new Set();
+      allData.forEach(r => { const k = monthKey(r.Tanggal); if (k) set.add(k); });
+      const keys = [...set].sort();
+      if (monthFilter && !set.has(monthFilter)) monthFilter = '';
+      if (!monthDefaultDone && keys.length) { monthFilter = keys[keys.length - 1]; monthDefaultDone = true; }
+      monthSel.innerHTML = '<option value="">Semua Bulan</option>' + keys.map(k => {
+        const [y, mo] = k.split('-');
+        return '<option value="' + k + '">' + BULAN[parseInt(mo, 10) - 1] + ' ' + y + '</option>';
+      }).join('');
+      monthSel.value = monthFilter;
+    }
+    monthSel.addEventListener('change', () => {
+      monthFilter = monthSel.value;
+      populateSales();
+      invalidateAll();
+      renderTab(currentTab);
+    });
+
+    // Menu Dropdown Logic
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+    });
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && e.target !== menuBtn) {
+        dropdown.classList.remove('open');
+      }
+    });
+
+    const fileInput = document.getElementById('fileInput');
+    fileInput.addEventListener('change', () => {
+      handleFiles(fileInput.files);
+      fileInput.value = '';
+    });
+
+    // Event untuk Search Box Global
+    let _qT;
+    globalSearch.addEventListener('input', () => {
+      clearTimeout(_qT);
+      _qT = setTimeout(() => {
+        const st = tabState[currentTab];
+        st.search = globalSearch.value.trim().toLowerCase();
+        st.page = 1;
+        applyFilter(currentTab);
+        st.dirty = false;
+        renderTab(currentTab);
+      }, 250);
+    });
+
+
+    // ===== Penyimpanan permanen (IndexedDB) =====
+    const PJ_DB = 'pj-v1', PJ_ST = 'pj-data';
+    function pjOpen() {
+      return new Promise((ok, no) => {
+        const r = indexedDB.open(PJ_DB, 1);
+        r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(PJ_ST)) r.result.createObjectStore(PJ_ST); };
+        r.onsuccess = () => { const db = r.result; db.onversionchange = () => db.close(); ok(db); };
+        r.onerror = () => no(r.error);
+      });
+    }
+    function abToB64(buf) {
+      const u = new Uint8Array(buf); let s = '';
+      for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+      return btoa(s);
+    }
+    function b64ToAb(b64) {
+      const s = atob(b64), u = new Uint8Array(s.length);
+      for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+      return u.buffer;
+    }
+    async function savePJ() {
+      try {
+        const files = [];
+        for (const [name, buf] of filesMap) files.push({ name, buf });
+        const db = await pjOpen();
+        await new Promise((ok, no) => {
+          const tx = db.transaction(PJ_ST, 'readwrite');
+          tx.objectStore(PJ_ST).put({ files }, 'latest');
+          tx.oncomplete = ok; tx.onerror = tx.onabort = () => no(tx.error);
+        });
+        db.close();
+        try { new BroadcastChannel('laporan-data').postMessage('penjualan'); } catch (e) {}
+      } catch (e) { console.error('Gagal menyimpan data penjualan:', e); }
+    }
+    async function loadPJ() {
+      try {
+        const db = await pjOpen();
+        const v = await new Promise((ok, no) => {
+          const r = db.transaction(PJ_ST).objectStore(PJ_ST).get('latest');
+          r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+        });
+        db.close();
+        if (v && v.files && v.files.length) {
+          for (const f of v.files) filesMap.set(f.name, f.buf || b64ToAb(f.b64));
+          renderFileListMenu();
+          processAllFiles();
+        }
+      } catch (e) { console.error('Gagal memuat data penjualan:', e); }
+    }
+
+    async function handleFiles(fileList) {
+      for (const file of fileList) {
+        if (!file.name.match(/\.(xlsx|xls)$/i)) continue;
+        const buffer = await file.arrayBuffer();
+        filesMap.set(file.name, buffer);
+      }
+      renderFileListMenu();
+      processAllFiles();
+      savePJ();
+      dropdown.classList.remove('open');
+    }
+
+    function removeFile(name) {
+      if (!confirm('Hapus data dari file "' + name + '"?')) return;
+      filesMap.delete(name);
+      renderFileListMenu();
+      processAllFiles();
+      savePJ();
+    }
+
+    function clearAllData() {
+      if (!confirm('Hapus SEMUA data yang sudah diupload?\n\n(Pembatalan faktur dan perubahan harga beli tetap tersimpan.)')) return;
+      filesMap.clear();
+      renderFileListMenu();
+      processAllFiles();
+      savePJ();
+      dropdown.classList.remove('open');
+    }
+
+    function renderFileListMenu() {
+      const el = document.getElementById('fileListMenu');
+      const clearSec = document.getElementById('clearAllSection');
+      if (filesMap.size === 0) {
+        el.innerHTML = '<div class="empty-files">Belum ada file</div>';
+        clearSec.style.display = 'none';
+        return;
+      }
+      clearSec.style.display = 'block';
+      let html = '';
+      for (const name of filesMap.keys()) {
+        const safe = name.replace(/'/g, "\\'");
+        html += '<div class="file-row">' +
+          '<span class="fname" title="' + name + '">📄 ' + name + '</span>' +
+          '<button class="del-btn" title="Hapus data bulan ini" onclick="removeFile(\'' + safe + '\')">×</button>' +
+          '</div>';
+      }
+      el.innerHTML = html;
+    }
+
+    // ===== Cache hasil parse per file =====
+    const PC_DB = 'pj-parse-v1', PC_ST = 'c', PC_VER = 'p1';
+    let parsedMem = null;
+    let _pjRun = 0;
+    function pcOpen() {
+      return new Promise((ok, no) => {
+        const q = indexedDB.open(PC_DB, 1);
+        q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains(PC_ST)) q.result.createObjectStore(PC_ST); };
+        q.onsuccess = () => { const db = q.result; db.onversionchange = () => db.close(); ok(db); };
+        q.onerror = () => no(q.error);
+      });
+    }
+    async function pcLoad() {
+      if (parsedMem) return parsedMem;
+      parsedMem = {};
+      try {
+        const db = await pcOpen();
+        const v = await new Promise((ok, no) => {
+          const r = db.transaction(PC_ST).objectStore(PC_ST).get('parsed');
+          r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+        });
+        db.close();
+        if (v && v.ver === PC_VER && v.files) parsedMem = v.files;
+      } catch (e) { console.warn('Cache parse penjualan tidak terbaca:', e); }
+      return parsedMem;
+    }
+    async function pcSave() {
+      try {
+        const db = await pcOpen();
+        await new Promise((ok, no) => {
+          const tx = db.transaction(PC_ST, 'readwrite');
+          tx.objectStore(PC_ST).put({ ver: PC_VER, files: parsedMem }, 'parsed');
+          tx.oncomplete = ok; tx.onerror = tx.onabort = () => no(tx.error);
+        });
+        db.close();
+        /* beri tahu CEK SETELAH hasil parse tersimpan (savePJ memberi sinyal lebih awal, sebelum parse selesai) */
+        try { const bc = new BroadcastChannel('laporan-data'); bc.postMessage('penjualan'); bc.close(); } catch (e) {}
+      } catch (e) { console.warn('Cache parse penjualan gagal disimpan:', e); }
+    }
+    function bufFp(buf) {
+      const u = new Uint8Array(buf); let h = 2166136261;
+      for (let i = 0; i < u.length; i++) { h ^= u[i]; h = Math.imul(h, 16777619); }
+      return u.length + ':' + (h >>> 0).toString(36);
+    }
+
+    async function processAllFiles() {
+      const my = ++_pjRun;
+      allData = [];
+      
+      if (filesMap.size === 0) {
+        monthFilter = ''; monthDefaultDone = false; salesFilter = '';
+        document.getElementById('mainContent').style.display = 'none';
+        document.getElementById('welcome').style.display = 'block';
+        tabsContainer.style.display = 'none';
+        globalSearch.style.display = 'none';
+        monthSel.style.display = 'none';
+        salesSel.style.display = 'none';
+        return;
+      }
+      
+      document.getElementById('welcome').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+      tabsContainer.style.display = 'flex';
+      globalSearch.style.display = 'block';
+      monthSel.style.display = 'block';
+      salesSel.style.display = 'block';
+
+      // Reset filter Data Lengkap supaya data baru langsung tampil semua
+      const pf = document.getElementById('payFilter'); if (pf) pf.value = '';
+      const rf = document.getElementById('prodFilter'); if (rf) rf.value = '';
+
+      const cache = await pcLoad();
+      if (my !== _pjRun) return;
+      let cacheDirty = false;
+      const seenNames = new Set();
+      for (const [name, buffer] of filesMap) {
+        try {
+          const fp = bufFp(buffer);
+          seenNames.add(name);
+          const hit = cache[name];
+          if (hit && hit.fp === fp && Array.isArray(hit.rows)) {
+            for (const rw of hit.rows) allData.push(rw);
+            continue;
+          }
+          const fileRows = [];
+          const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+          const sheetName = wb.SheetNames[0];
+          const sheet = wb.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
+
+          rows.forEach(r => {
+            let prodName = String(r['Produk'] || '').trim();
+            prodName = prodName.replace(/\bBOTOL\b/gi, '').replace(/\bBTL\b/gi, '').replace(/\s+/g, ' ').trim();
+
+            const row = {
+              Tanggal: parseDate(r['Tanggal'] || r['tanggal'] || ''),
+              'No. Faktur': String(r['No. Faktur'] || r['No Faktur'] || r['No.Faktur'] || '').trim(),
+              Produk: prodName,
+              Jumlah: toNum(r['Jumlah']),
+              Satuan: String(r['Satuan'] || '').trim(),
+              'Harga Beli': toNum(r['Harga Beli'] || r['HargaBeli']),
+              Discount: toNum(r['Discount'] || r['Diskon'] || 0),
+              'Harga Jual': toNum(r['Harga Jual'] || r['HargaJual']),
+              Total: toNum(r['Total']),
+              Sales: String(r['Sales'] || '').trim(),
+              Customer: String(r['Customer'] || '').trim(),
+              'Kd Customer': String(r['Kd Customer'] || r['KdCustomer'] || '').trim(),
+              Alamat: String(r['Alamat'] || '').trim(),
+              Pembayaran: String(r['Pembayaran'] || '').trim(),
+              _source: name
+            };
+            if (row['No. Faktur'] || row.Produk) { allData.push(row); fileRows.push(row); }
+          });
+          cache[name] = { fp, rows: fileRows };
+          cacheDirty = true;
+        } catch (err) {
+          console.error('Error parsing', name, err);
+          alert('Gagal membaca file: ' + name + '\n' + err.message);
+        }
+      }
+
+      for (const k of Object.keys(cache)) if (!seenNames.has(k)) { delete cache[k]; cacheDirty = true; }
+      if (cacheDirty) pcSave();
+
+      applyHargaOverrides();
+      allData.sort((a, b) => {
+        const da = sortKey(a.Tanggal);
+        const db = sortKey(b.Tanggal);
+        if (da !== db) return da < db ? 1 : -1;
+        return (a['No. Faktur'] || '').localeCompare(b['No. Faktur'] || '');
+      });
+
+      buildTabData();
+      hbPopulate();
+      globalSearch.value = '';
+      renderTab(currentTab);
+    }
+
+    function sortKey(t) {
+      const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      if (!m) return String(t || '');
+      const y = m[3].length === 2 ? '20' + m[3] : m[3];
+      return y + m[2].padStart(2, '0') + m[1].padStart(2, '0');
+    }
+
+    function parseDate(val) {
+      if (!val && val !== 0) return '';
+      if (val instanceof Date && !isNaN(val.getTime())) return formatDate(val);
+      if (typeof val === 'number' && val > 20000 && val < 80000) {
+        const excelEpoch = new Date(1899, 11, 30);
+        const date = new Date(excelEpoch.getTime() + Math.round(val) * 86400000);
+        return formatDate(date);
+      }
+      if (typeof val === 'string') {
+        const s = val.trim().split(/\s+/)[0];
+        const n = Number(s);
+        if (!isNaN(n) && n > 20000 && n < 80000 && !/[\/-]/.test(s)) {
+          const excelEpoch = new Date(1899, 11, 30);
+          const date = new Date(excelEpoch.getTime() + Math.round(n) * 86400000);
+          return formatDate(date);
+        }
+        let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if (m) {
+          return String(+m[3]).padStart(2,'0') + '/' + String(+m[2]).padStart(2,'0') + '/' + m[1].slice(-2);
+        }
+        m = s.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})$/);
+        if (m) {
+          let d = +m[1], mo = +m[2], y = m[3];
+          if (y.length === 4) y = y.slice(-2);
+          if (d > 12 && mo <= 12) { }
+          else if (mo > 12 && d <= 12) { const t = d; d = mo; mo = t; }
+          return String(d).padStart(2,'0') + '/' + String(mo).padStart(2,'0') + '/' + y;
+        }
+        return s;
+      }
+      return String(val);
+    }
+
+    function formatDate(d) {
+      return String(d.getDate()).padStart(2,'0') + '/' +
+             String(d.getMonth()+1).padStart(2,'0') + '/' +
+             String(d.getFullYear()).slice(-2);
+    }
+
+    function toNum(v) {
+      if (v === null || v === undefined || v === '') return 0;
+      if (typeof v === 'number') return v;
+      const n = parseFloat(String(v).replace(/,/g, ''));
+      return isNaN(n) ? 0 : n;
+    }
+
+    function formatNum(n) {
+      if (n === null || n === undefined || n === '') return '';
+      return Number(n).toLocaleString('id-ID');
+    }
+
+    /* ===== Aturan klasifikasi ===== */
+    const MINYAK_RE = /FITRI/i;
+    const isCash  = r => /^cash$/i.test(String(r.Pembayaran || '').trim());
+    const isTempo = r => /^tempo$/i.test(String(r.Pembayaran || '').trim());
+
+    function buildTabData() {
+      analyzeInvoices();
+
+      // Total per faktur dihitung dari SELURUH item (tanpa filter apapun)
+      invTotals = new Map();
+      allData.forEach(r => {
+        const k = fkey(r);
+        if (!k) return;
+        invTotals.set(k, (invTotals.get(k) || 0) + (Number(r.Total) || 0));
+      });
+
+      const MNYK = r => MINYAK_RE.test(String(r.Produk || ''));
+      const CASH = r => isCash(r);
+      const TMPO = r => isTempo(r);
+
+      tabState.lengkap.data     = allData;
+      tabState.cash_fitri.data  = allData.filter(r => CASH(r) && MNYK(r));
+      tabState.cash_rupa.data   = allData.filter(r => CASH(r) && !MNYK(r));
+      tabState.tempo_fitri.data = allData.filter(r => TMPO(r) && MNYK(r));
+      tabState.tempo_rupa.data  = allData.filter(r => TMPO(r) && !MNYK(r));
+
+      for (const key of Object.keys(tabState)) {
+        tabState[key].filtered = tabState[key].data;
+        tabState[key].page = 1;
+        tabState[key].search = '';
+        tabState[key].dirty = true;
+      }
+      populateMonths();
+      populateSales();
+    }
+
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        
+        currentTab = btn.dataset.tab;
+        document.getElementById('tab-' + currentTab).classList.add('active');
+        
+        globalSearch.value = tabState[currentTab].search;
+        renderTab(currentTab);
+      });
+    });
+
+    function applyFilter(key) {
+      const st = tabState[key];
+      const q = st.search;
+      let base = monthFilter ? st.data.filter(r => (r.orphan && !r.Tanggal) || monthKey(r.Tanggal) === monthFilter) : st.data;
+      if (salesFilter) base = base.filter(r => (r.orphan && !r.Sales) || sKey(r) === salesFilter);
+
+      if (key === 'lengkap') {
+        const pay = document.getElementById('payFilter')?.value || '';
+        const prod = document.getElementById('prodFilter')?.value || '';
+        if (pay === 'CASH') base = base.filter(r => isCash(r));
+        else if (pay === 'TEMPO') base = base.filter(r => isTempo(r));
+        if (prod === 'MINYAK') base = base.filter(r => MINYAK_RE.test(String(r.Produk || '')));
+        else if (prod === 'RUPA') base = base.filter(r => !MINYAK_RE.test(String(r.Produk || '')));
+      }
+
+      if (q) {
+        base = base.filter(r =>
+          (r.Produk || '').toLowerCase().includes(q) ||
+          (r.Customer || '').toLowerCase().includes(q) ||
+          (r['No. Faktur'] || '').toLowerCase().includes(q) ||
+          (r.Sales || '').toLowerCase().includes(q) ||
+          (r.Alamat || '').toLowerCase().includes(q) ||
+          (r['Kd Customer'] || '').toLowerCase().includes(q));
+      }
+
+      st.filtered = base;   // referensi, tanpa salinan
+      st.dirty = false;
+      if (key === 'batal') return;
+
+      // Baris pertama per faktur dihitung ulang dari hasil filter (indeks kemunculan pertama),
+      // supaya Tanggal/No. Faktur/Customer/TOTAL FAKTUR tidak kosong saat baris pertama
+      // faktur ikut tersembunyi oleh filter.
+      const fi = new Map();
+      for (let i = 0; i < base.length; i++) {
+        const k = fkey(base[i]);
+        if (k && !fi.has(k)) fi.set(k, i);
+      }
+      st.firstIdx = fi;
+    }
+
+    // Filter khusus tab Data Lengkap
+    document.getElementById('payFilter').addEventListener('change', () => {
+      tabState.lengkap.page = 1;
+      applyFilter('lengkap');
+      if (currentTab === 'lengkap') renderTab('lengkap');
+    });
+    document.getElementById('prodFilter').addEventListener('change', () => {
+      tabState.lengkap.page = 1;
+      applyFilter('lengkap');
+      if (currentTab === 'lengkap') renderTab('lengkap');
+    });
+
+    /* Card total: mengikuti tab aktif + filter bulan + pencarian. Faktur batal & faktur nol tidak dihitung. */
+    function updateKpi(key) {
+      const box = document.getElementById('kpiCards');
+      if (!box) return;
+      if (key === 'batal' || !tabState[key]) { box.style.display = 'none'; return; }
+      box.style.display = 'grid';
+      const rows = tabState[key].filtered || [];
+      let omzet = 0, hpp = 0, cash = 0, tempo = 0, n = 0, skipped = 0;
+      const per = new Map();
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i], k = fkey(r);
+        if (batalMap[k] || r._pair) { skipped++; continue; }
+        const t = Number(r.Total) || 0;
+        omzet += t;
+        hpp += (Number(r['Harga Beli']) || 0) * (Number(r.Jumlah) || 0);
+        if (r.Pembayaran === 'Cash') cash += t; else if (r.Pembayaran === 'Tempo') tempo += t;
+        per.set(k, (per.get(k) || 0) + t);
+        n++;
+      }
+      let nFak = 0;
+      per.forEach(v => { if (Math.abs(v) >= 1) nFak++; });
+      const profit = omzet - hpp;
+      const margin = omzet ? (profit / omzet * 100) : 0;
+      const R = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
+      const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+      set('kpiFaktur', nFak.toLocaleString('id-ID'));
+      set('kpiFakturSub', n.toLocaleString('id-ID') + ' baris item' + (skipped ? ' • ' + skipped.toLocaleString('id-ID') + ' baris batal tidak dihitung' : ''));
+      set('kpiJual', R(omzet));
+      set('kpiJualSub', 'Cash: ' + Math.round(cash).toLocaleString('id-ID') + ' • Tempo: ' + Math.round(tempo).toLocaleString('id-ID'));
+      set('kpiModal', R(hpp));
+      set('kpiProfit', R(profit));
+      set('kpiProfitSub', 'Margin ' + margin.toFixed(1).replace('.', ',') + '%');
+      const pb = document.getElementById('kpiProfitBox');
+      if (pb) pb.classList.toggle('pos', profit >= 0);
+    }
+
+    function renderTab(key) {
+      if (tabState[key].dirty) applyFilter(key);
+      updateKpi(key);
+      if (key === 'batal') { renderBatal(); return; }
+      const st = tabState[key];
+      const totalRows = st.filtered.length;
+      const totalPages = Math.max(1, Math.ceil(totalRows / ROWS_PER_PAGE));
+      if (st.page > totalPages) st.page = totalPages;
+      const start = (st.page - 1) * ROWS_PER_PAGE;
+      const pageData = st.filtered.slice(start, start + ROWS_PER_PAGE);
+
+      const container = document.getElementById('table-' + key);
+      if (totalRows === 0) {
+        container.innerHTML = '<div class="empty-msg">Tidak ada data</div>';
+        document.getElementById('page-' + key).innerHTML = '';
+        return;
+      }
+
+      let html = '<table><thead><tr>' +
+        '<th>Tanggal</th>' +
+        '<th>No. Faktur</th>' +
+        '<th>Produk</th>' +
+        '<th>Jumlah</th>' +
+        '<th>Satuan</th>' +
+        '<th>Harga Beli</th>' +
+        '<th>Discount</th>' +
+        '<th>Harga Jual</th>' +
+        '<th>Total</th>' +
+        '<th>TOTAL FAKTUR</th>' +
+        '<th>Sales</th>' +
+        '<th>Customer</th>' +
+        '<th>Kd Customer</th>' +
+        '<th>Alamat</th>' +
+        '<th>Pembayaran</th>' +
+        '</tr></thead><tbody>';
+
+      pageData.forEach((r, i) => {
+        const fk = fkey(r);
+        const show = !fk || st.firstIdx.get(fk) === start + i;
+        const totalFaktur = fk ? (invTotals.get(fk) || 0) : (Number(r.Total) || 0);
+        const rcls = batalMap[fk] ? 'row-batal' : (r._pair ? 'row-pair' : '');
+        html += '<tr' + (rcls ? ' class="' + rcls + '"' : '') + '>';
+        html += '<td class="center">' + (show ? (r.Tanggal || '') : '') + '</td>';
+        html += '<td class="center">' + (show ? (r['No. Faktur'] || '') : '') + '</td>';
+        html += '<td class="col-produk">' + (r.Produk || '') + '</td>'; 
+        html += '<td class="center">' + formatNum(r.Jumlah) + '</td>';
+        html += '<td class="center">' + (r.Satuan || '') + '</td>';
+        html += (r._hbOrig !== undefined ? '<td class="num hb-mod" title="Harga beli diubah (asal: ' + formatNum(r._hbOrig) + ')">' : '<td class="num">') + formatNum(r['Harga Beli']) + '</td>';
+        html += '<td class="center">' + formatNum(r.Discount) + '</td>';
+        html += '<td class="num">' + formatNum(r['Harga Jual']) + '</td>';
+        html += '<td class="num">' + formatNum(r.Total) + '</td>';
+        let totTxt = '';
+        if (show) {
+          totTxt = formatNum(totalFaktur);
+          if (batalMap[fk]) totTxt += '<span class="bd bd-batal">BATAL</span>';
+          else if (invKind[fk] === 'NOL') totTxt += '<span class="bd bd-nol" title="Total faktur nol — lihat tab Pelacak Batal">NOL</span>';
+          else if (invKind[fk] === 'PARSIAL') totTxt += '<span class="bd bd-parsial" title="Ada item yang dibatalkan (dicoret). Total sudah bersih.">ITEM BATAL</span>';
+        }
+        html += '<td class="num' + (show ? ' total-faktur-cell' : '') + '">' + totTxt + '</td>';
+        html += '<td class="center">' + (show ? (r.Sales || '') : '') + '</td>';
+        html += '<td class="col-customer">' + (show ? (r.Customer || '') : '') + '</td>';
+        html += '<td class="center">' + (show ? (r['Kd Customer'] || '') : '') + '</td>';
+        html += '<td class="col-alamat">' + (show ? (r.Alamat || '') : '') + '</td>';
+        html += '<td class="center">' + (show ? (r.Pembayaran || '') : '') + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+      renderPagination(key, totalPages);
+    }
+
+    function renderPagination(key, totalPages) {
+      const el = document.getElementById('page-' + key);
+      const st = tabState[key];
+      if (totalPages <= 1) { el.innerHTML = ''; return; }
+      let html = '';
+      html += '<button ' + (st.page === 1 ? 'disabled' : '') + ' onclick="goPage(\'' + key + '\', ' + (st.page - 1) + ')">‹</button>';
+      const maxButtons = 7;
+      let startP = Math.max(1, st.page - 3);
+      let endP = Math.min(totalPages, startP + maxButtons - 1);
+      if (endP - startP < maxButtons - 1) startP = Math.max(1, endP - maxButtons + 1);
+      if (startP > 1) {
+        html += '<button onclick="goPage(\'' + key + '\', 1)">1</button>';
+        if (startP > 2) html += '<span>…</span>';
+      }
+      for (let p = startP; p <= endP; p++) {
+        html += '<button class="' + (p === st.page ? 'active' : '') + '" onclick="goPage(\'' + key + '\', ' + p + ')">' + p + '</button>';
+      }
+      if (endP < totalPages) {
+        if (endP < totalPages - 1) html += '<span>…</span>';
+        html += '<button onclick="goPage(\'' + key + '\', ' + totalPages + ')">' + totalPages + '</button>';
+      }
+      html += '<button ' + (st.page === totalPages ? 'disabled' : '') + ' onclick="goPage(\'' + key + '\', ' + (st.page + 1) + ')">›</button>';
+      html += '<span>Halaman ' + st.page + ' / ' + totalPages + '</span>';
+      el.innerHTML = html;
+    }
+
+
+    /* ===================== PELACAK FAKTUR BATAL ===================== */
+    const PB_DB = 'pjbatal-v1', PB_ST = 'pjbatal-data';
+    let batalMap = {};
+    let invKind = {};
+    let batalSel = new Set();
+    function fkey(r) { return String(r['No. Faktur'] || '').trim().toUpperCase(); }
+    function normProd(s) { return String(s || '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+    function pbOpen() {
+      return new Promise((ok, no) => {
+        const q = indexedDB.open(PB_DB, 1);
+        q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains(PB_ST)) q.result.createObjectStore(PB_ST); };
+        q.onsuccess = () => { const db = q.result; db.onversionchange = () => db.close(); ok(db); };
+        q.onerror = () => no(q.error);
+      });
+    }
+    async function loadBatal() {
+      try {
+        const db = await pbOpen();
+        const v = await new Promise((ok, no) => {
+          const r = db.transaction(PB_ST, 'readonly').objectStore(PB_ST).get('latest');
+          r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+        });
+        db.close();
+        batalMap = (v && v.items) || {};
+      } catch (e) { console.error('Gagal memuat faktur batal:', e); }
+    }
+    async function saveBatal(quiet) {
+      const db = await pbOpen();
+      try {
+        await new Promise((ok, no) => {
+          const tx = db.transaction(PB_ST, 'readwrite');
+          tx.objectStore(PB_ST).put({ items: batalMap }, 'latest');
+          tx.oncomplete = ok; tx.onerror = tx.onabort = () => no(tx.error);
+        });
+      } finally { db.close(); }
+      if (!quiet) { try { const bc = new BroadcastChannel('laporan-data'); bc.postMessage('penjualan'); bc.close(); } catch (e) {} }
+    }
+    function pbToast(t) {
+      const e = document.getElementById('pbToast'); e.textContent = t; e.classList.add('show');
+      clearTimeout(pbToast._t); pbToast._t = setTimeout(() => e.classList.remove('show'), 2800);
+    }
+
+    function analyzeInvoices() {
+      const g = new Map();
+      allData.forEach(r => {
+        r._pair = false;
+        const k = fkey(r); if (!k) return;
+        if (!g.has(k)) g.set(k, []);
+        g.get(k).push(r);
+      });
+      invKind = {};
+      const list = [];
+      g.forEach((lines, k) => {
+        const total = lines.reduce((s, r) => s + r.Total, 0);
+        const pos = new Map();   // "produk|qty" -> [indeks baris positif]
+        lines.forEach((r, i) => {
+          if (!(r.Jumlah > 0)) return;
+          const kk = normProd(r.Produk) + '|' + Math.round(r.Jumlah * 1e6);
+          if (!pos.has(kk)) pos.set(kk, []);
+          pos.get(kk).push(i);
+        });
+        const used = new Set();
+        lines.forEach((n, ni) => {
+          if (!(n.Jumlah < 0) || used.has(ni)) return;
+          const cand = pos.get(normProd(n.Produk) + '|' + Math.round(-n.Jumlah * 1e6));
+          if (!cand) return;
+          for (const pi of cand) {
+            if (used.has(pi)) continue;
+            const p = lines[pi];
+            if (Math.abs(p.Total + n.Total) >= 1) continue;
+            used.add(pi); used.add(ni); p._pair = true; n._pair = true; break;
+          }
+        });
+        const isNol = Math.abs(total) < 1;
+        const pairs = lines.filter(r => r._pair);
+        if (!isNol && !pairs.length) return;
+        const f = lines[0];
+        const src = isNol ? lines.filter(r => r.Jumlah > 0) : pairs.filter(r => r.Jumlah > 0);
+        const nilai = src.reduce((s, r) => s + Math.abs(r.Total), 0);
+        const detail = (src.length ? src : lines).map(r => r.Produk + ' ×' + formatNum(Math.abs(r.Jumlah)) + ' (' + formatNum(Math.abs(r.Total)) + ')').join('; ');
+        invKind[k] = isNol ? 'NOL' : 'PARSIAL';
+        list.push({
+          kind: invKind[k], fk: k, Tanggal: f.Tanggal, 'No. Faktur': f['No. Faktur'], Customer: f.Customer, Sales: f.Sales,
+          Alamat: f.Alamat, 'Kd Customer': f['Kd Customer'], Pembayaran: f.Pembayaran, Produk: detail,
+          detail: detail, total: total, nilai: nilai, n: lines.length
+        });
+      });
+      let snapAdded = false;
+      Object.keys(batalMap).forEach(k => {
+        const ent = batalMap[k] || {};
+        if (invKind[k] === 'NOL') {
+          if (!ent.snap) { const e = list.find(x => x.fk === k); if (e) { ent.snap = snapOf(e); batalMap[k] = ent; snapAdded = true; } }
+          return;
+        }
+        const s = ent.snap || {}, lines = g.get(k), f = (lines && lines.length) ? lines[0] : s;
+        const now = (lines && lines.length) ? lines.reduce((a, r) => a + r.Total, 0) : null;
+        list.push({
+          kind: 'NOL', orphan: true, fk: k, Tanggal: f.Tanggal || '', 'No. Faktur': f['No. Faktur'] || s['No. Faktur'] || k,
+          Customer: f.Customer || s.Customer || '', Sales: f.Sales || s.Sales || '', Pembayaran: f.Pembayaran || s.Pembayaran || '',
+          detail: (now !== null ? 'Faktur di data sekarang bernilai Rp ' + formatNum(now) + ' (bukan nol lagi), pembatalan tetap berlaku. ' : 'Faktur tidak ada di file yang di-upload saat ini. ') + (s.detail || ''),
+          total: now !== null ? now : (s.total || 0), nilai: s.nilai || 0, n: lines ? lines.length : 0
+        });
+      });
+      if (snapAdded) saveBatal(true).catch(() => {});
+      list.sort((a, b) => { const x = sortKey(a.Tanggal), y = sortKey(b.Tanggal); return x === y ? a.fk.localeCompare(b.fk) : (x < y ? 1 : -1); });
+      tabState.batal.data = list;
+      updateBatalBadge();
+    }
+    function snapOf(e) { return { Tanggal: e.Tanggal, 'No. Faktur': e['No. Faktur'], Customer: e.Customer, Sales: e.Sales, Pembayaran: e.Pembayaran, detail: e.detail, nilai: e.nilai, total: e.total }; }
+    function pe(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function updateBatalBadge() {
+      const n = tabState.batal.data.filter(r => r.kind === 'NOL' && !batalMap[r.fk]).length;
+      document.getElementById('batalN').textContent = n ? String(n) : '';
+    }
+    function pbRows() {
+      const v = document.getElementById('pbView').value;
+      return tabState.batal.filtered.filter(r =>
+        v === 'ALL' ? true :
+        v === 'NOL_BELUM' ? (r.kind === 'NOL' && !batalMap[r.fk]) :
+        v === 'NOL_SUDAH' ? (r.kind === 'NOL' && !!batalMap[r.fk]) :
+        r.kind === 'PARSIAL');
+    }
+    function renderBatal() {
+      const st = tabState.batal, all = st.filtered;
+      const nolBelum = all.filter(r => r.kind === 'NOL' && !batalMap[r.fk]).length;
+      const nolSudah = all.filter(r => r.kind === 'NOL' && batalMap[r.fk]).length;
+      const parsial = all.filter(r => r.kind === 'PARSIAL').length;
+      const rows = pbRows();
+      const vis = new Set(rows.map(r => r.fk));
+      batalSel.forEach(k => { if (!vis.has(k)) batalSel.delete(k); });
+      document.getElementById('pbInfo').innerHTML =
+        'Faktur nol belum dibatalkan: <b>' + nolBelum + '</b> · sudah dibatalkan: <b>' + nolSudah + '</b> · batal sebagian: <b>' + parsial + '</b>. ' +
+        'Faktur <b>dibatalkan</b> dicoret dan tidak ikut dihitung di mana pun. Item batal sebagian (kedua barisnya) dicoret otomatis dan juga tidak dihitung. <b>Pembatalan tersimpan terpisah dari file Excel</b>: tetap berlaku walau file di-upload ulang atau dihapus.';
+      const canDo = [...batalSel].filter(k => !batalMap[k]).length, canUndo = [...batalSel].filter(k => batalMap[k]).length;
+      const bDo = document.getElementById('pbDo'), bUn = document.getElementById('pbUndo');
+      bDo.textContent = '✖ Batalkan terpilih (' + canDo + ')'; bDo.disabled = !canDo;
+      bUn.textContent = '↺ Kembalikan terpilih (' + canUndo + ')'; bUn.disabled = !canUndo;
+
+      const container = document.getElementById('table-batal');
+      const totalRows = rows.length;
+      const totalPages = Math.max(1, Math.ceil(totalRows / ROWS_PER_PAGE));
+      if (st.page > totalPages) st.page = totalPages;
+      if (!totalRows) { container.innerHTML = '<div class="empty-msg">Tidak ada faktur pada tampilan ini 👍</div>'; document.getElementById('page-batal').innerHTML = ''; return; }
+      const start = (st.page - 1) * ROWS_PER_PAGE;
+      let h = '<table><thead><tr><th></th><th>Jenis</th><th>Status</th><th>Tanggal</th><th>No. Faktur</th><th>Customer</th><th>Sales</th><th>Pembayaran</th><th>Rincian item</th><th>Nilai batal</th><th>Total faktur</th></tr></thead><tbody>';
+      for (const r of rows.slice(start, start + ROWS_PER_PAGE)) {
+        const cancelled = !!batalMap[r.fk];
+        const jenis = r.orphan ? '<span class="bd bd-batal">DIBATALKAN (ARSIP)</span>' : r.kind === 'NOL' ? '<span class="bd bd-nol">FAKTUR NOL</span>' : '<span class="bd bd-parsial">BATAL SEBAGIAN</span>';
+        const stat = r.kind === 'PARSIAL' ? 'Item dicoret otomatis' : (cancelled ? '<span class="bd bd-batal">SUDAH DIBATALKAN</span>' : 'Belum dibatalkan');
+        const chk = r.kind === 'NOL' ? '<input type="checkbox" data-fk="' + r.fk.replace(/"/g, '&quot;') + '"' + (batalSel.has(r.fk) ? ' checked' : '') + '>' : '';
+        h += '<tr' + (cancelled ? ' class="row-batal"' : '') + '><td class="center">' + chk + '</td><td>' + jenis + '</td><td>' + stat + '</td>' +
+          '<td class="center">' + pe(r.Tanggal) + '</td><td class="center">' + pe(r['No. Faktur']) + '</td><td class="col-customer">' + pe(r.Customer) + '</td>' +
+          '<td class="center">' + pe(r.Sales) + '</td><td class="center">' + pe(r.Pembayaran) + '</td><td class="wrap">' + pe(r.detail) + '</td>' +
+          '<td class="num">' + formatNum(r.nilai) + '</td><td class="num">' + formatNum(r.total) + '</td></tr>';
+      }
+      container.innerHTML = h + '</tbody></table>';
+      renderPagination('batal', totalPages);
+    }
+    document.getElementById('table-batal').addEventListener('change', e => {
+      const c = e.target; if (!c || !c.dataset || c.dataset.fk === undefined) return;
+      if (c.checked) batalSel.add(c.dataset.fk); else batalSel.delete(c.dataset.fk);
+      renderBatal();
+    });
+    document.getElementById('pbView').addEventListener('change', () => { tabState.batal.page = 1; batalSel.clear(); renderBatal(); });
+    document.getElementById('pbAll').addEventListener('click', () => { pbRows().forEach(r => { if (r.kind === 'NOL') batalSel.add(r.fk); }); renderBatal(); });
+    document.getElementById('pbNone').addEventListener('click', () => { batalSel.clear(); renderBatal(); });
+    async function pbApply(on) {
+      const ids = [...batalSel].filter(k => on ? !batalMap[k] : !!batalMap[k]);
+      if (!ids.length) return;
+      if (on && !confirm('Batalkan ' + ids.length + ' faktur?\n\nFaktur dicoret dan tidak ikut dihitung di mana pun. Bisa dikembalikan lagi.')) return;
+      ids.forEach(k => {
+        if (on) { const e = tabState.batal.data.find(x => x.fk === k); batalMap[k] = e ? { at: Date.now(), snap: snapOf(e) } : { at: Date.now() }; }
+        else delete batalMap[k];
+      });
+      batalSel.clear();
+      let saved = true;
+      try { await saveBatal(); } catch (e) { console.error(e); saved = false; }
+      updateBatalBadge();
+      for (const key of Object.keys(tabState)) tabState[key].dirty = true;
+      renderTab(currentTab);
+      pbToast(saved ? (on ? '✖ ' + ids.length + ' faktur dibatalkan' : '↺ ' + ids.length + ' faktur dikembalikan') : 'Berubah di layar, tapi gagal disimpan permanen');
+    }
+    document.getElementById('pbDo').addEventListener('click', () => pbApply(true));
+    document.getElementById('pbUndo').addEventListener('click', () => pbApply(false));
+
+    function goPage(key, page) {
+      tabState[key].page = page;
+      renderTab(key);
+      document.querySelector('#tab-' + key + ' .table-wrapper').scrollTop = 0;
+    }
+
+    window.goPage = goPage;
+    window.removeFile = removeFile;
+    window.clearAllData = clearAllData;
+
+    /* ===================== MENU RUBAH HARGA BELI ===================== */
+    const HB_DB = 'pjharga-v1', HB_ST = 'pjharga-data';
+    let hargaItems = [];
+    function hbOpenDb() {
+      return new Promise((ok, no) => {
+        const q = indexedDB.open(HB_DB, 1);
+        q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains(HB_ST)) q.result.createObjectStore(HB_ST); };
+        q.onsuccess = () => { const db = q.result; db.onversionchange = () => db.close(); ok(db); };
+        q.onerror = () => no(q.error);
+      });
+    }
+    async function loadHarga() {
+      try {
+        const db = await hbOpenDb();
+        const v = await new Promise((ok, no) => {
+          const r = db.transaction(HB_ST, 'readonly').objectStore(HB_ST).get('latest');
+          r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+        });
+        db.close();
+        hargaItems = (v && Array.isArray(v.items)) ? v.items : [];
+      } catch (e) { console.error('Gagal memuat perubahan harga beli:', e); hargaItems = []; }
+    }
+    async function saveHarga() {
+      const db = await hbOpenDb();
+      try {
+        await new Promise((ok, no) => {
+          const tx = db.transaction(HB_ST, 'readwrite');
+          tx.objectStore(HB_ST).put({ items: hargaItems }, 'latest');
+          tx.oncomplete = ok; tx.onerror = tx.onabort = () => no(tx.error);
+        });
+      } finally { db.close(); }
+      try { const bc = new BroadcastChannel('laporan-data'); bc.postMessage('penjualan'); bc.close(); } catch (e) {}
+    }
+    function applyHargaOverrides() {
+      if (!hargaItems.length) return;
+      allData = allData.map(r => {
+        const k = sortKey(r.Tanggal), pr = normProd(r.Produk);
+        let hb = null;
+        for (const o of hargaItems) { if (o.prod === pr && k >= o.start && k <= o.end) hb = o.harga; }
+        return hb === null ? r : Object.assign({}, r, { 'Harga Beli': hb, _hbOrig: r._hbOrig !== undefined ? r._hbOrig : r['Harga Beli'] });
+      });
+    }
+
+    const hbEl = id => document.getElementById(id);
+    const isoKey = v => String(v || '').replace(/-/g, '');
+    function ymdLabel(k) { return k && k.length === 8 ? k.slice(6) + '/' + k.slice(4, 6) + '/' + k.slice(2, 4) : ''; }
+    function hbParse(v) {
+      const s = String(v || '').replace(/[^0-9,]/g, '');
+      if (!s) return 0;
+      const n = parseFloat(s.replace(',', '.'));
+      return isNaN(n) ? 0 : n;
+    }
+    function hbPopulate() {
+      const sel = hbEl('hbProduk'); if (!sel) return;
+      const prev = sel.value;
+      const m = new Map();
+      allData.forEach(r => { const k = normProd(r.Produk); if (k && !m.has(k)) m.set(k, r.Produk); });
+      const arr = [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'id'));
+      sel.innerHTML = '<option value="">Pilih produk...</option>' +
+        arr.map(([k, n]) => '<option value="' + k.replace(/"/g, '&quot;') + '">' + n.replace(/</g, '&lt;') + '</option>').join('');
+      if (m.has(prev)) sel.value = prev;
+      hbRenderList(); hbPreview();
+    }
+    function hbMatches(startK, endK, prod) {
+      return allData.filter(r => { const k = sortKey(r.Tanggal); return normProd(r.Produk) === prod && k >= startK && k <= endK; });
+    }
+    function hbSetInfo(html, kind) { const e = hbEl('hbInfo'); e.className = 'hb-info' + (kind ? ' ' + kind : ''); e.innerHTML = html; }
+    function hbPreview() {
+      const s = isoKey(hbEl('hbStart').value), e = isoKey(hbEl('hbEnd').value), prod = hbEl('hbProduk').value;
+      if (!allData.length) { hbSetInfo('Belum ada data. Upload file Excel dulu.', 'warn'); return; }
+      if (!s || !e || !prod) { hbSetInfo('Pilih rentang tanggal + produk, isi harga beli baru.'); return; }
+      if (e < s) { hbSetInfo('Tanggal akhir tidak boleh sebelum tanggal mulai.', 'warn'); return; }
+      const rows = hbMatches(s, e, prod);
+      if (!rows.length) { hbSetInfo('Tidak ada penjualan produk ini pada rentang tanggal tersebut.', 'warn'); return; }
+      const hbs = rows.map(r => r['Harga Beli']);
+      const mn = Math.min(...hbs), mx = Math.max(...hbs);
+      const fk = new Set(rows.map(r => fkey(r))).size;
+      hbSetInfo('<b>' + rows.length + ' baris</b> (' + fk + ' faktur) akan diubah. Harga beli sekarang: <b>' + (mn === mx ? formatNum(mn) : formatNum(mn) + ' – ' + formatNum(mx)) + '</b>.');
+    }
+    function hbRenderList() {
+      const box = hbEl('hbList'); if (!box) return;
+      if (!hargaItems.length) { box.innerHTML = ''; return; }
+      const h = hargaItems.slice().reverse().map(o =>
+        '<div class="hb-item"><div class="t"><b>' + String(o.label || o.prod).replace(/</g, '&lt;') + '</b><br>' +
+        ymdLabel(o.start) + (o.start === o.end ? '' : ' – ' + ymdLabel(o.end)) + ' → <b>Rp ' + formatNum(o.harga) + '</b></div>' +
+        '<button type="button" data-hbdel="' + o.id + '" title="Batalkan perubahan ini (harga kembali ke data Excel)">↺ Batalkan</button></div>').join('');
+      box.innerHTML = '<h4 style="margin:.7rem 0 .25rem">Perubahan aktif (' + hargaItems.length + ')</h4>' + h;
+    }
+    async function hbApplyClick() {
+      const s = isoKey(hbEl('hbStart').value), e = isoKey(hbEl('hbEnd').value), prod = hbEl('hbProduk').value;
+      const harga = hbParse(hbEl('hbHarga').value);
+      if (!allData.length) { hbSetInfo('Belum ada data. Upload file Excel dulu.', 'warn'); return; }
+      if (!s || !e) { hbSetInfo('Isi tanggal mulai dan tanggal akhir.', 'warn'); return; }
+      if (e < s) { hbSetInfo('Tanggal akhir tidak boleh sebelum tanggal mulai.', 'warn'); return; }
+      if (!prod) { hbSetInfo('Pilih produk dulu.', 'warn'); return; }
+      if (!(harga > 0)) { hbSetInfo('Masukkan harga beli baru yang valid (lebih dari 0).', 'warn'); return; }
+      const rows = hbMatches(s, e, prod);
+      if (!rows.length) { hbSetInfo('Tidak ada penjualan produk ini pada rentang tanggal tersebut.', 'warn'); return; }
+      const label = rows[0].Produk;
+      if (!confirm('Ubah harga beli "' + label + '" menjadi Rp ' + formatNum(harga) + '?\n\nTanggal: ' + ymdLabel(s) + (s === e ? '' : ' s/d ' + ymdLabel(e)) + '\nBaris terpengaruh: ' + rows.length + '\n\nFile Excel asli tidak berubah, perubahan ini bisa dibatalkan.')) return;
+      hargaItems.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), start: s, end: e, prod: prod, label: label, harga: harga, n: rows.length, at: Date.now() });
+      let saved = true;
+      try { await saveHarga(); } catch (err) { console.error(err); saved = false; }
+      hbEl('hbHarga').value = '';
+      await processAllFiles();
+      hbSetInfo(saved ? '✓ Harga beli <b>' + String(label).replace(/</g, '&lt;') + '</b> diubah menjadi <b>Rp ' + formatNum(harga) + '</b> pada ' + rows.length + ' baris.' : 'Berubah di layar, tapi gagal disimpan permanen.', saved ? 'ok' : 'warn');
+      pbToast(saved ? '✓ Harga beli diubah (' + rows.length + ' baris)' : 'Gagal disimpan permanen');
+    }
+    async function hbUndo(id) {
+      const o = hargaItems.find(x => x.id === id); if (!o) return;
+      if (!confirm('Batalkan perubahan harga beli "' + (o.label || o.prod) + '" (Rp ' + formatNum(o.harga) + ')?\nHarga kembali ke data Excel.')) return;
+      hargaItems = hargaItems.filter(x => x.id !== id);
+      let saved = true;
+      try { await saveHarga(); } catch (err) { console.error(err); saved = false; }
+      await processAllFiles();
+      pbToast(saved ? '↺ Perubahan dibatalkan' : 'Berubah di layar, tapi gagal disimpan permanen');
+    }
+    (function hbInit() {
+      const sec = hbEl('hbSection');
+      sec.addEventListener('click', e => e.stopPropagation());
+      ['hbStart', 'hbEnd', 'hbProduk'].forEach(id => hbEl(id).addEventListener('change', hbPreview));
+      hbEl('hbHarga').addEventListener('input', e => {
+        let v = e.target.value.replace(/[^0-9,]/g, '');
+        const i = v.indexOf(',');
+        if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/,/g, '').slice(0, 2);
+        const ip = (i === -1 ? v : v.slice(0, i)).replace(/^0+(?=\d)/, '');
+        e.target.value = (ip ? Number(ip).toLocaleString('id-ID') : (i !== -1 ? '0' : '')) + (i === -1 ? '' : v.slice(i));
+      });
+      hbEl('hbHarga').addEventListener('keydown', e => { if (e.key === 'Enter') hbApplyClick(); });
+      hbEl('hbApply').addEventListener('click', hbApplyClick);
+      hbEl('hbList').addEventListener('click', e => { const b = e.target.closest('[data-hbdel]'); if (b) hbUndo(b.dataset.hbdel); });
+    })();
+
+    /* ===== Tab sebagai dropdown ===== */
+    (function tabDropdown() {
+      const sel = document.getElementById('tabSel');
+      const btns = () => Array.from(document.querySelectorAll('#tabs .tab'));
+      function sync() {
+        const bs = btns();
+        sel.innerHTML = bs.map(b => '<option value="' + b.dataset.tab + '">' + b.textContent.replace(/\s+/g, ' ').trim() + '</option>').join('');
+        const act = bs.find(b => b.classList.contains('active'));
+        if (act) sel.value = act.dataset.tab;
+      }
+      sel.addEventListener('change', () => {
+        const b = btns().find(x => x.dataset.tab === sel.value);
+        if (b) b.click();
+      });
+      const mo = new MutationObserver(sync);
+      btns().forEach(b => mo.observe(b, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] }));
+      sync();
+    })();
+
+    loadBatal().then(loadHarga).then(loadPJ);
+  </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
