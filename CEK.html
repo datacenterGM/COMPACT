@@ -60,7 +60,7 @@
 </head>
 <body>
 <div class="bar">
-  <span class="ttl">CEK PENJUALAN → UANG MASUK <small style="font-weight:400;color:var(--muted)">v2</small></span>
+  <span class="ttl">CEK PENJUALAN → UANG MASUK <small style="font-weight:400;color:var(--muted)">v3</small></span>
   <select id="fMonth" title="Bulan faktur penjualan"></select>
   <select id="fSales" title="Sales"><option value="">Semua Sales</option></select>
   <select id="fPay" title="Pembayaran"><option value="">Semua Pembayaran</option><option value="Tempo">Tempo</option><option value="Cash">Cash</option></select>
@@ -220,6 +220,13 @@ function build() {
   /* ---- Tahap 2: Uang Masuk yang No Fakturnya tidak ada di penjualan (kemungkinan salah ketik) ----
      dicocokkan ke faktur yang belum ada uang masuknya, lewat Customer, Alamat, Sales, Produk, Pembayaran, nominal & kemiripan No Faktur. */
   const orph = []; umBy.forEach((recs, k) => { if (!used.has(k)) orph.push({ k, recs, taken: false }); });
+  /* Uang Masuk yang No Fakturnya kebetulan sama dengan faktur LAIN (salah ketik jadi nomor faktur orang lain):
+     faktur itu ada, tapi nama tokonya jelas berbeda -> ikut dicarikan pasangan yang lebih tepat. */
+  const byFk = new Map(INV.map(r => [r.fk, r]));
+  used.forEach(k => {
+    const r = byFk.get(k); if (!r) return;
+    if (textCmp(r.customer, firstOf(r.um, x => x.nama_toko)) === 'DIFF') orph.push({ k, recs: r.um, taken: false, from: r });
+  });
   const cands = [];
   const open = INV.filter(r => !r.um.length);
   orph.forEach(o => {
@@ -242,19 +249,23 @@ function build() {
       if (wantSec(r.pay) && wantSec(r.pay) === sec) sc += 1;
       if (amt) sc += 2;
       if (U.size && [...U].every(p => r.S.has(p))) sc += 1;
-      if (sc >= 5) cands.push({ r, o, sc });
+      if (o.from ? (sc >= 8 && custOk && amt) : sc >= 5) cands.push({ r, o, sc });
     });
   });
   cands.sort((x, y) => y.sc - x.sc);
   cands.forEach(c => {
     if (c.o.taken || c.r.um.length) return;
     c.o.taken = true; c.r.um = c.o.recs; c.r.typoFaktur = firstOf(c.o.recs, r => r.no_faktur) || c.o.k;
+    if (c.o.from) { c.o.from.um = []; c.o.from.movedTo = c.r; c.o.from.movedToko = firstOf(c.o.recs, r => r.nama_toko); }
   });
 
-  INV.forEach(r => evaluate(r, r.S));
+  INV.forEach(r => {
+    evaluate(r, r.S);
+    if (r.movedTo) r.info = 'Belum ada uang masuk. Uang masuk dengan No Faktur ini ternyata milik faktur ' + r.movedTo.faktur + ' (' + r.movedToko + ') — salah ketik No Faktur di Uang Masuk';
+  });
 
   /* Uang Masuk yang tetap tidak menemukan faktur */
-  orph.filter(o => !o.taken).forEach(o => {
+  orph.filter(o => !o.taken && !o.from).forEach(o => {
     const f = o.recs[0], paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0), U = umProds(o.recs);
     const d0 = o.recs.map(r => r.tanggal_laporan_str).filter(Boolean).sort()[0] || '';
     const toko = firstOf(o.recs, r => r.nama_toko), alm = firstOf(o.recs, r => r.alamat), sls = firstOf(o.recs, r => r.sales);
