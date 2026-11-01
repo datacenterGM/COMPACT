@@ -167,9 +167,41 @@
             color: #00d2ff; 
             text-shadow: 0 0 10px rgba(0, 210, 255, 0.8);
         }
+        /* Tombol Backup / Sync (pojok kanan atas) */
+        .bk-fab {
+            position: fixed;
+            top: calc(env(safe-area-inset-top, 0px) + 12px);
+            right: 12px;
+            z-index: 50;
+            width: 40px; height: 40px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.04);
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .bk-fab:hover, .bk-fab:focus-visible {
+            border-color: rgba(0, 210, 255, 0.7);
+            background: rgba(0, 210, 255, 0.1);
+            box-shadow: 0 0 18px rgba(0, 210, 255, 0.25);
+            outline: none;
+        }
+        .bk-fab .dot {
+            position: absolute; top: 5px; right: 5px;
+            width: 9px; height: 9px; border-radius: 50%;
+            background: #64748b; border: 2px solid #030303;
+        }
+        .bk-fab .dot.ok { background: #10b981; }
+        .bk-fab .dot.busy { background: #3b82f6; }
+        .bk-fab .dot.warn { background: #f59e0b; }
+        .bk-fab .dot.err { background: #ef4444; }
     </style>
 </head>
 <body>
+
+    <button type="button" class="bk-fab" id="bkFab" title="Backup / Sync" aria-label="Backup dan Sync">☁️<span class="dot" id="bkDot"></span></button>
 
     <main class="menu-container">
         
@@ -207,6 +239,21 @@
 
     </main>
 
+    <script src="backup.js"></script>
+    <script>
+        /* Ikon Backup / Sync: buka panel + titik status.
+           Awal: berdasarkan umur backup/sync terakhir (>7 hari = merah). Setelah mesin sinkron berjalan, ikut statusnya. */
+        (function () {
+            const fab = document.getElementById('bkFab'), dot = document.getElementById('bkDot');
+            const set = k => { dot.className = 'dot ' + k; };
+            fab.addEventListener('click', () => window.LaporanBackup && window.LaporanBackup.open());
+            let last = 0;
+            try { last = Math.max(Date.parse(localStorage.getItem('bkLast')) || 0, Date.parse(localStorage.getItem('syncLast')) || 0); } catch (e) {}
+            set(!last ? 'warn' : (Date.now() - last > 7 * 864e5 ? 'err' : 'ok'));
+            window.addEventListener('laporan-sync-state', e => set((e.detail && e.detail.kind) || 'busy'));
+            if (window.LaporanBackup && window.LaporanBackup.last) set(window.LaporanBackup.last.kind);
+        })();
+    </script>
     <script>
         /* Pasang service worker sejak halaman menu, supaya semua halaman ikut tersimpan untuk offline */
         if ('serviceWorker' in navigator) {

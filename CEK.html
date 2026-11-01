@@ -84,6 +84,7 @@
 <body>
 <div class="bar">
   <a class="btn" href="index.html" title="Kembali ke Dashboard (menu utama)" style="text-decoration:none">🏠 Dashboard</a>
+  <button class="btn" type="button" title="Backup / Sync semua data" onclick="window.LaporanBackup&&LaporanBackup.open()">☁️</button>
   <select id="fBasis" title="Bulan dihitung berdasarkan apa"><option value="F">Bulan: tanggal faktur</option><option value="U">Bulan: tanggal uang masuk</option></select>
   <select id="fMonth" title="Bulan"></select>
   <select id="fSales" title="Sales"><option value="">Semua Sales</option></select>
@@ -544,5 +545,6 @@ document.addEventListener('visibilitychange', reloadIfStale);
 window.addEventListener('focus', reloadIfStale);
 loadData();
 </script>
+<script src="backup.js"></script>
 </body>
 </html>

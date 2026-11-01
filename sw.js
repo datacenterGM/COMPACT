@@ -1,8 +1,8 @@
 /* Service worker — Laporan (PWA). Naikkan VERSION setiap kali salah satu file HTML diganti agar cache lama dibuang. */
-const VERSION = 'laporan-v4';
+const VERSION = 'laporan-v5';
 
 /* File aplikasi sendiri (di-cache saat pertama kali dipasang) */
-const SHELL = ['./', 'index.html', 'UM.html', 'PJ.html', 'CEK.html', 'AR.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
+const SHELL = ['./', 'index.html', 'UM.html', 'PJ.html', 'CEK.html', 'AR.html', 'backup.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
   'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png', 'favicon-16.png'];
 
 /* Pustaka dari internet yang dipakai aplikasi. Semuanya diunduh SEKALI saat service worker dipasang,

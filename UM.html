@@ -501,6 +501,9 @@
           <button class="menu-item" onclick="exportExcelByFilter(); closeMenu();">
             📊 Export Excel (Bulan Aktif)
           </button>
+          <button class="menu-item" onclick="window.LaporanBackup&&LaporanBackup.open(); closeMenu();">
+            ☁️ Backup &amp; Sync Semua Data
+          </button>
           <button class="menu-item" onclick="exportAllJSON(); closeMenu();">
             ⬇️ Export Backup (JSON)
           </button>
@@ -3854,4 +3857,5 @@ function toggleMenu(e) {
     }
   </script>
 
+<script src="backup.js"></script>
 </body></html>

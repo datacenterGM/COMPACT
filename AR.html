@@ -264,6 +264,7 @@ tbody td{color:#000!important}
 <div class="menu-dropdown" id="menuDropdown">
 <div class="menu-item" id="btnExportExcel" role="button"><span>📥 Export Excel</span></div>
 <div class="menu-item" id="btnCetak" role="button"><span>🖨 Cetak</span></div>
+<div class="menu-item" id="btnBackupSync" role="button" onclick="window.LaporanBackup&&LaporanBackup.open()"><span>☁️ Backup / Sync</span></div>
 <div class="menu-item" id="toggleTotalsBtn" role="button"><span>👁️ Sembunyikan Ringkasan</span></div>
 <div class="menu-divider"></div>
 <label class="menu-item" id="uploadBtnA"><span>📄 Upload Minyak</span><input type="file" accept=".xlsx" id="fileA"></label>
@@ -1326,5 +1327,6 @@ if('serviceWorker' in navigator){
 }
 console.log('[AR] script end (ok)');
 </script>
+<script src="backup.js"></script>
 </body>
 </html>
