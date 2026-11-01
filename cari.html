@@ -175,14 +175,22 @@
     .empty-msg .icon { font-size: 2rem; opacity: 0.45; margin-bottom: 8px; }
 
     .badge {
-      display: inline-block; padding: 1px 7px; border-radius: 5px;
-      font-size: 0.68rem; font-weight: 600;
+      display: inline-block; padding: 2px 8px; border-radius: 5px;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.02em;
+      border: 1px solid transparent;
     }
-    .badge-lunas { background: rgba(34,197,94,0.2); color: #86efac; }
-    .badge-titip { background: rgba(245,158,11,0.2); color: #fcd34d; }
-    .badge-tf { background: rgba(59,130,246,0.2); color: #93c5fd; }
-    .badge-cash { background: rgba(34,197,94,0.18); color: #86efac; }
-    .badge-tempo { background: rgba(245,158,11,0.18); color: #fcd34d; }
+    /* Mode terang: teks gelap + background pastel agar terbaca */
+    .badge-lunas { background: #dcfce7; color: #166534; border-color: #86efac; }
+    .badge-titip { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .badge-tf    { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+    .badge-cash  { background: #dcfce7; color: #166534; border-color: #86efac; }
+    .badge-tempo { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+    /* Mode gelap: teks terang */
+    html[data-theme="dark"] .badge-lunas { background: rgba(34,197,94,0.22); color: #86efac; border-color: rgba(34,197,94,0.45); }
+    html[data-theme="dark"] .badge-titip { background: rgba(245,158,11,0.22); color: #fcd34d; border-color: rgba(245,158,11,0.45); }
+    html[data-theme="dark"] .badge-tf    { background: rgba(59,130,246,0.22); color: #93c5fd; border-color: rgba(59,130,246,0.45); }
+    html[data-theme="dark"] .badge-cash  { background: rgba(34,197,94,0.22); color: #86efac; border-color: rgba(34,197,94,0.45); }
+    html[data-theme="dark"] .badge-tempo { background: rgba(249,115,22,0.22); color: #fdba74; border-color: rgba(249,115,22,0.45); }
 
     .hint {
       background: var(--card); border: 1px dashed var(--border);
