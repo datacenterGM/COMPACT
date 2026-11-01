@@ -56,11 +56,26 @@
   .pager button { border:1px solid var(--border); background:var(--card); color:var(--primary); border-radius:5px; padding:.15rem .6rem; font-weight:700; cursor:pointer; }
   .pager button:disabled { opacity:.4; cursor:not-allowed; }
   .rule { font-size:.7rem; color:var(--muted); padding:0 .7rem .4rem; flex-shrink:0; line-height:1.4; }
+  tr.clk { cursor:pointer; }
+  .ov { display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.55); align-items:center; justify-content:center; padding:12px; }
+  .ov.show { display:flex; }
+  .mbox { background:var(--card); color:var(--text); width:min(100%,820px); max-height:94vh; overflow:auto; border-radius:12px; border:1px solid var(--border); }
+  .mhead { display:flex; justify-content:space-between; align-items:center; padding:.7rem 1rem; background:var(--th2); color:#fff; font-weight:700; border-radius:12px 12px 0 0; }
+  .mhead button { background:none; border:0; color:#fff; font-size:1.1rem; cursor:pointer; }
+  .mbody { padding:.9rem 1rem; }
+  .kv { display:grid; grid-template-columns:repeat(4,1fr); gap:.5rem .9rem; margin-bottom:.8rem; }
+  .kv span { display:block; font-size:.66rem; color:var(--muted); } .kv b { font-weight:600; word-break:break-word; }
+  .mbody h4 { font-size:.72rem; color:var(--primary); text-transform:uppercase; letter-spacing:.4px; margin:.7rem 0 .3rem; }
+  .mt { width:100%; border-collapse:collapse; font-size:.74rem; } .mt th { background:var(--th2); color:#fff; padding:.25rem .4rem; text-align:left; } .mt td { padding:.22rem .4rem; border:1px solid var(--border); white-space:normal; }
+  .mbody textarea { width:100%; min-height:60px; padding:.5rem; border:1px solid var(--border); border-radius:6px; background:var(--input); color:var(--text); font:inherit; resize:vertical; }
+  .mfoot { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:.5rem; padding:.7rem 1rem; border-top:1px solid var(--border); }
+  .btn.ok { background:#059669; color:#fff; border-color:#059669; } .btn.warn { background:#d97706; color:#fff; border-color:#d97706; }
+  @media (max-width:640px) { .kv { grid-template-columns:repeat(2,1fr); } }
 </style>
 </head>
 <body>
 <div class="bar">
-  <span class="ttl">CEK PENJUALAN → UANG MASUK <small style="font-weight:400;color:var(--muted)">v4</small></span>
+  <span class="ttl">CEK PENJUALAN → UANG MASUK <small style="font-weight:400;color:var(--muted)">v5</small></span>
   <select id="fMonth" title="Bulan faktur penjualan"></select>
   <select id="fSales" title="Sales"><option value="">Semua Sales</option></select>
   <select id="fPay" title="Pembayaran"><option value="">Semua Pembayaran</option><option value="Tempo">Tempo</option><option value="Cash">Cash</option></select>
@@ -76,9 +91,15 @@
   <div class="chip c-no" data-f="NONE"><span>● Belum Masuk</span><span class="v" id="nNo">0</span></div>
   <div class="chip c-df" data-f="ORPH" title="Uang Masuk yang No Fakturnya tidak ditemukan / salah ketik"><span>✎ UM Tanpa Faktur</span><span class="v" id="nOr">0</span></div>
 </div>
-<div class="rule">Aturan pencocokan: No Faktur → Nama Toko = Customer · Alamat · Sales · Produk (FITRI = MINYAK, selain itu RUPA RUPA) · Pembayaran (Tempo → Piutang Tempo, Cash → Cash Dropping). Karena Uang Masuk sering salah ketik, perbedaan ejaan ditandai, dan Uang Masuk yang No Fakturnya salah tetap dicocokkan lewat Customer/Alamat/Sales/Produk/Pembayaran/nominal.</div>
+<div class="rule" id="cov"></div>
 <div class="wrap"><table id="tb"><thead></thead><tbody></tbody></table></div>
 <div class="pager" id="pg"></div>
+
+<div class="ov" id="ov"><div class="mbox">
+  <div class="mhead"><span id="mTitle">Detail</span><button type="button" id="mX">✕</button></div>
+  <div class="mbody" id="mBody"></div>
+  <div class="mfoot" id="mFoot"></div>
+</div></div>
 
 <script>
 /* ===== tema (ikut shell) ===== */
@@ -127,7 +148,7 @@ function liveVar(frame, name) {
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-let SALES_ROWS = [], UM_ROWS = [], BATAL = {}, INV = [];
+let SALES_ROWS = [], UM_ROWS = [], BATAL = {}, INV = [], APPROVED = {};
 async function loadData() {
   $('tb').querySelector('tbody').innerHTML = '<tr><td class="empty" colspan="10">Memuat data…</td></tr>';
   try { if (window.parent && window.parent.ensureFrame) { await Promise.all([window.parent.ensureFrame('penjualan'), window.parent.ensureFrame('uangmasuk')]); await sleep(1200); } } catch (e) {}
@@ -145,7 +166,10 @@ async function loadData() {
   let bm = liveVar('penjualan', 'batalMap');
   if (!bm || typeof bm !== 'object' || !Object.keys(bm).length) { const b = await idbGet('pjbatal-v1', 'pjbatal-data', 'latest'); bm = (b && b.items) || {}; }
   BATAL = bm;
+  const cm = await idbGet('cek-v1', 'cek-data', 'latest');
+  APPROVED = (cm && cm.items) || {};
   build();
+  coverage();
   populate();
   render();
 }
@@ -325,6 +349,9 @@ function evaluate(rec, S) {
     .map(r => dmy(r.tanggal_laporan_str) + ' ' + (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop') + ' ' + fmt(r.total_bayar)).join(' · ');
   /* TITIP murni (hanya belum lunas) bukan salah catat */
   rec.cat = issues.filter(i => !/^Baru dibayar/.test(i)).length ? 'DIFF' : 'OK';
+  rec.sig = issues.join('|');
+  const ap = APPROVED[rec.fk];
+  if (rec.cat === 'DIFF' && ap) { if (ap.sig === rec.sig) { rec.cat = 'OK'; rec.manual = ap; } else rec.reopened = ap; }
 }
 
 /* ===== filter & tampilan ===== */
@@ -364,13 +391,15 @@ function render() {
   const body = $('tb').querySelector('tbody');
   if (!SALES_ROWS.length) body.innerHTML = '<tr><td class="empty" colspan="10">Belum ada data Penjualan. Upload dulu di tab PENJUALAN (Menu → Upload File Excel), lalu klik ↻ Muat Ulang.</td></tr>';
   else if (!rows.length) body.innerHTML = '<tr><td class="empty" colspan="10">Tidak ada faktur pada filter ini</td></tr>';
-  else body.innerHTML = rows.map(r => {
+  else body.innerHTML = rows.map((r, k) => {
     const stc = r.status === 'LUNAS' ? 'lunas' : r.status === 'TITIP' ? 'titip' : r.orph ? 'orph' : 'none';
-    const ket = r.cat === 'NONE' ? '<span class="dim">' + esc(r.info) + '</span>'
-      : (r.issues.length ? r.issues.map(i => '<span class="x">' + esc(i) + '</span>').join('') + '<br>' : '<span class="good">Sesuai</span> ') + '<span class="dim">' + esc(r.info) + '</span>';
+    const clk = (r.cat === 'DIFF' || r.manual) ? ' clk" data-i="' + (st + k) + '" title="Klik untuk detail & aksi' : '';
+    const ket = r.manual ? '<span class="good">✓ Dicek manual: sesuai</span> <span class="dim">' + (r.manual.note ? esc(r.manual.note) + ' · ' : '') + esc(r.info) + '</span>'
+      : r.cat === 'NONE' ? '<span class="dim">' + esc(r.info) + '</span>'
+      : (r.issues.length ? (r.reopened ? '<span class="dim">(sebelumnya ditandai sesuai, tetapi data berubah)</span><br>' : '') + r.issues.map(i => '<span class="x">' + esc(i) + '</span>').join('') + '<br>' : '<span class="good">Sesuai</span> ') + '<span class="dim">' + esc(r.info) + '</span>';
     const cls = r.cat === 'ORPH' ? 'or' : r.cat === 'DIFF' ? 'df' : r.cat === 'NONE' ? 'no' : 'ok';
     const L = r.orph ? ['', '', '', '', '', '', '', ''] : [esc(r.tanggal), esc(r.faktur), fmt(r.total), esc(r.sales), esc(r.customer), esc(r.alamat), esc(r.prod), esc(r.pay)];
-    return '<tr class="r-' + cls + '">' +
+    return '<tr class="r-' + cls + clk + '">' +
       '<td class="ctr">' + L[0] + '</td><td class="ctr">' + L[1] + '</td><td class="num">' + L[2] + '</td>' +
       '<td class="ctr">' + L[3] + '</td><td>' + L[4] + '</td><td>' + L[5] + '</td>' +
       '<td class="ctr">' + L[6] + '</td><td class="ctr">' + L[7] + '</td>' +
@@ -388,6 +417,66 @@ document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () =
 $('pg').addEventListener('click', e => { const b = e.target.closest('button[data-p]'); if (b && !b.disabled) { state.page = +b.dataset.p; render(); document.querySelector('.wrap').scrollTop = 0; } });
 $('pg').addEventListener('change', e => { if (e.target.id === 'pgSize') { state.size = +e.target.value; state.page = 1; render(); } });
 $('bReload').addEventListener('click', () => loadData());
+
+/* ===== cakupan data ===== */
+function coverage() {
+  const mn = set => [...set].filter(Boolean).sort().map(m => MON[+m.slice(5) - 1].slice(0, 3) + ' ' + m.slice(0, 4)).join(', ') || '—';
+  const ps = new Set(SALES_ROWS.map(r => monthOf(r.Tanggal))), us = new Set(UM_ROWS.filter(r => r.titip_aksi !== 'BATAL').map(r => r.bulan));
+  $('cov').innerHTML = 'Data terbaca — Penjualan: <b>' + mn(ps) + '</b> (' + fmt(INV.filter(r => !r.orph).length) + ' faktur) · Uang Masuk: <b>' + mn(us) + '</b> (' + fmt(UM_ROWS.length) + ' baris). Jumlah kartu mengikuti filter bulan, sales, pembayaran & produk di atas.';
+}
+
+/* ===== penyimpanan keputusan manual (database cek-v1, ikut backup / sinkron) ===== */
+function idbPut(db, st, key, val) {
+  return new Promise((ok, no) => {
+    const put = d => { const tx = d.transaction(st, 'readwrite'); tx.objectStore(st).put(val, key); tx.oncomplete = () => { d.close(); ok(); }; tx.onerror = tx.onabort = () => { d.close(); no(tx.error); }; };
+    const r = indexedDB.open(db);
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(st)) r.result.createObjectStore(st); };
+    r.onerror = () => no(r.error);
+    r.onsuccess = () => {
+      const d = r.result; d.onversionchange = () => d.close();
+      if (d.objectStoreNames.contains(st)) return put(d);
+      const nv = d.version + 1; d.close();
+      const u = indexedDB.open(db, nv);
+      u.onupgradeneeded = () => u.result.createObjectStore(st);
+      u.onsuccess = () => put(u.result); u.onerror = () => no(u.error);
+    };
+  });
+}
+async function saveApproved() {
+  await idbPut('cek-v1', 'cek-data', 'latest', { items: APPROVED });
+  try { const bc = new BroadcastChannel('laporan-data'); bc.postMessage('cek'); bc.close(); } catch (e) {}
+}
+
+/* ===== modal detail & aksi ===== */
+let cur = null;
+const pnm = r => { const a = []; if ((+r.minyak_cash || 0) + (+r.minyak_tf || 0) > 0) a.push('Minyak ' + fmt((+r.minyak_cash || 0) + (+r.minyak_tf || 0))); if ((+r.rupa_cash || 0) + (+r.rupa_tf || 0) > 0) a.push('Rupa ' + fmt((+r.rupa_cash || 0) + (+r.rupa_tf || 0))); return a.join(' + ') || '-'; };
+function openModal(i) {
+  const r = VIEW[i]; if (!r) return; cur = r;
+  $('mTitle').textContent = 'Faktur ' + r.faktur + (r.manual ? ' — dicek manual: sesuai' : ' — ada selisih');
+  const kv = [['Tanggal', r.tanggal], ['No. Faktur', r.faktur], ['Total Faktur', fmt(r.total)], ['Pembayaran', r.pay], ['Customer', r.customer], ['Alamat', r.alamat], ['Sales', r.sales], ['Produk', r.prod]];
+  $('mBody').innerHTML = '<h4>Data Penjualan</h4><div class="kv">' + kv.map(x => '<div><span>' + x[0] + '</span><b>' + esc(x[1] || '-') + '</b></div>').join('') + '</div>' +
+    '<h4>Temuan</h4>' + (r.issues.length ? r.issues.map(x => '<div><span class="x">' + esc(x) + '</span></div>').join('') : '<div class="dim">—</div>') +
+    '<h4>Catatan Uang Masuk (' + r.um.length + ')</h4><table class="mt"><thead><tr><th>Tgl Laporan</th><th>Section</th><th>No Faktur UM</th><th>Nama Toko</th><th>Alamat</th><th>Sales</th><th>Produk</th><th>Bayar</th><th>Status</th></tr></thead><tbody>' +
+    r.um.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || '')).map(u =>
+      '<tr><td>' + dmy(u.tanggal_laporan_str) + '</td><td>' + (u.section === 'PIUTANG' ? 'Piutang Tempo' : 'Cash Dropping') + '</td><td>' + esc(u.no_faktur) + '</td><td>' + esc(u.nama_toko) + '</td><td>' + esc(u.alamat) + '</td><td>' + esc(u.sales) + '</td><td>' + pnm(u) + '</td><td style="text-align:right">' + fmt(u.total_bayar) + '</td><td>' + esc(u.status) + '</td></tr>').join('') +
+    '</tbody></table><h4>Catatan saya</h4><textarea id="mNote" placeholder="Mis. sudah dicek, memang nama toko berbeda…">' + esc(r.manual ? (r.manual.note || '') : '') + '</textarea>';
+  $('mFoot').innerHTML = '<button type="button" class="btn" data-m="x">Tutup</button>' +
+    (r.manual ? '<button type="button" class="btn warn" data-m="undo">↺ Kembalikan ke Ada Selisih</button>' : '<button type="button" class="btn ok" data-m="ok">✓ Pindahkan ke Sesuai</button>');
+  $('ov').classList.add('show');
+}
+function closeModal() { $('ov').classList.remove('show'); cur = null; }
+async function modalAct(a) {
+  if (a === 'x') return closeModal();
+  if (!cur) return;
+  if (a === 'ok') APPROVED[cur.fk] = { at: Date.now(), note: ($('mNote').value || '').trim(), sig: cur.sig };
+  else delete APPROVED[cur.fk];
+  try { await saveApproved(); } catch (e) { alert('Gagal menyimpan: ' + e.message); return; }
+  closeModal(); build(); render();
+}
+$('mX').addEventListener('click', closeModal);
+$('ov').addEventListener('click', e => { if (e.target.id === 'ov') return closeModal(); const b = e.target.closest('[data-m]'); if (b) modalAct(b.dataset.m); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+$('tb').addEventListener('click', e => { const tr = e.target.closest('tr[data-i]'); if (tr) openModal(+tr.dataset.i); });
 
 $('bXls').addEventListener('click', () => {
   if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat (cek koneksi internet).'); return; }
