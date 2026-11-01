@@ -31,9 +31,11 @@
   .btn { padding:.32rem .8rem; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--primary); font-weight:600; font-size:.78rem; cursor:pointer; }
   .btn:hover { background:var(--hover); }
   .chips { display:flex; flex-wrap:wrap; gap:.5rem; padding:.5rem .7rem; flex-shrink:0; }
-  .chip { flex:1; min-width:150px; display:flex; justify-content:space-between; align-items:center; gap:.5rem; padding:.4rem .7rem; border:1px solid var(--border); border-radius:6px; background:var(--card); cursor:pointer; font-weight:600; }
+  .chip { flex:1; min-width:150px; display:grid; grid-template-columns:1fr auto; align-items:center; gap:.1rem .5rem; padding:.4rem .7rem; border:1px solid var(--border); border-radius:6px; background:var(--card); cursor:pointer; font-weight:600; }
   .chip:hover { background:var(--hover); }
   .chip.on { box-shadow:0 0 0 2px var(--primary) inset; }
+  .chip .amt { grid-column:1 / -1; font-size:.72rem; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .chip.c-ok .amt { color:var(--ok-tx); } .chip.c-df .amt { color:var(--df-tx); } .chip.c-no .amt { color:var(--no-tx); }
   .chip .v { font-variant-numeric:tabular-nums; }
   .chip.c-ok .v { color:var(--ok-tx); } .chip.c-df .v { color:var(--df-tx); } .chip.c-no .v { color:var(--no-tx); }
   .wrap { flex:1; min-height:0; overflow:auto; margin:0 .7rem; border:1px solid var(--border); border-radius:8px; background:var(--card); }
@@ -90,11 +92,11 @@
   <button class="btn" id="bXls">💾 Simpan Excel</button></span>
 </div>
 <div class="chips">
-  <div class="chip on" data-f="ALL"><span>Semua Faktur</span><span class="v" id="nAll">0</span></div>
-  <div class="chip c-ok" data-f="OK"><span>✓ Sesuai</span><span class="v" id="nOk">0</span></div>
-  <div class="chip c-df" data-f="DIFF"><span>⚠ Ada Selisih</span><span class="v" id="nDf">0</span></div>
-  <div class="chip c-no" data-f="NONE"><span>● Belum Masuk</span><span class="v" id="nNo">0</span></div>
-  <div class="chip c-df" data-f="ORPH" title="Uang Masuk yang No Fakturnya tidak ditemukan / salah ketik"><span>✎ UM Tanpa Faktur</span><span class="v" id="nOr">0</span></div>
+  <div class="chip on" data-f="ALL"><span>Semua Faktur</span><span class="v" id="nAll">0</span><span class="amt" id="a_nAll">Rp 0</span></div>
+  <div class="chip c-ok" data-f="OK"><span>✓ Sesuai</span><span class="v" id="nOk">0</span><span class="amt" id="a_nOk">Rp 0</span></div>
+  <div class="chip c-df" data-f="DIFF"><span>⚠ Ada Selisih</span><span class="v" id="nDf">0</span><span class="amt" id="a_nDf">Rp 0</span></div>
+  <div class="chip c-no" data-f="NONE"><span>● Belum Masuk</span><span class="v" id="nNo">0</span><span class="amt" id="a_nNo">Rp 0</span></div>
+  <div class="chip c-df" data-f="ORPH" title="Uang Masuk yang No Fakturnya tidak ditemukan / salah ketik"><span>✎ UM Tanpa Faktur</span><span class="v" id="nOr">0</span><span class="amt" id="a_nOr">Rp 0</span></div>
 </div>
 <div class="rule" id="cov"></div>
 <div class="wrap"><table id="tb"><thead></thead><tbody></tbody></table></div>
@@ -315,7 +317,7 @@ function build() {
         .map(r => dmy(r.tanggal_laporan_str) + ' ' + (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop') + ' ' + fmt(r.total_bayar)).join(' · ')
     });
   });
-  INV.sort((a, b) => a.sk === b.sk ? a.fk.localeCompare(b.fk) : (a.sk < b.sk ? 1 : -1));
+  INV.sort((a, b) => a.sk === b.sk ? a.fk.localeCompare(b.fk) : (!a.sk ? 1 : !b.sk ? -1 : (a.sk < b.sk ? -1 : 1)));   /* tanggal terlama di atas */
 }
 
 function evaluate(rec, S) {
@@ -386,6 +388,12 @@ function baseRows() {
 let VIEW = [];
 function render() {
   const base = baseRows();
+  const sumOf = a => 'Rp ' + fmt(Math.round(a.reduce((t, r) => t + (Number(r.total) || 0), 0)));
+  $('a_nAll').textContent = sumOf(base);
+  $('a_nOk').textContent = sumOf(base.filter(r => r.cat === 'OK'));
+  $('a_nDf').textContent = sumOf(base.filter(r => r.cat === 'DIFF'));
+  $('a_nNo').textContent = sumOf(base.filter(r => r.cat === 'NONE'));
+  $('a_nOr').textContent = sumOf(base.filter(r => r.cat === 'ORPH')) + ' (uang masuk)';
   $('nAll').textContent = fmt(base.length);
   $('nOk').textContent = fmt(base.filter(r => r.cat === 'OK').length);
   $('nDf').textContent = fmt(base.filter(r => r.cat === 'DIFF').length);
@@ -433,7 +441,7 @@ $('bReload').addEventListener('click', () => loadData());
 function coverage() {
   const mn = set => [...set].filter(Boolean).sort().map(m => MON[+m.slice(5) - 1].slice(0, 3) + ' ' + m.slice(0, 4)).join(', ') || '—';
   const ps = new Set(SALES_ROWS.map(r => monthOf(r.Tanggal))), us = new Set(UM_ROWS.filter(r => r.titip_aksi !== 'BATAL').map(r => r.bulan));
-  $('cov').innerHTML = '<span style="opacity:.6">v7</span> · Data terbaca — Penjualan: <b>' + mn(ps) + '</b> (' + fmt(INV.filter(r => !r.orph).length) + ' faktur) · Uang Masuk: <b>' + mn(us) + '</b> (' + fmt(UM_ROWS.length) + ' baris). Jumlah kartu mengikuti filter bulan, sales, pembayaran & produk di atas.';
+  $('cov').innerHTML = '<span style="opacity:.6">v8</span> · Data terbaca — Penjualan: <b>' + mn(ps) + '</b> (' + fmt(INV.filter(r => !r.orph).length) + ' faktur) · Uang Masuk: <b>' + mn(us) + '</b> (' + fmt(UM_ROWS.length) + ' baris). Jumlah kartu mengikuti filter bulan, sales, pembayaran & produk di atas.';
 }
 
 /* ===== penyimpanan keputusan manual (database cek-v1, ikut backup / sinkron) ===== */
