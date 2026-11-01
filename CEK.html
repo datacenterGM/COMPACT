@@ -60,7 +60,7 @@
 </head>
 <body>
 <div class="bar">
-  <span class="ttl">CEK PENJUALAN → UANG MASUK <small style="font-weight:400;color:var(--muted)">v3</small></span>
+  <span class="ttl">CEK PENJUALAN → UANG MASUK <small style="font-weight:400;color:var(--muted)">v4</small></span>
   <select id="fMonth" title="Bulan faktur penjualan"></select>
   <select id="fSales" title="Sales"><option value="">Semua Sales</option></select>
   <select id="fPay" title="Pembayaran"><option value="">Semua Pembayaran</option><option value="Tempo">Tempo</option><option value="Cash">Cash</option></select>
@@ -228,7 +228,10 @@ function build() {
     if (textCmp(r.customer, firstOf(r.um, x => x.nama_toko)) === 'DIFF') orph.push({ k, recs: r.um, taken: false, from: r });
   });
   const cands = [];
-  const open = INV.filter(r => !r.um.length);
+  /* faktur terbuka = belum ada uang masuk, ATAU baru dibayar sebagian (cicilan berikutnya mungkin salah ketik) */
+  const paidOf = r => r.um.reduce((s, x) => s + (Number(x.total_bayar) || 0), 0);
+  const isPartial = r => r.um.length > 0 && !r.um.some(x => x.titip_aksi === 'LUNAS') && paidOf(r) < r.total - 1;
+  const open = INV.filter(r => !r.um.length || isPartial(r));
   orph.forEach(o => {
     const f0 = o.recs[0], paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0);
     const tg = Math.max(0, ...o.recs.map(r => Number(r.tagihan) || 0));
@@ -237,25 +240,30 @@ function build() {
     const d0 = days(String(o.recs.map(r => r.tanggal_laporan_str).sort()[0] || '').replace(/-/g, ''));
     const kn = norm(o.k);
     open.forEach(r => {
+      if (o.from === r) return;
       if (d0 === d0 && days(r.sk) === days(r.sk) && d0 < days(r.sk) - 3) return;          /* uang masuk jauh sebelum faktur: bukan pasangannya */
       const rk = norm(r.fk), dk = (kn.length >= 4 && rk.length >= 4 && Math.abs(kn.length - rk.length) <= 2) ? lev(kn, rk) : 99;
-      const amt = (Math.abs(paid - r.total) <= 1) || (tg > 0 && Math.abs(tg - r.total) <= 1);
+      const part = r.um.length > 0, sisa = part ? r.total - paidOf(r) : r.total;
+      const amt = (Math.abs(paid - sisa) <= 1) || (tg > 0 && Math.abs(tg - r.total) <= 1);
+      const fit = paid <= sisa + 1;                           /* cicilan tidak boleh melebihi sisa tagihan */
       const c = textCmp(r.customer, toko), custOk = c === 'OK' || c === 'NEAR';
+      if (part && !(dk <= 2 && custOk && fit)) return;        /* cicilan: wajib No Faktur mirip + toko sama + nominal masuk akal */
       if (dk > 2 && !(custOk && amt)) return;
       let sc = dk <= 2 ? 4 : 0;
       if (custOk) sc += 2;
       const a = textCmp(r.alamat, alm); if (a === 'OK' || a === 'NEAR') sc += 1;
       const sa = salesCmp(r.sales, sls); if (sa === 'OK' || sa === 'NEAR') sc += 1;
       if (wantSec(r.pay) && wantSec(r.pay) === sec) sc += 1;
-      if (amt) sc += 2;
+      if (amt) sc += 2; else if (part && fit) sc += 1;
       if (U.size && [...U].every(p => r.S.has(p))) sc += 1;
       if (o.from ? (sc >= 8 && custOk && amt) : sc >= 5) cands.push({ r, o, sc });
     });
   });
   cands.sort((x, y) => y.sc - x.sc);
   cands.forEach(c => {
-    if (c.o.taken || c.r.um.length) return;
-    c.o.taken = true; c.r.um = c.o.recs; c.r.typoFaktur = firstOf(c.o.recs, r => r.no_faktur) || c.o.k;
+    if (c.o.taken || (c.r.um.length && !isPartial(c.r))) return;
+    const tf = firstOf(c.o.recs, r => r.no_faktur) || c.o.k;
+    c.o.taken = true; c.r.um = c.r.um.concat(c.o.recs); c.r.typoFaktur = c.r.typoFaktur ? c.r.typoFaktur + '", "' + tf : tf;
     if (c.o.from) { c.o.from.um = []; c.o.from.movedTo = c.r; c.o.from.movedToko = firstOf(c.o.recs, r => r.nama_toko); }
   });
 
