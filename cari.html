@@ -148,6 +148,8 @@
       content: ''; width: 4px; height: 16px; border-radius: 2px; background: var(--um);
     }
     .panel-meta { font-size: 0.78rem; color: var(--muted); }
+    .panel-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .mfilter { height: 26px; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); font-size: 0.75rem; }
 
     .table-wrap {
       overflow: auto;
@@ -245,7 +247,7 @@
         <a class="nav-btn" href="index.html" title="Dashboard">🏠 Dashboard</a>
         <a class="nav-btn" href="PJ.html" title="Laporan Penjualan">📦 PJ</a>
         <a class="nav-btn" href="UM.html" title="Laporan Uang Masuk">💰 UM</a>
-        <a class="nav-btn" id="goCek" href="CEK.html" title="Buka CEK (Penjualan ↔ Uang Masuk) dengan kata kunci & bulan di sini" onclick="this.href=cekUrl(document.getElementById('qToko').value.trim(), document.getElementById('qMonth').value)">✅ CEK</a>
+        <a class="nav-btn" id="goCek" href="CEK.html" title="Buka CEK (Penjualan ↔ Uang Masuk) dengan kata kunci & bulan di sini" onclick="this.href=cekUrl(document.getElementById('qToko').value.trim(), document.getElementById('qMonthPJ').value)">✅ CEK</a>
         <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Mode gelap / terang">🌙</button>
       </div>
     </header>
@@ -254,12 +256,6 @@
       <div class="field grow">
         <label for="qToko">Cari toko / customer</label>
         <input type="search" id="qToko" placeholder="Ketik nama toko atau customer..." autocomplete="off">
-      </div>
-      <div class="field">
-        <label for="qMonth">Filter bulan</label>
-        <select id="qMonth">
-          <option value="">Semua Bulan</option>
-        </select>
       </div>
       <button type="button" class="btn-search" id="btnCari" onclick="doSearch()">Cari</button>
     </div>
@@ -280,7 +276,7 @@
       <div class="panel pj">
         <div class="panel-head">
           <h2>Data Penjualan</h2>
-          <span class="panel-meta" id="metaPJ">—</span>
+          <span class="panel-right"><select class="mfilter" id="qMonthPJ" title="Filter bulan tanggal faktur penjualan"><option value="">Semua Bulan</option></select><span class="panel-meta" id="metaPJ">—</span></span>
         </div>
         <div class="table-wrap">
           <table>
@@ -306,7 +302,7 @@
       <div class="panel um">
         <div class="panel-head">
           <h2>Data Uang Masuk</h2>
-          <span class="panel-meta" id="metaUM">—</span>
+          <span class="panel-right"><select class="mfilter" id="qMonthUM" title="Filter bulan tanggal uang masuk"><option value="">Semua Bulan</option></select><span class="panel-meta" id="metaUM">—</span></span>
         </div>
         <div class="table-wrap">
           <table>
@@ -685,12 +681,13 @@
         `<span><span class="dot ${umReady ? (umRows.length ? 'ok' : 'warn') : 'warn'}" id="dotUM"></span> ${umTxt}</span>`;
 
       // isi filter bulan
-      const sel = document.getElementById('qMonth');
-      const cur = sel.value;
       const keys = [...monthsSet].sort().reverse();
-      sel.innerHTML = '<option value="">Semua Bulan</option>' +
-        keys.map(k => `<option value="${k}">${monthLabel(k)}</option>`).join('');
-      if (cur && monthsSet.has(cur)) sel.value = cur;
+      ['qMonthPJ', 'qMonthUM'].forEach(id => {
+        const sel = document.getElementById(id), cur = sel.value;
+        sel.innerHTML = '<option value="">Semua Bulan</option>' +
+          keys.map(k => `<option value="${k}">${monthLabel(k)}</option>`).join('');
+        if (cur && monthsSet.has(cur)) sel.value = cur;
+      });
     }
 
     /* ========== SEARCH ========== */
@@ -710,9 +707,10 @@
 
     function doSearch() {
       const q = norm(document.getElementById('qToko').value);
-      const month = document.getElementById('qMonth').value;
+      const monthPJ = document.getElementById('qMonthPJ').value;   /* bulan tanggal faktur penjualan */
+      const monthUM = document.getElementById('qMonthUM').value;   /* bulan tanggal uang masuk (bisa beda, mis. jual Agustus bayar September) */
 
-      if (!q && !month) {
+      if (!q && !monthPJ && !monthUM) {
         document.getElementById('hintBox').style.display = 'block';
         document.getElementById('panels').style.display = 'none';
         return;
@@ -722,13 +720,14 @@
       document.getElementById('panels').style.display = 'grid';
 
       // Tahun fallback untuk format tanggal tanpa tahun (mis. "14-05")
-      const yearHint = month ? month.slice(0, 4) : '';
+      const yearHintPJ = (monthPJ || monthUM) ? (monthPJ || monthUM).slice(0, 4) : '';
+      const yearHintUM = (monthUM || monthPJ) ? (monthUM || monthPJ).slice(0, 4) : '';
 
       // --- Penjualan ---
       let pjHit = pjRows.filter(r => {
-        if (month) {
+        if (monthPJ) {
           const mk = monthKeyFromDate(r.Tanggal);
-          if (mk !== month) return false;
+          if (mk !== monthPJ) return false;
         }
         if (!q) return true;
         const blob = norm([r.Customer, r.Alamat, r['No. Faktur'], r.Sales, r.Produk].join(' '));
@@ -736,8 +735,8 @@
       });
       // Urut: tanggal termuda (terbaru) di atas
       pjHit.sort((a, b) => {
-        const ka = sortKeyDate(a.Tanggal, yearHint);
-        const kb = sortKeyDate(b.Tanggal, yearHint);
+        const ka = sortKeyDate(a.Tanggal, yearHintPJ);
+        const kb = sortKeyDate(b.Tanggal, yearHintPJ);
         if (ka !== kb) return kb.localeCompare(ka); // descending
         // sekunder: no faktur agar baris satu faktur tetap berdekatan
         return String(a['No. Faktur'] || '').localeCompare(String(b['No. Faktur'] || ''));
@@ -788,7 +787,7 @@
 
       // --- Uang Masuk ---
       let umHit = umRows.filter(r => {
-        if (month) {
+        if (monthUM) {
           // dukung tgl DD/MM/YYYY atau YYYY-MM-DD atau DD-MM
           let mk = monthKeyFromDate(r.tgl);
           if (!mk && r.tgl) {
@@ -796,10 +795,10 @@
             const parts = String(r.tgl).split(/[-\/]/);
             if (parts.length >= 2) {
               const mm = parts[1].padStart(2, '0');
-              if (month.endsWith('-' + mm)) mk = month; // cocok bulan saja
+              if (monthUM.endsWith('-' + mm)) mk = monthUM; // cocok bulan saja
             }
           }
-          if (mk !== month) return false;
+          if (mk !== monthUM) return false;
         }
         if (!q) return true;
         const blob = norm([r.toko, r.alamat, r.faktur, r.sales, r.ket, r.section].join(' '));
@@ -807,8 +806,8 @@
       });
       // Urut: tanggal termuda (terbaru) di atas — sama dengan penjualan
       umHit.sort((a, b) => {
-        const ka = sortKeyDate(a.tgl, yearHint);
-        const kb = sortKeyDate(b.tgl, yearHint);
+        const ka = sortKeyDate(a.tgl, yearHintUM);
+        const kb = sortKeyDate(b.tgl, yearHintUM);
         if (ka !== kb) return kb.localeCompare(ka); // descending
         return String(a.faktur || '').localeCompare(String(b.faktur || ''));
       });
@@ -866,7 +865,8 @@
       clearTimeout(_t);
       _t = setTimeout(doSearch, 320);
     });
-    document.getElementById('qMonth').addEventListener('change', doSearch);
+    document.getElementById('qMonthPJ').addEventListener('change', doSearch);
+    document.getElementById('qMonthUM').addEventListener('change', doSearch);
 
     /* ========== INIT ========== */
     (async function init() {
@@ -877,7 +877,7 @@
       const P = new URLSearchParams(location.search);
       if (P.get('q') !== null) {
         document.getElementById('qToko').value = P.get('q');
-        const b = P.get('bulan') || '', sel = document.getElementById('qMonth');
+        const b = P.get('bulan') || '', sel = document.getElementById('qMonthPJ');   /* bulan dari CEK = bulan tanggal faktur -> hanya tabel Penjualan */
         if ([...sel.options].some(o => o.value === b)) sel.value = b;
         doSearch();
       }
