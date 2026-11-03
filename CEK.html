@@ -349,7 +349,11 @@ function evaluate(rec, S) {
   if (rec.typoFaktur) issues.push('No Faktur di uang masuk "' + rec.typoFaktur + '" ≠ faktur "' + rec.faktur + '" (kemungkinan salah ketik, dicocokkan lewat customer/nominal)');
   const toko = firstOf(um, r => r.nama_toko), alamat = firstOf(um, r => r.alamat);
   let c = textCmp(rec.customer, toko); if (c === 'NEAR' || c === 'DIFF') issues.push(lbl(c, 'Customer / Nama Toko', rec.customer, toko));
-  c = textCmp(rec.alamat, alamat); if (alamat && (c === 'NEAR' || c === 'DIFF')) issues.push(lbl(c, 'Alamat', rec.alamat, alamat));
+  /* Alamat: ejaan mirip (KARANSAMBUNG / KARANG SAMBUNG, SIDOHARJO / SIDOARJO) dianggap sama HANYA bila di Uang Masuk
+     ada keterangan LUNAS (kolom Status) DAN nominalnya sudah sama dengan faktur; tanpa ket LUNAS + alamat mirip tetap ditandai */
+  const ketLunas = rec.status === 'LUNAS' && (!!rec.lunasMan || um.some(r => r.titip_aksi === 'LUNAS') ||
+    um.some(r => { const t = String(r.status || '').toUpperCase(); return t.includes('LUNAS') && !/(BELUM|BLM|BLOM|TDK|TIDAK)\s*LUNAS/.test(t); }));
+  c = textCmp(rec.alamat, alamat); if (alamat && (c === 'DIFF' || (c === 'NEAR' && !ketLunas))) issues.push(lbl(c, 'Alamat', rec.alamat, alamat));
   const sUm = [...new Set(um.map(r => String(r.sales || '').trim()).filter(Boolean))];
   if (sUm.length) {
     const res = sUm.map(x => salesCmp(rec.sales, salesOf(x)));
