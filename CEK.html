@@ -280,7 +280,9 @@ function build() {
   /* faktur terbuka = belum ada uang masuk, ATAU baru dibayar sebagian (cicilan berikutnya mungkin salah ketik) */
   const paidOf = r => r.um.reduce((s, x) => s + (Number(x.total_bayar) || 0), 0);
   const isPartial = r => r.um.length > 0 && !LUNAS_MAN[r.fk] && !r.um.some(x => x.titip_aksi === 'LUNAS') && paidOf(r) < r.total - 1;
-  const open = INV.filter(r => (!r.um.length && !LUNAS_MAN[r.fk]) || isPartial(r));
+  /* faktur yang UM-nya sendiri dinilai milik toko lain (mis. nomor faktur TERTUKAR antar dua toko) = "dikosongkan" -> boleh jadi tujuan */
+  const vacating = new Map(); orph.forEach(o => { if (o.from) vacating.set(o.from, o); });
+  const open = INV.filter(r => (!r.um.length && !LUNAS_MAN[r.fk]) || isPartial(r) || vacating.has(r));
   orph.forEach(o => {
     const f0 = o.recs[0], paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0);
     const tg = Math.max(0, ...o.recs.map(r => Number(r.tagihan) || 0));
@@ -292,7 +294,7 @@ function build() {
       if (o.from === r) return;
       if (d0 === d0 && days(r.sk) === days(r.sk) && d0 < days(r.sk) - 3) return;          /* uang masuk jauh sebelum faktur: bukan pasangannya */
       const rk = norm(r.fk), dk = (kn.length >= 4 && rk.length >= 4 && Math.abs(kn.length - rk.length) <= 2) ? lev(kn, rk) : 99;
-      const part = r.um.length > 0, sisa = part ? r.total - paidOf(r) : r.total;
+      const part = r.um.length > 0 && !vacating.has(r), sisa = part ? r.total - paidOf(r) : r.total;
       const amt = (Math.abs(paid - sisa) <= 1) || (tg > 0 && Math.abs(tg - r.total) <= 1);
       const fit = paid <= sisa + 1;                           /* cicilan tidak boleh melebihi sisa tagihan */
       const c = textCmp(r.customer, toko), custOk = c === 'OK' || c === 'NEAR';
@@ -309,12 +311,28 @@ function build() {
     });
   });
   cands.sort((x, y) => y.sc - x.sc);
+  const pend = [], pendTarget = new Set();
   cands.forEach(c => {
-    if (c.o.taken || (c.r.um.length && !isPartial(c.r))) return;
+    if (c.o.taken) return;
+    const vac = vacating.has(c.r);
+    if (vac) {                                   /* tujuan = faktur yang UM-nya sendiri salah tempat: ditunda sampai UM aslinya terbukti pindah */
+      if (pendTarget.has(c.r)) return;
+      pendTarget.add(c.r); c.o.taken = true; pend.push(c); return;
+    }
+    if (c.r.um.length && !isPartial(c.r)) return;
     const tf = firstOf(c.o.recs, r => r.no_faktur) || c.o.k;
     c.o.taken = true; c.r.um = c.r.um.concat(c.o.recs); c.r.typoFaktur = c.r.typoFaktur ? c.r.typoFaktur + '", "' + tf : tf;
     if (c.o.from) { c.o.from.um = []; c.o.from.movedTo = c.r; c.o.from.movedToko = firstOf(c.o.recs, r => r.nama_toko); }
   });
+  /* tukar: pasangan hanya sah bila UM milik faktur tujuan itu sendiri ikut pindah ke tempat yang benar */
+  for (let ch = true; ch;) { ch = false; pend.forEach(c => { if (!c.bad && !vacating.get(c.r).taken) { c.bad = true; c.o.taken = false; ch = true; } }); }
+  pend.filter(c => !c.bad).forEach(c => {
+    const own = vacating.get(c.r).recs, tf = firstOf(c.o.recs, r => r.no_faktur) || c.o.k;
+    c.r.um = c.r.um.filter(x => !own.includes(x)).concat(c.o.recs);
+    c.r.typoFaktur = c.r.typoFaktur ? c.r.typoFaktur + '", "' + tf : tf;
+    if (c.o.from) c.o.from.um = c.o.from.um.filter(x => !c.o.recs.includes(x));
+  });
+  pend.filter(c => !c.bad).forEach(c => { if (c.o.from && !c.o.from.um.length) { c.o.from.movedTo = c.r; c.o.from.movedToko = firstOf(c.o.recs, r => r.nama_toko); } });
 
   INV.forEach(r => {
     evaluate(r, r.S);
