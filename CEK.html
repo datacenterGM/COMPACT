@@ -161,7 +161,7 @@ function liveVar(frame, name) {
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-let SALES_ROWS = [], UM_ROWS = [], BATAL = {}, INV = [], APPROVED = {};
+let SALES_ROWS = [], UM_ROWS = [], BATAL = {}, INV = [], APPROVED = {}, LUNAS_MAN = {};   /* LUNAS_MAN = faktur Titip yang sudah dicek manual & dinyatakan lunas */
 async function loadData() {
   $('tb').querySelector('tbody').innerHTML = '<tr><td class="empty" colspan="10">Memuat data…</td></tr>';
   try { if (window.parent && window.parent.ensureFrame) { await Promise.all([window.parent.ensureFrame('penjualan'), window.parent.ensureFrame('uangmasuk')]); await sleep(1200); } } catch (e) {}
@@ -181,6 +181,7 @@ async function loadData() {
   BATAL = bm;
   const cm = await idbGet('cek-v1', 'cek-data', 'latest');
   APPROVED = (cm && cm.items) || {};
+  LUNAS_MAN = (cm && cm.lunas) || {};
   build();
   coverage();
   populate();
@@ -273,7 +274,7 @@ function build() {
   const cands = [];
   /* faktur terbuka = belum ada uang masuk, ATAU baru dibayar sebagian (cicilan berikutnya mungkin salah ketik) */
   const paidOf = r => r.um.reduce((s, x) => s + (Number(x.total_bayar) || 0), 0);
-  const isPartial = r => r.um.length > 0 && !r.um.some(x => x.titip_aksi === 'LUNAS') && paidOf(r) < r.total - 1;
+  const isPartial = r => r.um.length > 0 && !LUNAS_MAN[r.fk] && !r.um.some(x => x.titip_aksi === 'LUNAS') && paidOf(r) < r.total - 1;
   const open = INV.filter(r => !r.um.length || isPartial(r));
   orph.forEach(o => {
     const f0 = o.recs[0], paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0);
@@ -339,6 +340,8 @@ function evaluate(rec, S) {
   const manual = um.some(r => r.titip_aksi === 'LUNAS');
   rec.paid = paid;
   rec.status = (manual || paid >= rec.total - 1) ? 'LUNAS' : 'TITIP';
+  rec.lunasMan = null;
+  if (rec.status === 'TITIP' && LUNAS_MAN[rec.fk]) { rec.status = 'LUNAS'; rec.lunasMan = LUNAS_MAN[rec.fk]; }   /* dipindahkan manual dari Titip ke Lunas */
   const issues = [];
   const lbl = (r, nama, a, b) => nama + (r === 'NEAR' ? ' mirip tapi beda (kemungkinan salah ketik): faktur "' : ' berbeda: faktur "') + a + '" vs uang masuk "' + b + '"';
   if (rec.typoFaktur) issues.push('No Faktur di uang masuk "' + rec.typoFaktur + '" ≠ faktur "' + rec.faktur + '" (kemungkinan salah ketik, dicocokkan lewat customer/nominal)');
@@ -351,7 +354,7 @@ function evaluate(rec, S) {
     if (!res.includes('OK')) issues.push(lbl(res.includes('NEAR') ? 'NEAR' : 'DIFF', 'Sales', rec.sales, sUm.join(', ')));
   }
   const U = umProds(um);
-  const extra = [...U].filter(p => !S.has(p)), miss = rec.status === 'LUNAS' ? [...S].filter(p => !U.has(p)) : [];
+  const extra = [...U].filter(p => !S.has(p)), miss = (rec.status === 'LUNAS' && !rec.lunasMan) ? [...S].filter(p => !U.has(p)) : [];
   const pn = p => p === 'MINYAK' ? 'Minyak' : 'Rupa Rupa';
   if (extra.length) issues.push('Produk: faktur ' + rec.prod + ', uang masuk tercatat di kolom ' + extra.map(pn).join(' + '));
   if (miss.length) issues.push('Produk ' + miss.map(pn).join(' + ') + ' tidak tercatat di uang masuk');
@@ -429,10 +432,11 @@ function render() {
   else if (!rows.length) body.innerHTML = '<tr><td class="empty" colspan="10">Tidak ada faktur pada filter ini</td></tr>';
   else body.innerHTML = rows.map((r, k) => {
     const stc = r.status === 'LUNAS' ? 'lunas' : r.status === 'TITIP' ? 'titip' : r.orph ? 'orph' : 'none';
-    const clk = (r.cat === 'DIFF' || r.manual) ? ' clk" data-i="' + (st + k) + '" title="Klik untuk detail & aksi' : '';
-    const ket = r.manual ? '<span class="good">✓ Dicek manual: sesuai</span> <span class="dim">' + (r.manual.note ? esc(r.manual.note) + ' · ' : '') + esc(r.info) + '</span>'
+    const clk = (r.cat === 'DIFF' || r.manual || r.cat === 'TITIP' || r.lunasMan) ? ' clk" data-i="' + (st + k) + '" title="Klik untuk detail & aksi' : '';
+    const lm = r.lunasMan ? '<span class="good">✓ Dilunasi manual (tercatat ' + fmt(r.paid) + ' dari ' + fmt(r.total) + ')</span> ' + (r.lunasMan.note ? '<span class="dim">Catatan: ' + esc(r.lunasMan.note) + '</span><br>' : '<br>') : '';
+    const ket = lm + (r.manual ? '<span class="good">✓ Dicek manual: sesuai</span> <span class="dim">' + (r.manual.note ? esc(r.manual.note) + ' · ' : '') + esc(r.info) + '</span>'
       : r.cat === 'NONE' ? '<span class="dim">' + esc(r.info) + '</span>'
-      : (r.issues.length ? (r.reopened ? '<span class="dim">(sebelumnya ditandai sesuai, tetapi data berubah)</span><br>' : '') + r.issues.map(i => '<span class="x">' + esc(i) + '</span>').join('') + '<br>' : '<span class="good">Sesuai</span> ') + '<span class="dim">' + esc(r.info) + '</span>';
+      : (r.issues.length ? (r.reopened ? '<span class="dim">(sebelumnya ditandai sesuai, tetapi data berubah)</span><br>' : '') + r.issues.map(i => '<span class="x">' + esc(i) + '</span>').join('') + '<br>' : '<span class="good">Sesuai</span> ') + '<span class="dim">' + esc(r.info) + '</span>');
     const cls = r.cat === 'ORPH' ? 'or' : r.cat === 'TITIP' ? 'ti' : r.cat === 'DIFF' ? 'df' : r.cat === 'NONE' ? 'no' : 'ok';
     const L = r.orph ? ['', '', '', '', '', '', '', ''] : [esc(r.tanggal), esc(r.faktur), fmt(r.total), esc(r.sales), esc(r.customer), esc(r.alamat), esc(r.prod), esc(r.pay)];
     return '<tr class="r-' + cls + clk + '">' +
@@ -479,7 +483,7 @@ function idbPut(db, st, key, val) {
   });
 }
 async function saveApproved() {
-  await idbPut('cek-v1', 'cek-data', 'latest', { items: APPROVED });
+  await idbPut('cek-v1', 'cek-data', 'latest', { items: APPROVED, lunas: LUNAS_MAN });
   try { const bc = new BroadcastChannel('laporan-data'); bc.postMessage('cek'); bc.close(); } catch (e) {}
 }
 
@@ -488,23 +492,30 @@ let cur = null;
 const pnm = r => { const a = []; if ((+r.minyak_cash || 0) + (+r.minyak_tf || 0) > 0) a.push('Minyak ' + fmt((+r.minyak_cash || 0) + (+r.minyak_tf || 0))); if ((+r.rupa_cash || 0) + (+r.rupa_tf || 0) > 0) a.push('Rupa ' + fmt((+r.rupa_cash || 0) + (+r.rupa_tf || 0))); return a.join(' + ') || '-'; };
 function openModal(i) {
   const r = VIEW[i]; if (!r) return; cur = r;
-  $('mTitle').textContent = 'Faktur ' + r.faktur + (r.manual ? ' — dicek manual: sesuai' : ' — ada selisih');
+  const isTi = r.cat === 'TITIP' || !!r.lunasMan;
+  $('mTitle').textContent = 'Faktur ' + r.faktur + (isTi ? (r.lunasMan ? ' — dilunasi manual' : ' — titip / belum lunas') : (r.manual ? ' — dicek manual: sesuai' : ' — ada selisih'));
   const kv = [['Tanggal', r.tanggal], ['No. Faktur', r.faktur], ['Total Faktur', fmt(r.total)], ['Pembayaran', r.pay], ['Customer', r.customer], ['Alamat', r.alamat], ['Sales', r.sales], ['Produk', r.prod]];
   $('mBody').innerHTML = '<h4>Data Penjualan</h4><div class="kv">' + kv.map(x => '<div><span>' + x[0] + '</span><b>' + esc(x[1] || '-') + '</b></div>').join('') + '</div>' +
+    (isTi ? '<h4>Pembayaran</h4><div class="kv"><div><span>Total Faktur</span><b>' + fmt(r.total) + '</b></div><div><span>Sudah Dibayar</span><b>' + fmt(r.paid) + '</b></div><div><span>Sisa</span><b class="' + (r.total - r.paid > 1 ? 'bad' : 'good') + '">' + fmt(Math.max(0, r.total - r.paid)) + '</b></div><div><span>Status</span><b>' + esc(r.status) + (r.lunasMan ? ' (manual)' : '') + '</b></div></div>' : '') +
     '<h4>Temuan</h4>' + (r.issues.length ? r.issues.map(x => '<div><span class="x">' + esc(x) + '</span></div>').join('') : '<div class="dim">—</div>') +
     '<h4>Catatan Uang Masuk (' + r.um.length + ')</h4><table class="mt"><thead><tr><th>Tgl Laporan</th><th>Section</th><th>No Faktur UM</th><th>Nama Toko</th><th>Alamat</th><th>Sales</th><th>Produk</th><th>Bayar</th><th>Status</th></tr></thead><tbody>' +
     r.um.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || '')).map(u =>
       '<tr><td>' + dmy(u.tanggal_laporan_str) + '</td><td>' + (u.section === 'PIUTANG' ? 'Piutang Tempo' : 'Cash Dropping') + '</td><td>' + esc(u.no_faktur) + '</td><td>' + esc(u.nama_toko) + '</td><td>' + esc(u.alamat) + '</td><td>' + esc(u.sales) + '</td><td>' + pnm(u) + '</td><td style="text-align:right">' + fmt(u.total_bayar) + '</td><td>' + esc(u.status) + '</td></tr>').join('') +
-    '</tbody></table><h4>Catatan saya</h4><textarea id="mNote" placeholder="Mis. sudah dicek, memang nama toko berbeda…">' + esc(r.manual ? (r.manual.note || '') : '') + '</textarea>';
+    '</tbody></table><h4>Catatan saya</h4><textarea id="mNote" placeholder="' + (isTi ? 'Mis. sudah dicek manual, pelanggan sudah transfer sisa tanggal …' : 'Mis. sudah dicek, memang nama toko berbeda…') + '">' + esc(r.lunasMan ? (r.lunasMan.note || '') : (r.manual ? (r.manual.note || '') : '')) + '</textarea>';
   $('mFoot').innerHTML = '<button type="button" class="btn" data-m="x">Tutup</button>' +
-    (r.manual ? '<button type="button" class="btn warn" data-m="undo">↺ Kembalikan ke Ada Selisih</button>' : '<button type="button" class="btn ok" data-m="ok">✓ Pindahkan ke Sesuai</button>');
+    (r.lunasMan ? '<button type="button" class="btn" data-m="lsave">💾 Simpan Catatan</button><button type="button" class="btn warn" data-m="lundo">↺ Kembalikan ke Titip</button>'
+      : r.cat === 'TITIP' ? '<button type="button" class="btn ok" data-m="lok">✓ Pindahkan ke Lunas / Sesuai</button>' : '') +
+    (isTi && r.cat !== 'DIFF' ? '' : r.manual ? '<button type="button" class="btn warn" data-m="undo">↺ Kembalikan ke Ada Selisih</button>' : '<button type="button" class="btn ok" data-m="ok">✓ Pindahkan ke Sesuai</button>');
   $('ov').classList.add('show');
 }
 function closeModal() { $('ov').classList.remove('show'); cur = null; }
 async function modalAct(a) {
   if (a === 'x') return closeModal();
   if (!cur) return;
-  if (a === 'ok') APPROVED[cur.fk] = { at: Date.now(), note: ($('mNote').value || '').trim(), sig: cur.sig };
+  const note = ($('mNote').value || '').trim();
+  if (a === 'lok' || a === 'lsave') LUNAS_MAN[cur.fk] = { at: (LUNAS_MAN[cur.fk] || {}).at || Date.now(), note, paid: cur.paid, total: cur.total };
+  else if (a === 'lundo') delete LUNAS_MAN[cur.fk];
+  else if (a === 'ok') APPROVED[cur.fk] = { at: Date.now(), note: ($('mNote').value || '').trim(), sig: cur.sig };
   else delete APPROVED[cur.fk];
   try { await saveApproved(); } catch (e) { alert('Gagal menyimpan: ' + e.message); return; }
   closeModal(); build(); render();
