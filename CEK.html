@@ -274,7 +274,11 @@ function build() {
   const byFk = new Map(INV.map(r => [r.fk, r]));
   used.forEach(k => {
     const r = byFk.get(k); if (!r) return;
-    if (textCmp(r.customer, firstOf(r.um, x => x.nama_toko)) === 'DIFF') orph.push({ k, recs: r.um, taken: false, from: r });
+    /* nomor faktur dipercaya hanya bila isinya masuk akal: toko sama DAN tagihan uang masuk = total faktur.
+       Toko sama tapi tagihan jelas beda (nomor salah ketik jadi faktur LAIN milik toko yang sama) -> ikut dicarikan pasangan lewat toko / alamat / sales / produk / nominal */
+    const tgs = r.um.map(x => Number(x.tagihan) || 0).filter(v => v > 0);
+    const clash = tgs.length > 0 && tgs.every(v => Math.abs(v - r.total) > 1);
+    if (textCmp(r.customer, firstOf(r.um, x => x.nama_toko)) === 'DIFF' || clash) orph.push({ k, recs: r.um, taken: false, from: r });
   });
   const cands = [];
   /* faktur terbuka = belum ada uang masuk, ATAU baru dibayar sebagian (cicilan berikutnya mungkin salah ketik) */
