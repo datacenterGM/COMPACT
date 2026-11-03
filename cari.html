@@ -71,6 +71,8 @@
       text-decoration: none; transition: all 0.15s;
     }
     .theme-btn:hover, .nav-btn:hover { border-color: var(--accent); background: var(--card2); }
+    a.go { display:inline-block; margin-left:6px; padding:0 5px; border:1px solid var(--border); border-radius:4px; color:var(--accent); font-size:.62rem; line-height:1.5; text-decoration:none; vertical-align:middle; }
+    a.go:hover { background: var(--card2); border-color: var(--accent); }
 
     /* SEARCH BAR — flat, tipis, tanpa kartu bersarang */
     .search-bar {
@@ -243,6 +245,7 @@
         <a class="nav-btn" href="index.html" title="Dashboard">🏠 Dashboard</a>
         <a class="nav-btn" href="PJ.html" title="Laporan Penjualan">📦 PJ</a>
         <a class="nav-btn" href="UM.html" title="Laporan Uang Masuk">💰 UM</a>
+        <a class="nav-btn" id="goCek" href="CEK.html" title="Buka CEK (Penjualan ↔ Uang Masuk) dengan kata kunci & bulan di sini" onclick="this.href=cekUrl(document.getElementById('qToko').value.trim(), document.getElementById('qMonth').value)">✅ CEK</a>
         <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Mode gelap / terang">🌙</button>
       </div>
     </header>
@@ -764,7 +767,7 @@
           }
           return `<tr>
             <td class="center">${show ? esc(r.Tanggal) : ''}</td>
-            <td>${show ? esc(r['No. Faktur']) : ''}</td>
+            <td>${show ? esc(r['No. Faktur']) + (k ? `<a class="go" href="${cekUrl(String(r['No. Faktur']).trim(), '')}" title="Cek faktur ini di CEK">▲</a>` : '') : ''}</td>
             <td>${esc(r.Produk)}</td>
             <td class="num">${fmt(r.Jumlah)}</td>
             <td class="num">${show ? fmt(r._totalFaktur) : ''}</td>
@@ -851,6 +854,8 @@
       }
     }
 
+    const cekUrl = (q, bulan) => 'CEK.html?q=' + encodeURIComponent(q || '') + (bulan ? '&bulan=' + encodeURIComponent(bulan) : '');
+
     // Enter di kotak cari
     document.getElementById('qToko').addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
@@ -868,6 +873,14 @@
       setLoading(true);
       await Promise.all([loadPenjualan(), loadUangMasuk()]);
       setLoading(false);
+      /* dibuka dari CEK: cari.html?q=...&bulan=YYYY-MM -> isi & jalankan pencarian */
+      const P = new URLSearchParams(location.search);
+      if (P.get('q') !== null) {
+        document.getElementById('qToko').value = P.get('q');
+        const b = P.get('bulan') || '', sel = document.getElementById('qMonth');
+        if ([...sel.options].some(o => o.value === b)) sel.value = b;
+        doSearch();
+      }
       if (!pjRows.length && !umRows.length) {
         toast('Belum ada data. Buka halaman PJ / UM dan upload Excel dulu.', 'err');
       } else {

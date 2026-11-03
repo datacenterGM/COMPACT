@@ -26,7 +26,8 @@
   .bar .ttl { font-weight:700; color:var(--primary); margin-right:auto; font-size:.9rem; }
   select, input[type=text] { padding:.32rem .6rem; border:1px solid var(--border); border-radius:6px; background:var(--input); color:var(--text); font-size:.8rem; outline:none; }
   input[type=text] { flex:1 1 180px; min-width:150px; max-width:340px; }
-  .acts { display:flex; gap:.4rem; margin-left:auto; white-space:nowrap; }
+  .acts { display:flex; gap:.3rem; margin-left:auto; white-space:nowrap; }
+  .acts .btn { padding:.32rem .55rem; min-width:2rem; text-align:center; }
   .bar { gap:.4rem; padding:.4rem .6rem; }
   .bar select { max-width:170px; }
   .btn { padding:.32rem .8rem; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--primary); font-weight:600; font-size:.78rem; cursor:pointer; }
@@ -79,6 +80,8 @@
   .mbody textarea { width:100%; min-height:60px; padding:.5rem; border:1px solid var(--border); border-radius:6px; background:var(--input); color:var(--text); font:inherit; resize:vertical; }
   .mfoot { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:.5rem; padding:.7rem 1rem; border-top:1px solid var(--border); }
   .btn.ok { background:#059669; color:#fff; border-color:#059669; } .btn.warn { background:#d97706; color:#fff; border-color:#d97706; }
+  a.go { display:inline-block; margin-left:6px; padding:0 5px; border:1px solid var(--border); border-radius:4px; color:var(--primary); font-size:.62rem; line-height:1.5; text-decoration:none; vertical-align:middle; }
+  a.go:hover { background:var(--hover); border-color:var(--primary); }
   @media (max-width:640px) { .kv { grid-template-columns:repeat(2,1fr); } }
 </style>
 </head>
@@ -93,8 +96,9 @@
   <select id="fProd" title="Produk"><option value="">Semua Produk</option><option value="MINYAK">Minyak</option><option value="RUPA">Rupa Rupa</option><option value="CAMPUR">Campur</option></select>
   <input type="text" id="fQ" placeholder="Cari faktur / customer / sales / alamat…">
   <span class="acts">
-  <button class="btn" id="bReload" title="Baca ulang data Penjualan & Uang Masuk">↻ Muat Ulang</button>
-  <button class="btn" id="bXls">💾 Simpan Excel</button></span>
+  <button class="btn" id="bReload" title="Muat Ulang: baca ulang data Penjualan & Uang Masuk" aria-label="Muat Ulang">↻</button>
+  <button class="btn" id="bXls" title="Simpan Excel" aria-label="Simpan Excel">💾</button>
+  <a class="btn" id="bCari" href="cari.html" title="Buka Cari Toko / Customer (memakai isi kotak cari & bulan di atas)" style="text-decoration:none" onclick="this.href=cariUrl($('fQ').value.trim(), $('fMonth').value)">▼</a></span>
 </div>
 <div class="chips">
   <div class="chip on" data-f="ALL"><span>Semua Faktur</span><span class="v" id="nAll">0</span><span class="amt" id="a_nAll">Rp 0</span></div>
@@ -185,6 +189,7 @@ async function loadData() {
   build();
   coverage();
   populate();
+  applyQP();
   render();
   const miss = [];
   if (!SALES_ROWS.length) miss.push('Penjualan (buka PJ, upload file penjualan)');
@@ -447,7 +452,7 @@ function render() {
     const L = r.orph ? ['', '', '', '', '', '', '', ''] : [esc(r.tanggal), esc(r.faktur), fmt(r.total), esc(r.sales), esc(r.customer), esc(r.alamat), esc(r.prod), esc(r.pay)];
     return '<tr class="r-' + cls + clk + '">' +
       '<td class="ctr">' + L[0] + '</td><td class="ctr">' + L[1] + '</td><td class="num">' + L[2] + '</td>' +
-      '<td class="ctr">' + L[3] + '</td><td>' + L[4] + '</td><td>' + L[5] + '</td>' +
+      '<td class="ctr">' + L[3] + '</td><td>' + L[4] + (r.customer ? '<a class="go" href="' + cariUrl(r.customer, '') + '" title="Cek toko ini di Cari Toko / Customer">▼</a>' : '') + '</td><td>' + L[5] + '</td>' +
       '<td class="ctr">' + L[6] + '</td><td class="ctr">' + L[7] + '</td>' +
       '<td class="ctr"><span class="st ' + stc + '">' + r.status + '</span></td><td class="ket">' + ket + '</td></tr>';
   }).join('');
@@ -463,6 +468,18 @@ document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () =
 $('pg').addEventListener('click', e => { const b = e.target.closest('button[data-p]'); if (b && !b.disabled) { state.page = +b.dataset.p; render(); document.querySelector('.wrap').scrollTop = 0; } });
 $('pg').addEventListener('change', e => { if (e.target.id === 'pgSize') { state.size = +e.target.value; state.page = 1; render(); } });
 $('bReload').addEventListener('click', () => loadData());
+
+/* ===== jalur ke / dari Cari Toko / Customer (cari.html) ===== */
+const cariUrl = (q, bulan) => 'cari.html?q=' + encodeURIComponent(q || '') + (bulan ? '&bulan=' + encodeURIComponent(bulan) : '');
+const QP = new URLSearchParams(location.search); let qpDone = false;
+function applyQP() {                       /* dibuka dari cari.html?q=...&bulan=YYYY-MM -> isi kotak cari & bulan, sekali saja */
+  if (qpDone) return; qpDone = true;
+  const q = QP.get('q'); if (q === null) return;
+  const b = QP.get('bulan') || '';
+  $('fQ').value = q;
+  $('fMonth').value = [...$('fMonth').options].some(o => o.value === b) ? b : '';
+  state.f = 'ALL'; state.page = 1;
+}
 
 /* ===== cakupan data ===== */
 function coverage() {
@@ -529,7 +546,7 @@ async function modalAct(a) {
 $('mX').addEventListener('click', closeModal);
 $('ov').addEventListener('click', e => { if (e.target.id === 'ov') return closeModal(); const b = e.target.closest('[data-m]'); if (b) modalAct(b.dataset.m); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-$('tb').addEventListener('click', e => { const tr = e.target.closest('tr[data-i]'); if (tr) openModal(+tr.dataset.i); });
+$('tb').addEventListener('click', e => { if (e.target.closest('a.go')) return; const tr = e.target.closest('tr[data-i]'); if (tr) openModal(+tr.dataset.i); });
 
 $('bXls').addEventListener('click', () => {
   if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat (cek koneksi internet).'); return; }
