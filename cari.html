@@ -241,16 +241,6 @@
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>🔍 Pencarian Toko / Customer <span>— Penjualan &amp; Uang Masuk</span></h1>
-      <div class="header-actions">
-        <a class="nav-btn" href="index.html" title="Dashboard">🏠 Dashboard</a>
-        <a class="nav-btn" href="PJ.html" title="Laporan Penjualan">📦 PJ</a>
-        <a class="nav-btn" href="UM.html" title="Laporan Uang Masuk">💰 UM</a>
-        <a class="nav-btn" id="goCek" href="CEK.html" title="Buka CEK (Penjualan ↔ Uang Masuk) dengan kata kunci & bulan di sini" onclick="this.href=cekUrl(document.getElementById('qToko').value.trim(), document.getElementById('qMonthPJ').value)">✅ CEK</a>
-        <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Mode gelap / terang">🌙</button>
-      </div>
-    </header>
 
     <div class="search-bar">
       <div class="field grow">
@@ -339,10 +329,7 @@
       const next = cur === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       try { localStorage.setItem('um_theme', next); } catch (e) {}
-      document.getElementById('themeBtn').textContent = next === 'dark' ? '🌙' : '☀️';
     }
-    document.getElementById('themeBtn').textContent =
-      (document.documentElement.getAttribute('data-theme') === 'light') ? '☀️' : '🌙';
 
     /* ========== HELPERS ========== */
     function toast(msg, type) {

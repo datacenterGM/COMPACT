@@ -1,272 +1,189 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Laporan</title>
-    <meta name="theme-color" content="#030303">
-    <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-    <link rel="icon" href="./favicon-32.png" type="image/png" sizes="32x32">
-    <link rel="icon" href="./favicon-16.png" type="image/png" sizes="16x16">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        /* Reset & Base Styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background-color: #030303; 
-            background-image: 
-                radial-gradient(circle at 50% 0%, rgba(20, 30, 60, 0.3), transparent 50%);
-            color: #ffffff;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 40px 20px;
-        }
-
-        /* Container */
-        .menu-container {
-            width: 100%;
-            max-width: 550px; 
-            display: flex;
-            flex-direction: column;
-            gap: 16px; 
-        }
-
-        /* Card Styling (Default State) */
-        .card {
-            background: rgba(255, 255, 255, 0.02); 
-            backdrop-filter: blur(10px); 
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 16px; 
-            padding: 20px 24px; 
-            position: relative;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            overflow: hidden;
-            
-            /* Tambahan agar tag <a> berfungsi seperti kartu */
-            display: block;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        /* Efek Keyboard Navigation (Aksesibilitas) */
-        .card:focus-visible {
-            outline: 2px solid #00d2ff;
-            outline-offset: 4px;
-        }
-
-        /* =========================================
-           EFEK HOVER: ISI KARTU MENYALA BIRU
-           ========================================= */
-        .card:hover, .card:focus-visible {
-            /* Background Kartu menjadi biru transparan (Gradient) */
-            background: linear-gradient(135deg, rgba(0, 210, 255, 0.12) 0%, rgba(0, 210, 255, 0.03) 100%);
-            
-            /* Border menyala */
-            border-color: rgba(0, 210, 255, 0.7);
-            transform: translateY(-4px);
-            
-            /* Efek Pendaran (Glow): inset (dalam) + luar */
-            box-shadow: 
-                inset 0 0 20px rgba(0, 210, 255, 0.15), 
-                0 0 25px rgba(0, 210, 255, 0.2),
-                0 10px 30px -10px rgba(0, 210, 255, 0.3);
-        }
-
-        /* Garis aksen kiri */
-        .card::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 20%;
-            height: 60%;
-            width: 4px;
-            background: #00d2ff;
-            border-radius: 0 4px 4px 0;
-            opacity: 0;
-            transition: all 0.3s ease;
-        }
-
-        .card:hover::before, .card:focus-visible::before {
-            opacity: 1;
-            box-shadow: 5px 0 15px rgba(0, 210, 255, 0.8);
-        }
-
-        /* Nomor urut */
-        .card-number {
-            position: absolute;
-            top: 18px;
-            right: 24px;
-            font-size: 11px; 
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.1);
-            letter-spacing: 1.5px;
-            transition: all 0.3s ease;
-        }
-
-        .card:hover .card-number, .card:focus-visible .card-number {
-            color: #00d2ff;
-            text-shadow: 0 0 10px rgba(0, 210, 255, 0.8);
-        }
-
-        /* Tipografi */
-        .card h2 {
-            font-size: 15px; 
-            font-weight: 600;
-            margin-bottom: 6px; 
-            color: #f8fafc;
-            letter-spacing: -0.3px;
-            transition: all 0.3s ease;
-        }
-
-        .card:hover h2, .card:focus-visible h2 {
-            color: #ffffff;
-            text-shadow: 0 0 12px rgba(0, 210, 255, 0.6);
-        }
-
-        .card p {
-            font-size: 12.5px; 
-            line-height: 1.5;
-            color: #94a3b8; 
-            max-width: 92%;
-            font-weight: 400;
-            transition: color 0.3s ease;
-        }
-
-        .card:hover p, .card:focus-visible p {
-            color: #bae6fd; /* Light blue */
-        }
-
-        /* Panah Kanan */
-        .arrow {
-            position: absolute;
-            right: 24px;
-            bottom: 20px;
-            color: rgba(255, 255, 255, 0.2);
-            font-size: 16px; 
-            transition: all 0.3s ease;
-            opacity: 0;
-            transform: translateX(-8px);
-        }
-
-        .card:hover .arrow, .card:focus-visible .arrow {
-            opacity: 1;
-            transform: translateX(0);
-            color: #00d2ff; 
-            text-shadow: 0 0 10px rgba(0, 210, 255, 0.8);
-        }
-        /* Tombol Backup / Sync (pojok kanan atas) */
-        .bk-fab {
-            position: fixed;
-            top: calc(env(safe-area-inset-top, 0px) + 12px);
-            right: 12px;
-            z-index: 50;
-            width: 40px; height: 40px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.04);
-            color: #fff;
-            font-size: 18px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .bk-fab:hover, .bk-fab:focus-visible {
-            border-color: rgba(0, 210, 255, 0.7);
-            background: rgba(0, 210, 255, 0.1);
-            box-shadow: 0 0 18px rgba(0, 210, 255, 0.25);
-            outline: none;
-        }
-        .bk-fab .dot {
-            position: absolute; top: 5px; right: 5px;
-            width: 9px; height: 9px; border-radius: 50%;
-            background: #64748b; border: 2px solid #030303;
-        }
-        .bk-fab .dot.ok { background: #10b981; }
-        .bk-fab .dot.busy { background: #3b82f6; }
-        .bk-fab .dot.warn { background: #f59e0b; }
-        .bk-fab .dot.err { background: #ef4444; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Penjualan &amp; Uang Masuk</title>
+<style>
+  :root, html[data-theme="dark"] {
+    --bg:#0f172a; --card:#1e293b; --card2:#334155; --border:#475569;
+    --text:#f1f5f9; --muted:#94a3b8; --accent:#3b82f6;
+  }
+  html[data-theme="light"] {
+    --bg:#f1f5f9; --card:#ffffff; --card2:#e2e8f0; --border:#cbd5e1;
+    --text:#0f172a; --muted:#64748b; --accent:#2563eb;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    background:var(--bg); color:var(--text);
+    display:flex; flex-direction:column; overflow:hidden;
+    padding-top:env(safe-area-inset-top,0px);
+  }
+  .tabbar {
+    display:flex; align-items:center; gap:6px; flex:0 0 auto;
+    padding:6px 10px; border-bottom:1px solid var(--border);
+    background:var(--bg); overflow-x:auto;
+  }
+  .tab {
+    height:28px; min-width:54px; padding:0 14px; border-radius:5px;
+    border:1px solid var(--border); background:var(--card); color:var(--text);
+    font:700 0.78rem/1 'Segoe UI', system-ui, sans-serif; letter-spacing:.04em;
+    cursor:pointer; white-space:nowrap; transition:background .15s, border-color .15s;
+  }
+  .tab:hover { border-color:var(--accent); background:var(--card2); }
+  .tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .spacer { flex:1; }
+  .theme {
+    height:28px; width:34px; border-radius:5px; border:1px solid var(--border);
+    background:transparent; color:var(--text); cursor:pointer; font-size:.85rem;
+  }
+  .theme:hover { border-color:var(--accent); background:var(--card2); }
+  .stage { flex:1 1 auto; position:relative; min-height:0; }
+  iframe {
+    position:absolute; inset:0; width:100%; height:100%;
+    border:0; background:var(--bg); display:none;
+  }
+  iframe.show { display:block; }
+</style>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('um_theme') || localStorage.getItem('theme') || 'dark';
+      if (t !== 'light' && t !== 'dark') t = 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  })();
+</script>
 </head>
 <body>
+  <nav class="tabbar" id="tabbar">
+    <button class="tab" data-tab="cari">🔍 CARI</button>
+    <button class="tab" data-tab="pj">PJ</button>
+    <button class="tab" data-tab="um">UM</button>
+    <button class="tab" data-tab="cek">CEK</button>
+    <span class="spacer"></span>
+    <button class="theme" id="themeBtn" title="Mode gelap / terang">🌙</button>
+  </nav>
+  <div class="stage" id="stage"></div>
 
-    <button type="button" class="bk-fab" id="bkFab" title="Backup / Sync" aria-label="Backup dan Sync">☁️<span class="dot" id="bkDot"></span></button>
+<script>
+(function () {
+  var PAGES = { cari:'cari.html', pj:'PJ.html', um:'UM.html', cek:'CEK.html' };
+  var frames = {};          // key -> iframe (dibuat saat tab pertama kali dibuka)
+  var stale  = {};          // key -> true bila data PJ/UM mungkin berubah sejak dimuat
+  var current = null;
+  var stage = document.getElementById('stage');
 
-    <main class="menu-container">
-        
-        <!-- Card 1 -->
-        <a href="PJ.html" class="card">
-            <span class="card-number">01</span>
-            <h2>Penjualan</h2>
-            <p>Upload dan lihat laporan penjualan multi bulan, termasuk faktur batal dan harga.</p>
-            <div class="arrow">→</div>
-        </a>
+  /* Rapikan tampilan halaman di dalam tab (tombol Dashboard diganti tab ini) */
+  var EMBED_CSS =
+    'a[href="index.html"]{display:none!important}' +
+    'header:has(a.nav-btn){display:none!important}';
 
-        <!-- Card 2 -->
-        <a href="UM.html" class="card">
-            <span class="card-number">02</span>
-            <h2>Uang Masuk</h2>
-            <p>Laporan uang masuk harian: Minyak, Rupa-rupa, Titip, Piutang, dan Dropping.</p>
-            <div class="arrow">→</div>
-        </a>
+  function keyFromHref(href) {
+    try {
+      var u = new URL(href, location.href);
+      var file = u.pathname.split('/').pop().toLowerCase();
+      for (var k in PAGES) if (PAGES[k].toLowerCase() === file) return { key:k, search:u.search };
+      if (file === 'index.html' || file === '') return { key:'cari', search:'' };
+    } catch (e) {}
+    return null;
+  }
 
-        <!-- Card 3 -->
-        <a href="CEK.html" class="card">
-            <span class="card-number">03</span>
-            <h2>Cek Penjualan ke Uang Masuk</h2>
-            <p>Mencocokkan faktur penjualan dengan uang masuk dan menandai selisihnya.</p>
-            <div class="arrow">→</div>
-        </a>
+  /* Setelah halaman anak dimuat: sisipkan CSS + tangkap klik link antar halaman */
+  function hook(frame) {
+    try {
+      var d = frame.contentDocument;
+      if (!d || !d.head) return;
+      var s = d.createElement('style'); s.textContent = EMBED_CSS; d.head.appendChild(s);
+      d.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a[href]');
+        if (!a || e.defaultPrevented) return;
+        var t = keyFromHref(a.href);
+        if (!t) return;
+        e.preventDefault();
+        show(t.key, t.search);
+      });
+    } catch (err) { /* beda origin (mis. file://): link tetap jalan di dalam tab */ }
+  }
 
-        <!-- Card 4 -->
-        <a href="AR.html" class="card">
-            <span class="card-number">04</span>
-            <h2>AR</h2>
-            <p>Piutang dan rekonsiliasi.</p>
-            <div class="arrow">→</div>
-        </a>
+  function make(key, search) {
+    var f = document.createElement('iframe');
+    f.title = key.toUpperCase();
+    f.addEventListener('load', function () { hook(f); });
+    f.src = PAGES[key] + (search || '');
+    stage.appendChild(f);
+    frames[key] = f;
+    return f;
+  }
 
-        <!-- Card 5 -->
-        <a href="cari.html" class="card">
-            <span class="card-number">05</span>
-            <h2>Cari Toko / Customer</h2>
-            <p>Cari toko atau customer di data Penjualan dan Uang Masuk sekaligus.</p>
-            <div class="arrow">→</div>
-        </a>
+  /* Muat ulang data tab CARI / CEK tanpa menghilangkan kata kunci & filter */
+  function refresh(key) {
+    var f = frames[key];
+    stale[key] = false;
+    try {
+      var w = f.contentWindow, d = f.contentDocument;
+      if (key === 'cek') { d.getElementById('bReload').click(); return; }
+      if (key === 'cari') {
+        Promise.all([w.loadPenjualan(), w.loadUangMasuk()]).then(function () { w.doSearch(); });
+        return;
+      }
+    } catch (e) {}
+    f.contentWindow.location.reload();
+  }
 
-    </main>
+  function show(key, search) {
+    if (!PAGES[key]) key = 'cari';
+    var f = frames[key];
+    if (!f) f = make(key, search);
+    else if (search) { f.src = PAGES[key] + search; stale[key] = false; }   // dibuka dari link (mis. ▲ / ▼)
+    else if (stale[key]) refresh(key);
 
-    <script src="backup.js"></script>
-    <script>
-        /* Ikon Backup / Sync: buka panel + titik status.
-           Awal: berdasarkan umur backup/sync terakhir (>7 hari = merah). Setelah mesin sinkron berjalan, ikut statusnya. */
-        (function () {
-            const fab = document.getElementById('bkFab'), dot = document.getElementById('bkDot');
-            const set = k => { dot.className = 'dot ' + k; };
-            fab.addEventListener('click', () => window.LaporanBackup && window.LaporanBackup.open());
-            let last = 0;
-            try { last = Math.max(Date.parse(localStorage.getItem('bkLast')) || 0, Date.parse(localStorage.getItem('syncLast')) || 0); } catch (e) {}
-            set(!last ? 'warn' : (Date.now() - last > 7 * 864e5 ? 'err' : 'ok'));
-            window.addEventListener('laporan-sync-state', e => set((e.detail && e.detail.kind) || 'busy'));
-            if (window.LaporanBackup && window.LaporanBackup.last) set(window.LaporanBackup.last.kind);
-        })();
-    </script>
-    <script>
-        /* Pasang service worker sejak halaman menu, supaya semua halaman ikut tersimpan untuk offline */
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
-        }
-    </script>
+    if (key === 'pj' || key === 'um') { stale.cari = true; stale.cek = true; }
+
+    for (var k in frames) frames[k].classList.toggle('show', k === key);
+    document.querySelectorAll('.tab').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.tab === key);
+    });
+    current = key;
+    if (location.hash !== '#' + key) history.replaceState(null, '', '#' + key);
+  }
+
+  document.getElementById('tabbar').addEventListener('click', function (e) {
+    var b = e.target.closest('.tab'); if (b) show(b.dataset.tab);
+  });
+
+  /* ===== tema: ikut tombol di sini, dan ikut tombol di dalam tab ===== */
+  var themeBtn = document.getElementById('themeBtn');
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    themeBtn.textContent = t === 'light' ? '☀️' : '🌙';
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute('content', t === 'light' ? '#e2e8f0' : '#0f172a');
+    for (var k in frames) {
+      try { frames[k].contentDocument.documentElement.setAttribute('data-theme', t); } catch (e) {}
+    }
+  }
+  themeBtn.addEventListener('click', function () {
+    var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    try { localStorage.setItem('um_theme', next); localStorage.setItem('theme', next); } catch (e) {}
+    applyTheme(next);
+  });
+  window.addEventListener('storage', function (e) {
+    if ((e.key === 'um_theme' || e.key === 'theme') && (e.newValue === 'light' || e.newValue === 'dark')) applyTheme(e.newValue);
+  });
+  applyTheme(document.documentElement.getAttribute('data-theme'));
+
+  /* ===== mulai: #pj / #um / #cek / #cari (default CARI) ===== */
+  window.addEventListener('hashchange', function () {
+    var k = location.hash.slice(1).toLowerCase();
+    if (PAGES[k] && k !== current) show(k);
+  });
+  var start = location.hash.slice(1).toLowerCase();
+  show(PAGES[start] ? start : 'cari', location.search);
+})();
+</script>
 </body>
 </html>
