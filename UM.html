@@ -406,8 +406,32 @@
       letter-spacing: 0.04em; color: var(--muted);
       padding: 10px 14px 6px; background: rgba(15,23,42,0.5);
     }
-    .badge-lunas { background: rgba(34,197,94,0.2); color: #86efac; }
-    .badge-titip { background: rgba(245,158,11,0.2); color: #fcd34d; }
+    /* LUNAS: biru futuristik (neon cyan-blue) */
+    .badge-lunas {
+      background: linear-gradient(135deg, rgba(14,165,233,0.28), rgba(59,130,246,0.38));
+      color: #7dd3fc;
+      border: 1px solid rgba(56,189,248,0.75);
+      box-shadow: 0 0 8px rgba(56,189,248,0.45), inset 0 0 6px rgba(56,189,248,0.18);
+      text-shadow: 0 0 6px rgba(56,189,248,0.7);
+      font-weight: 800; letter-spacing: 0.08em;
+    }
+    /* TITIP: merah tegas */
+    .badge-titip {
+      background: linear-gradient(135deg, rgba(220,38,38,0.35), rgba(239,68,68,0.45));
+      color: #fecaca;
+      border: 1px solid rgba(248,113,113,0.85);
+      box-shadow: 0 0 8px rgba(239,68,68,0.45);
+      font-weight: 800; letter-spacing: 0.08em;
+    }
+    html[data-theme="light"] .badge-lunas {
+      background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+      color: #0369a1; border-color: #0ea5e9;
+      box-shadow: 0 0 6px rgba(14,165,233,0.4); text-shadow: none;
+    }
+    html[data-theme="light"] .badge-titip {
+      background: #fee2e2; color: #b91c1c; border-color: #ef4444;
+      box-shadow: 0 0 5px rgba(239,68,68,0.35);
+    }
     .badge-tf { background: rgba(59,130,246,0.2); color: #93c5fd; }
     .badge-bg { background: rgba(168,85,247,0.2); color: #d8b4fe; }
     .empty-rincian { padding: 24px; text-align: center; color: var(--muted); font-size: 0.9rem; }
@@ -562,7 +586,7 @@
           <span style="color:var(--muted);font-size:0.8rem">Klik baris tanggal untuk lihat rincian faktur</span>
         </div>
       </div>
-      <div class="table-wrap" style="height: calc(100vh - 250px); min-height: 400px;">
+      <div class="table-wrap" data-fit style="min-height: 240px;">
         <table>
           <thead>
             <tr>
@@ -636,7 +660,7 @@
           </div>
         </div>
       </div>
-      <div class="table-wrap" style="height: calc(100vh - 230px); min-height: 400px;">
+      <div class="table-wrap" data-fit style="min-height: 240px;">
         <table>
           <thead>
             <tr>
@@ -684,7 +708,7 @@
         </div>
       </div>
       <div id="minyakSummary" class="cards" style="margin-bottom:14px"></div>
-      <div class="table-wrap" style="height: calc(100vh - 310px); min-height: 400px;">
+      <div class="table-wrap" data-fit style="min-height: 240px;">
         <table>
           <thead>
             <tr>
@@ -730,7 +754,7 @@
         </div>
       </div>
       <div id="rupaSummary" class="cards" style="margin-bottom:14px"></div>
-      <div class="table-wrap" style="height: calc(100vh - 310px); min-height: 400px;">
+      <div class="table-wrap" data-fit style="min-height: 240px;">
         <table>
           <thead>
             <tr>
@@ -780,7 +804,7 @@
         </div>
       </div>
       <div id="titipSummary" class="cards" style="margin-bottom:14px"></div>
-      <div class="table-wrap" style="height: calc(100vh - 310px); min-height: 400px;">
+      <div class="table-wrap" data-fit style="min-height: 240px;">
         <table>
           <thead><tr>
             <th class="center">No</th>
@@ -829,7 +853,7 @@
         </div>
       </div>
       <div id="piutangSummary" class="cards" style="margin-bottom:14px"></div>
-      <div class="table-wrap" style="height: calc(100vh - 310px); min-height: 400px;">
+      <div class="table-wrap" data-fit style="min-height: 240px;">
         <table>
           <thead>
             <tr>
@@ -878,7 +902,7 @@
         </div>
       </div>
       <div id="droppingSummary" class="cards" style="margin-bottom:14px"></div>
-      <div class="table-wrap" style="height: calc(100vh - 310px); min-height: 400px;">
+      <div class="table-wrap" data-fit style="min-height: 240px;">
         <table>
           <thead>
             <tr>
@@ -1624,6 +1648,26 @@ function toggleMenu(e) {
       if (menu && !menu.contains(e.target) && !btn.contains(e.target)) closeMenu();
     });
 
+
+    // ===================== AUTO-FIT TABEL =====================
+    // Tinggi tabel mengisi sisa layar (sampai footer), tidak lagi pakai angka tetap.
+    function fitTables() {
+      const footer = document.querySelector('footer');
+      const reserve = (footer ? footer.offsetHeight + 20 : 0) + 20 + 12; // footer + margin + padding container + jarak
+      document.querySelectorAll('.table-wrap[data-fit]').forEach(w => {
+        if (w.offsetParent === null) return; // tab tidak tampil
+        const top = w.getBoundingClientRect().top + window.scrollY;
+        const h = Math.max(240, Math.floor(window.innerHeight - top - reserve));
+        w.style.height = h + 'px';
+      });
+    }
+    window.addEventListener('resize', fitTables);
+    window.addEventListener('load', () => { fitTables(); setTimeout(fitTables, 300); });
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(() => fitTables());
+      document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('.toolbar').forEach(t => ro.observe(t)));
+    }
+
     // ===================== TABS =====================
     async function switchTab(name) {
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -1655,6 +1699,8 @@ function toggleMenu(e) {
       else if (name === 'piutang') renderPiutangTab();
       else if (name === 'dropping') renderDroppingTab();
       else if (name === 'manage') renderManage();
+      fitTables();
+      requestAnimationFrame(fitTables);
     }
 
     // ===================== PAGINATION =====================
