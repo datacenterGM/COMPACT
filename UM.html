@@ -246,10 +246,10 @@
     #tab-titip th:nth-child(2), #tab-titip td:nth-child(2) {
       width: 48px; max-width: 52px; white-space: nowrap;
     }
-    #tab-titip th:nth-child(4), #tab-titip td:nth-child(4) {
+    #tab-titip th:nth-child(3), #tab-titip td:nth-child(3) {
       width: 64px; max-width: 80px; white-space: nowrap;
     }
-    #tab-titip td:nth-child(4) .badge {
+    #tab-titip td:nth-child(3) .badge {
       padding: 1px 5px; font-size: 0.68rem;
     }
     .badge-rupa { background: rgba(34,197,94,0.2); color: #86efac; }
@@ -784,7 +784,6 @@
         <table>
           <thead><tr>
             <th class="center">No</th>
-            <th class="text-left">Bulan</th>
             <th class="text-left">Tgl Titip</th>
             <th class="text-left">Ket</th>
             <th class="text-left">No Faktur</th>
@@ -2268,18 +2267,15 @@ function toggleMenu(e) {
         <div class="card total"><div class="card-label">Status TITIP</div><div class="card-value">${fmt(sum.lunas)} Lunas</div><div class="card-sub">${fmt(sum.sebagian)} Sebagian · ${fmt(sum.belum)} Belum bayar</div></div>`;
 
       if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="18" class="empty-rincian">Tidak ada transaksi TITIP pada filter ini.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="17" class="empty-rincian">Tidak ada transaksi TITIP pada filter ini.</td></tr>`;
         renderPagination('titipPagination','titip',0); return;
       }
       clampPage('titip', rows.length);
       const start = (pagState.titip.page - 1) * pagState.titip.size;
       const pageRows = rows.slice(start, start + pagState.titip.size);
       tbody.innerHTML = pageRows.map((r,i) => {
-        const mk = r._monthKey || '';
-        const mmYY = /^\d{4}-\d{2}$/.test(mk) ? (mk.slice(5,7) + '/' + mk.slice(2,4)) : esc(r._monthLabel || mk);
         return `<tr>
         <td class="center">${start+i+1}</td>
-        <td class="text-left">${mmYY}</td>
         <td class="text-left">${esc(r.tgl)}</td>
         <td class="text-left">${ketBadge(getDisplayKet(r))}</td>
         <td class="text-left">${esc(r.faktur)}</td>
