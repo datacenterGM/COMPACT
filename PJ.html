@@ -378,6 +378,15 @@
     .bd-parsial { background:#e0e7ff; color:#3730a3; border:1px solid #a5b4fc; }
     .tab-n { display:inline-block; min-width:18px; padding:0 5px; margin-left:3px; border-radius:9px; background:#f59e0b; color:#fff; font-size:.68rem; font-weight:700; text-align:center; }
     .tab-n:empty { display:none; }
+    .bd-ok { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+    .bd-wait { background:#e5e7eb; color:#374151; border:1px solid #cbd5e1; }
+    .ck-neg { color:#b91c1c; font-weight:600; }
+    .ck-pos { color:#1b5e20; font-weight:600; }
+    .col-ket { min-width:230px; white-space:normal; font-size:.8rem; color:var(--muted); }
+    :root[data-theme="dark"] .bd-ok { background:#0f2a1a; color:#86efac; border-color:#166534; }
+    :root[data-theme="dark"] .bd-wait { background:#1f2937; color:#cbd5e1; border-color:#374151; }
+    :root[data-theme="dark"] .ck-neg { color:#fca5a5; }
+    :root[data-theme="dark"] .ck-pos { color:#86efac; }
     .pb-bar { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; padding:.5rem .75rem; border-bottom:1px solid var(--border); font-size:.8rem; }
     .pb-bar select, .pb-btn { padding:.3rem .6rem; border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--text); font-size:.8rem; cursor:pointer; }
     .pb-btn:hover:not(:disabled) { background:#f0f0f0; }
@@ -466,6 +475,7 @@
         <button class="tab" data-tab="tempo_fitri">Tempo • Minyak Fitri</button>
         <button class="tab" data-tab="tempo_rupa">Tempo • Rupa-Rupa</button>
         <button class="tab" data-tab="batal">⚠ Pelacak Batal <span class="tab-n" id="batalN"></span></button>
+        <button class="tab" data-tab="cek">🔎 Cek Cash Dropping <span class="tab-n" id="cekN"></span></button>
       </div>
       
       <div class="right-controls">
@@ -582,6 +592,21 @@
         <div class="pagination" id="page-tempo_rupa"></div>
       </div>
 
+      <div class="tab-content" id="tab-cek">
+        <div class="pb-bar">
+          <select id="cekView" title="Tampilkan">
+            <option value="MASALAH">Perlu dicek</option>
+            <option value="BELUM_LAPORAN">Belum ada laporan UM (belum setor)</option>
+            <option value="OK">Sudah cocok</option>
+            <option value="ALL">Semua</option>
+          </select>
+          <button class="pb-btn" id="cekReload" type="button">↻ Muat ulang data UM</button>
+          <div class="pb-info" id="cekInfo"></div>
+        </div>
+        <div class="table-wrapper"><div id="table-cek"></div></div>
+        <div class="pagination" id="page-cek"></div>
+      </div>
+
       <div class="tab-content" id="tab-batal">
         <div class="pb-bar">
           <select id="pbView" title="Tampilkan">
@@ -621,6 +646,7 @@
       tempo_fitri: { data: [], filtered: [], page: 1, search: '' },
       tempo_rupa:  { data: [], filtered: [], page: 1, search: '' },
       batal:       { data: [], filtered: [], page: 1, search: '' },
+      cek:         { data: [], filtered: [], page: 1, search: '' },
     };
 
     const menuBtn = document.getElementById('menuBtn');
@@ -1197,7 +1223,7 @@
     function updateKpi(key) {
       const box = document.getElementById('kpiCards');
       if (!box) return;
-      if (key === 'batal' || !tabState[key]) { box.style.display = 'none'; return; }
+      if (key === 'batal' || key === 'cek' || !tabState[key]) { box.style.display = 'none'; return; }
       box.style.display = 'grid';
       const rows = tabState[key].filtered || [];
       let omzet = 0, hpp = 0, cash = 0, tempo = 0, n = 0, skipped = 0;
@@ -1232,7 +1258,9 @@
     function renderTab(key) {
       if (tabState[key].dirty) applyFilter(key);
       updateKpi(key);
+      cekBadgeSoon();
       if (key === 'batal') { renderBatal(); return; }
+      if (key === 'cek') { renderCek(); return; }
       const st = tabState[key];
       const totalRows = st.filtered.length;
       const totalPages = Math.max(1, Math.ceil(totalRows / ROWS_PER_PAGE));
@@ -1674,7 +1702,207 @@
       sync();
     })();
 
-    loadBatal().then(loadHarga).then(loadPJ);
+
+    /* ===================== CEK CASH DROPPING (PJ vs Uang Masuk) ===================== */
+    /* Membandingkan faktur Cash di PJ dengan tabel Cash Dropping di UM.
+       Data UM dibaca (hanya baca) dari penyimpanan bersama 'um-fixv1' yang diterbitkan halaman UM. */
+    let cekUM = null;          // { drop: Map, piut: Map, last: 'YYYY-MM-DD', n, at } atau null bila belum terbaca
+    const CEK_PROB = new Set(['BELUM', 'DROP_TEMPO', 'DROP_NOPJ', 'BEDA', 'PIUTANG']);
+
+    function cekReadUM() {
+      return new Promise(ok => {
+        if (typeof indexedDB === 'undefined') return ok(null);
+        let created = false, req;
+        try { req = indexedDB.open('um-fixv1'); } catch (e) { return ok(null); }
+        req.onupgradeneeded = () => { created = true; };
+        req.onerror = () => ok(null);
+        req.onsuccess = () => {
+          const db = req.result; db.onversionchange = () => db.close();
+          if (created || !db.objectStoreNames.contains('um-data')) {
+            db.close();
+            if (created) { try { indexedDB.deleteDatabase('um-fixv1'); } catch (e) {} }
+            return ok(null);
+          }
+          try {
+            const g = db.transaction('um-data', 'readonly').objectStore('um-data').get('latest');
+            g.onsuccess = () => { db.close(); ok(g.result || null); };
+            g.onerror = () => { db.close(); ok(null); };
+          } catch (e) { db.close(); ok(null); }
+        };
+      });
+    }
+    function cekBuildUM(v) {
+      const recs = v && Array.isArray(v.records) ? v.records : [];
+      if (!recs.length) return null;
+      const drop = new Map(), piut = new Map();
+      let last = '';
+      recs.forEach(r => {
+        const k = String(r.no_faktur || '').trim().toUpperCase(); if (!k) return;
+        const d = String(r.tanggal_laporan_str || '');
+        if (d > last) last = d;
+        const m = r.section === 'PIUTANG' ? piut : drop;
+        const e = m.get(k) || { bayar: 0, tgl: d, toko: r.nama_toko || '', sales: r.sales || '' };
+        e.bayar += Number(r.total_bayar) || 0;
+        m.set(k, e);
+      });
+      return { drop, piut, last, n: recs.length, at: v.updatedAt || 0 };
+    }
+    async function cekLoadUM() {
+      try { cekUM = cekBuildUM(await cekReadUM()); } catch (e) { console.warn('Gagal membaca data UM:', e); cekUM = null; }
+      return cekUM;
+    }
+    function cekFmtIso(s) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
+      return m ? m[3] + '/' + m[2] + '/' + m[1].slice(2) : String(s || '');
+    }
+    function cekPJFak() {
+      const m = new Map();
+      for (const r of allData) {
+        const k = fkey(r);
+        if (!k || batalMap[k] || r._pair) continue;
+        let e = m.get(k);
+        if (!e) { e = { k, Tanggal: r.Tanggal, tk: dateKey(r.Tanggal), Sales: r.Sales, Customer: r.Customer, tot: 0, nCash: 0, nOther: 0, pay: r.Pembayaran || '' }; m.set(k, e); }
+        e.tot += Number(r.Total) || 0;
+        if (isCash(r)) e.nCash++; else e.nOther++;
+      }
+      return m;
+    }
+    function cekCompute() {
+      const um = cekUM, rows = [];
+      if (!um) return { rows, um: null };
+      const pj = cekPJFak();
+      const q = (tabState.cek.search || '').toLowerCase();
+      const inScope = (tk, sales, exact) => {
+        if (monthFilter && String(tk).slice(0, 7) !== monthFilter) return false;
+        if (dateFrom && tk < dateFrom) return false;
+        if (dateTo && tk > dateTo) return false;
+        if (salesFilter) {
+          const sv = String(sales || '').trim().toUpperCase();
+          if (exact ? sv !== salesFilter : !sv.includes(salesFilter)) return false;
+        }
+        return true;
+      };
+      const hit = (fk, cust, sales) => !q || (fk + ' ' + (cust || '') + ' ' + (sales || '')).toLowerCase().includes(q);
+
+      pj.forEach(e => {
+        if (!(e.nCash > 0 && e.nOther === 0)) return;                 // hanya faktur Cash
+        const dr = um.drop.get(e.k);
+        if (Math.abs(e.tot) < 1 && !dr) return;
+        if (!inScope(e.tk, e.Sales, true) || !hit(e.k, e.Customer, e.Sales)) return;
+        const row = { fk: e.k, tk: e.tk, tgl: e.Tanggal, cust: e.Customer, sales: e.Sales, pj: e.tot, dr: dr ? dr.bayar : null, pjCash: true, ket: '' };
+        if (dr) {
+          if (Math.abs(dr.bayar - e.tot) < 1) { row.st = 'OK'; row.ket = 'Masuk Cash Dropping ' + cekFmtIso(dr.tgl); }
+          else { row.st = 'BEDA'; row.ket = 'Nilai di Cash Dropping (' + cekFmtIso(dr.tgl) + ') berbeda dari total faktur'; }
+        } else if (um.piut.has(e.k)) {
+          row.st = 'PIUTANG'; row.ket = 'Tercatat di Piutang Tempo UM, bukan di Cash Dropping';
+        } else if (e.tk > um.last) {
+          row.st = 'BELUM_LAPORAN'; row.ket = 'Laporan UM terakhir ' + cekFmtIso(um.last) + ' — belum ada setoran / belum diinput';
+        } else {
+          row.st = 'BELUM'; row.ket = 'Tidak ditemukan di Cash Dropping UM padahal laporan tanggal ini sudah ada';
+        }
+        rows.push(row);
+      });
+      um.drop.forEach((dr, k) => {
+        const p = pj.get(k);
+        if (p && p.nCash > 0 && p.nOther === 0) return;               // sudah dibahas di atas
+        if (p) {
+          if (!inScope(p.tk, p.Sales, true) || !hit(k, p.Customer, p.Sales)) return;
+          rows.push({ fk: k, tk: p.tk, tgl: p.Tanggal, cust: p.Customer, sales: p.Sales, pj: p.tot, dr: dr.bayar, pjCash: false, st: 'DROP_TEMPO',
+            ket: 'Masuk Cash Dropping ' + cekFmtIso(dr.tgl) + ', tapi di PJ berlabel ' + (p.pay || 'bukan Cash') + ' → ubah jadi Cash di data sumber' });
+        } else {
+          if (!inScope(dr.tgl, dr.sales, false) || !hit(k, dr.toko, dr.sales)) return;
+          rows.push({ fk: k, tk: dr.tgl, tgl: cekFmtIso(dr.tgl), cust: dr.toko, sales: dr.sales, pj: null, dr: dr.bayar, pjCash: false, st: 'DROP_NOPJ',
+            ket: 'Ada di Cash Dropping ' + cekFmtIso(dr.tgl) + ', tidak ada di data penjualan PJ (atau fakturnya dibatalkan)' });
+        }
+      });
+      rows.sort((a, b) => (a.tk > b.tk ? 1 : a.tk < b.tk ? -1 : 0) || (a.fk > b.fk ? 1 : -1));
+      return { rows, um };
+    }
+    let _cekBadgeT = 0;
+    function cekBadgeSoon() {
+      clearTimeout(_cekBadgeT);
+      _cekBadgeT = setTimeout(() => {
+        const el = document.getElementById('cekN'); if (!el) return;
+        if (!cekUM || !allData.length) { el.textContent = ''; return; }
+        const n = cekCompute().rows.filter(r => CEK_PROB.has(r.st)).length;
+        el.textContent = n ? String(n) : '';
+      }, 0);
+    }
+    const CEK_LABEL = {
+      OK:            ['bd-ok',    '✔ Cocok'],
+      BELUM:         ['bd-batal', '✖ Belum masuk Dropping'],
+      BELUM_LAPORAN: ['bd-wait',  '⏳ Belum ada laporan UM'],
+      DROP_TEMPO:    ['bd-nol',   '⚠ Dropping, di PJ Tempo'],
+      DROP_NOPJ:     ['bd-nol',   '⚠ Dropping, tidak ada di PJ'],
+      BEDA:          ['bd-parsial', '≠ Nilai beda'],
+      PIUTANG:       ['bd-nol',   '⚠ Ada di Piutang Tempo'],
+    };
+    function renderCek() {
+      const st = tabState.cek;
+      const info = document.getElementById('cekInfo');
+      const container = document.getElementById('table-cek');
+      const pager = document.getElementById('page-cek');
+      const R = v => Math.round(v).toLocaleString('id-ID');
+      if (!cekUM) {
+        info.innerHTML = '';
+        container.innerHTML = '<div class="empty-msg">Data Uang Masuk (UM) belum terbaca.<br>Buka halaman <b>UM</b> di browser yang sama (alamat yang sama), pastikan Excel Uang Masuk sudah di-upload, lalu klik <b>↻ Muat ulang data UM</b>.</div>';
+        pager.innerHTML = ''; return;
+      }
+      const { rows } = cekCompute();
+      let pjSum = 0, pjN = 0, drSum = 0, drN = 0, ok = 0, prob = 0, wait = 0, waitSum = 0;
+      rows.forEach(r => {
+        if (r.st === 'BELUM_LAPORAN') { wait++; waitSum += r.pj || 0; }
+        else if (r.pjCash) { pjN++; pjSum += r.pj || 0; }
+        if (r.dr !== null) { drN++; drSum += r.dr; }
+        if (r.st === 'OK') ok++; else if (CEK_PROB.has(r.st)) prob++;
+      });
+      info.innerHTML = 'Laporan UM terakhir: <b>' + cekFmtIso(cekUM.last) + '</b>. ' +
+        'Cash PJ (yang sudah ada laporan UM): <b>' + pjN + '</b> faktur Rp ' + R(pjSum) + ' · ' +
+        'Cash Dropping UM: <b>' + drN + '</b> faktur Rp ' + R(drSum) + ' · ' +
+        'Selisih (PJ − UM): <b>' + (pjSum - drSum < 0 ? '-' : '') + 'Rp ' + R(Math.abs(pjSum - drSum)) + '</b>. ' +
+        'Cocok: <b>' + ok + '</b> · Perlu dicek: <b>' + prob + '</b> · Belum ada laporan UM: <b>' + wait + '</b> faktur (Rp ' + R(waitSum) + '). ' +
+        'Mengikuti filter bulan / tanggal / sales di atas.';
+      const v = document.getElementById('cekView').value;
+      const list = rows.filter(r => v === 'ALL' ? true : v === 'OK' ? r.st === 'OK' : v === 'BELUM_LAPORAN' ? r.st === 'BELUM_LAPORAN' : CEK_PROB.has(r.st));
+      const totalPages = Math.max(1, Math.ceil(list.length / ROWS_PER_PAGE));
+      if (st.page > totalPages) st.page = totalPages;
+      if (!list.length) {
+        container.innerHTML = '<div class="empty-msg">' + (v === 'MASALAH' ? 'Semua faktur Cash sudah cocok dengan Cash Dropping 👍' : 'Tidak ada faktur pada tampilan ini') + '</div>';
+        pager.innerHTML = ''; return;
+      }
+      const start = (st.page - 1) * ROWS_PER_PAGE;
+      let h = '<table><thead><tr><th>Status</th><th>Tanggal</th><th>No. Faktur</th><th>Customer</th><th>Sales</th><th>Total PJ</th><th>Cash Dropping UM</th><th>Selisih (PJ − UM)</th><th>Keterangan</th></tr></thead><tbody>';
+      for (const r of list.slice(start, start + ROWS_PER_PAGE)) {
+        const lb = CEK_LABEL[r.st] || ['', r.st];
+        const sel = (r.pjCash ? (r.pj || 0) : 0) - (r.dr || 0);
+        const selTxt = r.st === 'OK' ? '' : (Math.abs(sel) < 1 ? '' : '<span class="' + (sel < 0 ? 'ck-neg' : 'ck-pos') + '">' + (sel < 0 ? '-' : '') + formatNum(Math.abs(sel)) + '</span>');
+        h += '<tr><td><span class="bd ' + lb[0] + '" style="margin-left:0">' + lb[1] + '</span></td>' +
+          '<td class="center">' + pe(r.tgl || '') + '</td><td class="center">' + pe(r.fk) + '</td>' +
+          '<td class="col-customer">' + pe(r.cust || '') + '</td><td class="center">' + pe(r.sales || '') + '</td>' +
+          '<td class="num">' + (r.pj === null ? '' : formatNum(r.pj)) + '</td>' +
+          '<td class="num">' + (r.dr === null ? '' : formatNum(r.dr)) + '</td>' +
+          '<td class="num">' + selTxt + '</td>' +
+          '<td class="col-ket">' + pe(r.ket) + '</td></tr>';
+      }
+      container.innerHTML = h + '</tbody></table>';
+      renderPagination('cek', totalPages);
+    }
+    document.getElementById('cekView').addEventListener('change', () => { tabState.cek.page = 1; renderCek(); });
+    document.getElementById('cekReload').addEventListener('click', async () => {
+      await cekLoadUM(); cekBadgeSoon(); renderCek();
+      pbToast(cekUM ? 'Data UM dimuat ulang (' + cekUM.n.toLocaleString('id-ID') + ' baris)' : 'Data UM belum ditemukan');
+    });
+    (function () {
+      const b = document.querySelector('#tabs .tab[data-tab="cek"]');
+      if (b) b.addEventListener('click', () => cekLoadUM().then(() => { cekBadgeSoon(); if (currentTab === 'cek') renderCek(); }));
+      try {
+        const bc = new BroadcastChannel('laporan-data');
+        bc.onmessage = e => { if (e.data === 'uangmasuk') cekLoadUM().then(() => { cekBadgeSoon(); if (currentTab === 'cek') renderCek(); }); };
+      } catch (e) {}
+    })();
+    /* ===================== /CEK CASH DROPPING ===================== */
+
+    loadBatal().then(loadHarga).then(loadPJ).then(cekLoadUM).then(cekBadgeSoon);
   </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
 <script src="backup.js"></script>
