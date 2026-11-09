@@ -88,6 +88,20 @@
       display: none; cursor: pointer; max-width: 180px;
     }
     .month-sel:focus { border-color: #0d47a1; }
+    .date-rng { display: none; align-items: center; gap: 0.3rem; font-size: 0.82rem; color: var(--muted); }
+    .date-rng input[type="date"] {
+      padding: 0.3rem 0.45rem; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 0.85rem; outline: none; background: white; color: var(--text); font-family: inherit;
+    }
+    .date-rng input[type="date"]:focus { border-color: #0d47a1; }
+    .date-rng .dr-x {
+      border: 1px solid var(--border); background: white; color: #c62828; border-radius: 6px;
+      width: 28px; height: 28px; cursor: pointer; font-size: 0.9rem; line-height: 1; display: none;
+    }
+    .date-rng .dr-x:hover { background: #ffebee; }
+    :root[data-theme="dark"] .date-rng input[type="date"], :root[data-theme="dark"] .date-rng .dr-x {
+      background: #161b22; color: var(--text); border-color: var(--border); color-scheme: dark;
+    }
     
     /* MENU BUTTON & DROPDOWN */
     .menu-wrap { position: relative; }
@@ -456,6 +470,11 @@
       
       <div class="right-controls">
         <select class="month-sel" id="monthFilter" title="Filter bulan"><option value="">Semua Bulan</option></select>
+        <div class="date-rng" id="dateRng">
+          <span>Dari</span><input type="date" id="dateFrom" title="Dari tanggal">
+          <span>s/d</span><input type="date" id="dateTo" title="Sampai tanggal">
+          <button type="button" class="dr-x" id="dateClear" title="Hapus filter tanggal">✕</button>
+        </div>
         <select class="month-sel" id="salesFilter" title="Filter sales"><option value="">Semua Sales</option></select>
         <input type="text" class="search-box" id="globalSearch" placeholder="Cari produk / customer / faktur...">
         
@@ -620,11 +639,49 @@
     }
     const salesSel = document.getElementById('salesFilter');
     let salesFilter = '';
+    /* Filter rentang tanggal (dari - sampai) */
+    const dateFromEl = document.getElementById('dateFrom');
+    const dateToEl = document.getElementById('dateTo');
+    const dateClearEl = document.getElementById('dateClear');
+    let dateFrom = '', dateTo = '';
+    function dateKey(t) {
+      const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      if (!m) return '';
+      const y = m[3].length === 2 ? '20' + m[3] : m[3];
+      return y + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+    }
+    function inDateRange(r) {
+      if (!dateFrom && !dateTo) return true;
+      const k = dateKey(r.Tanggal);
+      if (!k) return !!(r.orphan && !r.Tanggal);
+      if (dateFrom && k < dateFrom) return false;
+      if (dateTo && k > dateTo) return false;
+      return true;
+    }
+    function onDateChange(changed) {
+      dateFrom = dateFromEl.value; dateTo = dateToEl.value;
+      if (dateFrom && dateTo && dateFrom > dateTo) {      // otomatis tukar jika terbalik
+        if (changed === 'from') { dateTo = dateFrom; dateToEl.value = dateTo; }
+        else { dateFrom = dateTo; dateFromEl.value = dateFrom; }
+      }
+      dateClearEl.style.display = (dateFrom || dateTo) ? 'inline-block' : 'none';
+      if (dateFrom || dateTo) { monthFilter = ''; monthSel.value = ''; }   // rentang tanggal menggantikan filter bulan
+      populateSales();
+      invalidateAll();
+      renderTab(currentTab);
+    }
+    dateFromEl.addEventListener('change', () => onDateChange('from'));
+    dateToEl.addEventListener('change', () => onDateChange('to'));
+    dateClearEl.addEventListener('click', () => {
+      dateFromEl.value = ''; dateToEl.value = '';
+      onDateChange('');
+    });
     function sKey(r) { return String(r.Sales || '').trim().toUpperCase(); }
     function populateSales() {
       const m = new Map();
       allData.forEach(r => {
         if (monthFilter && monthKey(r.Tanggal) !== monthFilter) return;
+        if (!inDateRange(r)) return;
         const k = sKey(r);
         if (!m.has(k)) m.set(k, String(r.Sales || '').trim() || '(tanpa sales)');
       });
@@ -653,6 +710,9 @@
     }
     monthSel.addEventListener('change', () => {
       monthFilter = monthSel.value;
+      if (monthFilter && (dateFrom || dateTo)) {
+        dateFrom = dateTo = ''; dateFromEl.value = ''; dateToEl.value = ''; dateClearEl.style.display = 'none';
+      }
       populateSales();
       invalidateAll();
       renderTab(currentTab);
@@ -889,6 +949,7 @@
         tabsContainer.style.display = 'none';
         globalSearch.style.display = 'none';
         monthSel.style.display = 'none';
+        document.getElementById('dateRng').style.display = 'none';
         salesSel.style.display = 'none';
         return;
       }
@@ -898,6 +959,7 @@
       tabsContainer.style.display = 'flex';
       globalSearch.style.display = 'block';
       monthSel.style.display = 'block';
+      document.getElementById('dateRng').style.display = 'flex';
       salesSel.style.display = 'block';
 
       // Reset filter Data Lengkap supaya data baru langsung tampil semua
@@ -1082,6 +1144,7 @@
       const st = tabState[key];
       const q = st.search;
       let base = monthFilter ? st.data.filter(r => (r.orphan && !r.Tanggal) || monthKey(r.Tanggal) === monthFilter) : st.data;
+      if (dateFrom || dateTo) base = base.filter(inDateRange);
       if (salesFilter) base = base.filter(r => (r.orphan && !r.Sales) || sKey(r) === salesFilter);
 
       if (key === 'lengkap') {
