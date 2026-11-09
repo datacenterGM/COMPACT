@@ -300,17 +300,23 @@ function build() {
       const part = r.um.length > 0 && !vacating.has(r), sisa = part ? r.total - paidOf(r) : r.total;
       const amt = (Math.abs(paid - sisa) <= 1) || (tg > 0 && Math.abs(tg - r.total) <= 1);
       const fit = paid <= sisa + 1;                           /* cicilan tidak boleh melebihi sisa tagihan */
+      /* URUTAN PENCARIAN: Customer/Nama Toko -> Alamat -> Sales -> Produk -> Nominal -> (terakhir) No Faktur mirip */
       const c = textCmp(r.customer, toko), custOk = c === 'OK' || c === 'NEAR';
-      if (part && !(dk <= 2 && custOk && fit)) return;        /* cicilan: wajib No Faktur mirip + toko sama + nominal masuk akal */
-      if (dk > 2 && !(custOk && amt)) return;
-      let sc = dk <= 2 ? 4 : 0;
-      if (custOk) sc += 2;
-      const a = textCmp(r.alamat, alm); if (a === 'OK' || a === 'NEAR') sc += 1;
-      const sa = salesCmp(r.sales, sls); if (sa === 'OK' || sa === 'NEAR') sc += 1;
+      const a = textCmp(r.alamat, alm), almOk = a === 'OK' || a === 'NEAR';
+      const sa = salesCmp(r.sales, sls), slsOk = sa === 'OK' || sa === 'NEAR';
+      const prodOk = U.size > 0 && [...U].every(p => r.S.has(p));
+      /* syarat masuk: toko cocok; atau (nama toko beda ketik) alamat + sales + nominal sama-sama cocok */
+      if (!(custOk || (almOk && slsOk && amt))) return;
+      if (part && !(fit && (dk <= 2 || (almOk && slsOk)))) return;   /* cicilan: nominal masuk akal + (faktur mirip ATAU alamat & sales cocok) */
+      let sc = 0;
+      if (custOk) sc += 4;
+      if (almOk) sc += 3;
+      if (slsOk) sc += 2;
+      if (prodOk) sc += 2;
+      if (amt) sc += 3; else if (part && fit) sc += 1;
       if (wantSec(r.pay) && wantSec(r.pay) === sec) sc += 1;
-      if (amt) sc += 2; else if (part && fit) sc += 1;
-      if (U.size && [...U].every(p => r.S.has(p))) sc += 1;
-      if (o.from ? (sc >= 8 && custOk && amt) : sc >= 5) cands.push({ r, o, sc });
+      if (dk <= 2) sc += 1;                                    /* No Faktur: hanya pelengkap (sering salah ketik) */
+      if (o.from ? (sc >= 10 && custOk && amt) : sc >= 8) cands.push({ r, o, sc });
     });
   });
   cands.sort((x, y) => y.sc - x.sc);
@@ -372,7 +378,6 @@ function evaluate(rec, S) {
   if (rec.status === 'TITIP' && LUNAS_MAN[rec.fk]) { rec.status = 'LUNAS'; rec.lunasMan = LUNAS_MAN[rec.fk]; }   /* dipindahkan manual dari Titip ke Lunas */
   const issues = [];
   const lbl = (r, nama, a, b) => nama + (r === 'NEAR' ? ' mirip tapi beda (kemungkinan salah ketik): faktur "' : ' berbeda: faktur "') + a + '" vs uang masuk "' + b + '"';
-  if (rec.typoFaktur) issues.push('No Faktur di uang masuk "' + rec.typoFaktur + '" ≠ faktur "' + rec.faktur + '" (kemungkinan salah ketik, dicocokkan lewat customer/nominal)');
   const toko = firstOf(um, r => r.nama_toko), alamat = firstOf(um, r => r.alamat);
   let c = textCmp(rec.customer, toko); if (c === 'NEAR' || c === 'DIFF') issues.push(lbl(c, 'Customer / Nama Toko', rec.customer, toko));
   /* Alamat: ejaan mirip (KARANSAMBUNG / KARANG SAMBUNG, SIDOHARJO / SIDOARJO) dianggap sama HANYA bila di Uang Masuk
@@ -397,6 +402,7 @@ function evaluate(rec, S) {
   }
   const tg = Math.max(0, ...um.map(r => Number(r.tagihan) || 0));
   if (tg > 0 && Math.abs(tg - rec.total) > 1) issues.push('Tagihan uang masuk ' + fmt(tg) + ' ≠ total faktur ' + fmt(rec.total));
+  if (rec.typoFaktur) issues.push('No Faktur di uang masuk "' + rec.typoFaktur + '" ≠ faktur "' + rec.faktur + '" (kemungkinan salah ketik, dicocokkan lewat customer/nominal)');
   if (rec.status === 'TITIP') issues.push('Baru dibayar ' + fmt(paid) + ' dari ' + fmt(rec.total) + ' (sisa ' + fmt(rec.total - paid) + ')');
   rec.issues = issues;
   rec.info = um.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || ''))
