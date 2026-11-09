@@ -378,6 +378,37 @@
     .bd-parsial { background:#e0e7ff; color:#3730a3; border:1px solid #a5b4fc; }
     .tab-n { display:inline-block; min-width:18px; padding:0 5px; margin-left:3px; border-radius:9px; background:#f59e0b; color:#fff; font-size:.68rem; font-weight:700; text-align:center; }
     .tab-n:empty { display:none; }
+    #table-cek tbody tr.ck-row { cursor:pointer; }
+    #table-cek tbody tr.ck-row:hover td { background:#eef2f7; }
+    :root[data-theme="dark"] #table-cek tbody tr.ck-row:hover td { background:#1c232d; }
+    .pm-ov { position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:400; display:none; align-items:center; justify-content:center; padding:16px; }
+    .pm-ov.open { display:flex; }
+    .pm-box { background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:12px; width:100%; max-width:660px; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 20px 50px rgba(0,0,0,.35); }
+    .pm-hd { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); }
+    .pm-t { font-size:1rem; font-weight:700; }
+    .pm-s { font-size:.8rem; color:var(--muted); margin-top:2px; }
+    .pm-x { border:none; background:transparent; color:var(--muted); font-size:1.1rem; cursor:pointer; border-radius:6px; width:30px; height:30px; }
+    .pm-x:hover { background:rgba(127,127,127,.18); }
+    .pm-body { padding:14px 18px; overflow:auto; font-size:.86rem; }
+    .pm-grid { display:grid; grid-template-columns:150px 1fr; gap:6px 12px; margin-bottom:12px; }
+    .pm-grid .k { color:var(--muted); }
+    .pm-note { margin:10px 0; padding:9px 12px; border-radius:8px; background:#fef3c7; color:#78350f; border:1px solid #fcd34d; font-size:.82rem; line-height:1.45; }
+    .pm-note.ok { background:#dcfce7; color:#14532d; border-color:#86efac; }
+    .pm-note.info { background:#e0e7ff; color:#312e81; border-color:#a5b4fc; }
+    .pm-items { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .pm-items th { text-align:left; background:rgba(127,127,127,.12); color:var(--text); padding:5px 8px; position:static; }
+    .pm-items td { padding:5px 8px; border-top:1px solid var(--border); }
+    .pm-items td.r, .pm-items th.r { text-align:right; }
+    .pm-ft { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; padding:12px 18px; border-top:1px solid var(--border); }
+    .pm-btn { padding:.5rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text); font-size:.86rem; font-weight:600; cursor:pointer; }
+    .pm-btn:hover:not(:disabled) { background:rgba(127,127,127,.14); }
+    .pm-btn:disabled { opacity:.5; cursor:wait; }
+    .pm-btn.cash { background:#1b5e20; border-color:#1b5e20; color:#fff; }
+    .pm-btn.cash:hover:not(:disabled) { background:#2e7d32; }
+    .pm-btn.tempo { background:#b45309; border-color:#b45309; color:#fff; }
+    .pm-btn.tempo:hover:not(:disabled) { background:#92400e; }
+    .pm-btn.rec { box-shadow:0 0 0 3px rgba(34,197,94,.35); }
+    .bd-ubah { background:#fae8ff; color:#86198f; border:1px solid #f0abfc; }
     .bd-ok { background:#dcfce7; color:#166534; border:1px solid #86efac; }
     .bd-wait { background:#e5e7eb; color:#374151; border:1px solid #cbd5e1; }
     .ck-neg { color:#b91c1c; font-weight:600; }
@@ -629,6 +660,14 @@
   </div>
 
   <div id="pbToast"></div>
+
+  <div class="pm-ov" id="payModal">
+    <div class="pm-box" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
+      <div class="pm-hd"><div><div class="pm-t" id="pmTitle"></div><div class="pm-s" id="pmSub"></div></div><button type="button" class="pm-x" id="pmX" title="Tutup">✕</button></div>
+      <div class="pm-body" id="pmBody"></div>
+      <div class="pm-ft" id="pmFt"></div>
+    </div>
+  </div>
 
   <script>
     let allData = [];
@@ -1043,6 +1082,7 @@
       if (cacheDirty) pcSave();
 
       applyHargaOverrides();
+      applyPayOverrides();
       allData.sort((a, b) => {
         const da = sortKey(a.Tanggal);
         const db = sortKey(b.Tanggal);
@@ -1320,7 +1360,7 @@
         html += '<td class="col-customer">' + (show ? (r.Customer || '') : '') + '</td>';
         html += '<td class="center">' + (show ? (r['Kd Customer'] || '') : '') + '</td>';
         html += '<td class="col-alamat">' + (show ? (r.Alamat || '') : '') + '</td>';
-        html += '<td class="center">' + (show ? (r.Pembayaran || '') : '') + '</td>';
+        html += '<td class="center">' + (show ? (r.Pembayaran || '') + (r._payOrig !== undefined ? '<span class="bd bd-ubah" title="Diubah manual (asal di Excel: ' + pe(r._payOrig) + ')">DIUBAH</span>' : '') : '') + '</td>';
         html += '</tr>';
       });
       html += '</tbody></table>';
@@ -1706,6 +1746,7 @@
     /* ===================== CEK CASH DROPPING (PJ vs Uang Masuk) ===================== */
     /* Membandingkan faktur Cash di PJ dengan tabel Cash Dropping di UM.
        Data UM dibaca (hanya baca) dari penyimpanan bersama 'um-fixv1' yang diterbitkan halaman UM. */
+    let cekRowMap = new Map();
     let cekUM = null;          // { drop: Map, piut: Map, last: 'YYYY-MM-DD', n, at } atau null bila belum terbaca
     const CEK_PROB = new Set(['BELUM', 'DROP_TEMPO', 'DROP_NOPJ', 'BEDA', 'PIUTANG']);
 
@@ -1808,7 +1849,7 @@
         if (p) {
           if (!inScope(p.tk, p.Sales, true) || !hit(k, p.Customer, p.Sales)) return;
           rows.push({ fk: k, tk: p.tk, tgl: p.Tanggal, cust: p.Customer, sales: p.Sales, pj: p.tot, dr: dr.bayar, pjCash: false, st: 'DROP_TEMPO',
-            ket: 'Masuk Cash Dropping ' + cekFmtIso(dr.tgl) + ', tapi di PJ berlabel ' + (p.pay || 'bukan Cash') + ' → ubah jadi Cash di data sumber' });
+            ket: 'Masuk Cash Dropping ' + cekFmtIso(dr.tgl) + ', tapi di PJ berlabel ' + (p.pay || 'bukan Cash') + ' → klik baris untuk mengubah jadi Cash' });
         } else {
           if (!inScope(dr.tgl, dr.sales, false) || !hit(k, dr.toko, dr.sales)) return;
           rows.push({ fk: k, tk: dr.tgl, tgl: cekFmtIso(dr.tgl), cust: dr.toko, sales: dr.sales, pj: null, dr: dr.bayar, pjCash: false, st: 'DROP_NOPJ',
@@ -1849,6 +1890,7 @@
         pager.innerHTML = ''; return;
       }
       const { rows } = cekCompute();
+      cekRowMap = new Map(rows.map(r => [r.fk, r]));
       let pjSum = 0, pjN = 0, drSum = 0, drN = 0, ok = 0, prob = 0, wait = 0, waitSum = 0;
       rows.forEach(r => {
         if (r.st === 'BELUM_LAPORAN') { wait++; waitSum += r.pj || 0; }
@@ -1861,7 +1903,7 @@
         'Cash Dropping UM: <b>' + drN + '</b> faktur Rp ' + R(drSum) + ' · ' +
         'Selisih (PJ − UM): <b>' + (pjSum - drSum < 0 ? '-' : '') + 'Rp ' + R(Math.abs(pjSum - drSum)) + '</b>. ' +
         'Cocok: <b>' + ok + '</b> · Perlu dicek: <b>' + prob + '</b> · Belum ada laporan UM: <b>' + wait + '</b> faktur (Rp ' + R(waitSum) + '). ' +
-        'Mengikuti filter bulan / tanggal / sales di atas.';
+        'Mengikuti filter bulan / tanggal / sales di atas. <b>Klik baris</b> untuk melihat detail dan mengubah pembayaran (Cash ↔ Tempo).';
       const v = document.getElementById('cekView').value;
       const list = rows.filter(r => v === 'ALL' ? true : v === 'OK' ? r.st === 'OK' : v === 'BELUM_LAPORAN' ? r.st === 'BELUM_LAPORAN' : CEK_PROB.has(r.st));
       const totalPages = Math.max(1, Math.ceil(list.length / ROWS_PER_PAGE));
@@ -1876,7 +1918,7 @@
         const lb = CEK_LABEL[r.st] || ['', r.st];
         const sel = (r.pjCash ? (r.pj || 0) : 0) - (r.dr || 0);
         const selTxt = r.st === 'OK' ? '' : (Math.abs(sel) < 1 ? '' : '<span class="' + (sel < 0 ? 'ck-neg' : 'ck-pos') + '">' + (sel < 0 ? '-' : '') + formatNum(Math.abs(sel)) + '</span>');
-        h += '<tr><td><span class="bd ' + lb[0] + '" style="margin-left:0">' + lb[1] + '</span></td>' +
+        h += '<tr class="ck-row" data-fk="' + pe(r.fk) + '" title="Klik untuk detail & ubah pembayaran"><td><span class="bd ' + lb[0] + '" style="margin-left:0">' + lb[1] + '</span></td>' +
           '<td class="center">' + pe(r.tgl || '') + '</td><td class="center">' + pe(r.fk) + '</td>' +
           '<td class="col-customer">' + pe(r.cust || '') + '</td><td class="center">' + pe(r.sales || '') + '</td>' +
           '<td class="num">' + (r.pj === null ? '' : formatNum(r.pj)) + '</td>' +
@@ -1902,7 +1944,137 @@
     })();
     /* ===================== /CEK CASH DROPPING ===================== */
 
-    loadBatal().then(loadHarga).then(loadPJ).then(cekLoadUM).then(cekBadgeSoon);
+    /* ===================== UBAH PEMBAYARAN (Cash <-> Tempo) ===================== */
+    /* Perubahan disimpan terpisah dari file Excel (seperti pembatalan faktur & harga beli):
+       tetap berlaku walau Excel di-upload ulang. Bisa dikembalikan ke data Excel kapan saja. */
+    const PY_DB = 'pjbayar-v1', PY_ST = 'pjbayar-data';
+    let payMap = {};   // { 'NOFAKTUR': { to:'Cash'|'Tempo', orig:'Tempo'|'Cash'|'Campuran', at, cust, tgl } }
+    function pyOpen() {
+      return new Promise((ok, no) => {
+        const q = indexedDB.open(PY_DB, 1);
+        q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains(PY_ST)) q.result.createObjectStore(PY_ST); };
+        q.onsuccess = () => { const db = q.result; db.onversionchange = () => db.close(); ok(db); };
+        q.onerror = () => no(q.error);
+      });
+    }
+    async function loadBayar() {
+      try {
+        const db = await pyOpen();
+        const v = await new Promise((ok, no) => {
+          const r = db.transaction(PY_ST, 'readonly').objectStore(PY_ST).get('latest');
+          r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+        });
+        db.close();
+        payMap = (v && v.items) || {};
+      } catch (e) { console.error('Gagal memuat perubahan pembayaran:', e); }
+    }
+    async function saveBayar() {
+      const db = await pyOpen();
+      try {
+        await new Promise((ok, no) => {
+          const tx = db.transaction(PY_ST, 'readwrite');
+          tx.objectStore(PY_ST).put({ items: payMap }, 'latest');
+          tx.oncomplete = ok; tx.onerror = tx.onabort = () => no(tx.error);
+        });
+      } finally { db.close(); }
+      try { const bc = new BroadcastChannel('laporan-data'); bc.postMessage('penjualan'); bc.close(); } catch (e) {}
+    }
+    function applyPayOverrides() {
+      if (!Object.keys(payMap).length) return;
+      allData = allData.map(r => {
+        const o = payMap[fkey(r)];
+        if (!o || r.orphan) return r;
+        if (String(r.Pembayaran || '').trim().toLowerCase() === String(o.to).toLowerCase()) return r;
+        return Object.assign({}, r, { Pembayaran: o.to, _payOrig: r.Pembayaran });
+      });
+    }
+    function payInfo(fk) {
+      const rows = allData.filter(r => fkey(r) === fk);
+      if (!rows.length) return null;
+      const cur = new Set(rows.map(r => String(r.Pembayaran || '').trim()));
+      const org = new Set(rows.map(r => String(r._payOrig !== undefined ? r._payOrig : r.Pembayaran || '').trim()));
+      return {
+        rows,
+        cur: cur.size === 1 ? [...cur][0] : 'Campuran',
+        orig: org.size === 1 ? [...org][0] : 'Campuran',
+        changed: rows.some(r => r._payOrig !== undefined),
+        total: rows.reduce((a, r) => a + (Number(r.Total) || 0), 0),
+      };
+    }
+    let payBusy = false;
+    async function payApply(fk, to, restore) {
+      if (payBusy) return;
+      const pi = payInfo(fk); if (!pi) return;
+      payBusy = true;
+      document.querySelectorAll('#pmFt .pm-btn').forEach(b => b.disabled = true);
+      const had = payMap[fk];
+      if (restore || String(pi.orig).toLowerCase() === String(to).toLowerCase()) delete payMap[fk];
+      else payMap[fk] = { to, orig: pi.orig, at: Date.now(), cust: pi.rows[0].Customer || '', tgl: pi.rows[0].Tanggal || '' };
+      let saved = true;
+      try { await saveBayar(); } catch (e) { console.error(e); saved = false; }
+      await processAllFiles();
+      payBusy = false;
+      payClose();
+      pbToast(!saved ? 'Berubah di layar, tapi gagal disimpan permanen'
+        : restore ? '↺ Pembayaran dikembalikan ke data Excel (' + pi.orig + ')'
+        : '✓ Faktur ' + fk + ' diubah menjadi ' + to);
+    }
+    function payClose() { document.getElementById('payModal').classList.remove('open'); }
+    function payOpen(fk) {
+      const r = cekRowMap.get(fk);
+      const pi = payInfo(fk);
+      const R = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
+      const lb = r && CEK_LABEL[r.st] ? CEK_LABEL[r.st] : ['', ''];
+      document.getElementById('pmTitle').textContent = 'Faktur ' + fk;
+      document.getElementById('pmSub').textContent = r ? (r.cust || '') : '';
+      let b = '<div class="pm-grid">';
+      b += '<div class="k">Status cek</div><div>' + (r ? '<span class="bd ' + lb[0] + '" style="margin-left:0">' + lb[1] + '</span>' : '-') + '</div>';
+      b += '<div class="k">Tanggal</div><div>' + pe(pi ? (pi.rows[0].Tanggal || '') : (r ? r.tgl : '')) + '</div>';
+      b += '<div class="k">Customer</div><div>' + pe(pi ? pi.rows[0].Customer : (r ? r.cust : '')) + '</div>';
+      b += '<div class="k">Sales</div><div>' + pe(pi ? pi.rows[0].Sales : (r ? r.sales : '')) + '</div>';
+      if (pi) {
+        b += '<div class="k">Total faktur (PJ)</div><div><b>' + R(pi.total) + '</b></div>';
+        b += '<div class="k">Pembayaran di PJ</div><div><b>' + pe(pi.cur) + '</b>' + (pi.changed ? ' <span class="bd bd-ubah" style="margin-left:4px">DIUBAH MANUAL</span> <span style="color:var(--muted)">(di Excel: ' + pe(pi.orig) + ')</span>' : '') + '</div>';
+      }
+      if (r) b += '<div class="k">Cash Dropping UM</div><div>' + (r.dr === null ? '<span style="color:var(--muted)">Tidak ada</span>' : '<b>' + R(r.dr) + '</b>') + '</div>';
+      b += '</div>';
+      if (r && r.ket) b += '<div class="pm-note info">' + pe(r.ket) + '</div>';
+      let rec = '';
+      if (!pi) {
+        b += '<div class="pm-note">Faktur ini tidak ada di data penjualan PJ (atau sudah dibatalkan), jadi pembayarannya tidak bisa diubah dari sini.</div>';
+      } else {
+        if (r && r.st === 'DROP_TEMPO') { rec = 'Cash'; b += '<div class="pm-note ok">Faktur ini sudah masuk Cash Dropping (customer langsung bayar saat pengiriman). Disarankan: <b>ubah jadi Cash</b>.</div>'; }
+        else if (r && (r.st === 'BELUM' || r.st === 'BELUM_LAPORAN')) { rec = 'Tempo'; b += '<div class="pm-note">Faktur Cash ini belum masuk Cash Dropping. Jika customer ternyata belum membayar, <b>ubah jadi Tempo</b>. Jika memang sudah bayar tapi belum disetor, biarkan.</div>'; }
+        b += '<div style="margin:10px 0 6px;font-weight:600">Rincian item</div><div style="overflow:auto"><table class="pm-items"><thead><tr><th>Produk</th><th class="r">Jumlah</th><th class="r">Harga Jual</th><th class="r">Total</th></tr></thead><tbody>';
+        pi.rows.forEach(x => { b += '<tr><td>' + pe(x.Produk) + '</td><td class="r">' + formatNum(x.Jumlah) + ' ' + pe(x.Satuan || '') + '</td><td class="r">' + formatNum(x['Harga Jual']) + '</td><td class="r">' + formatNum(x.Total) + '</td></tr>'; });
+        b += '</tbody></table></div>';
+      }
+      document.getElementById('pmBody').innerHTML = b;
+      let f = '';
+      if (pi) {
+        if (pi.changed) f += '<button type="button" class="pm-btn" data-pact="restore">↺ Kembalikan ke Excel (' + pe(pi.orig) + ')</button>';
+        if (pi.cur !== 'Tempo') f += '<button type="button" class="pm-btn tempo' + (rec === 'Tempo' ? ' rec' : '') + '" data-pact="Tempo">⏳ Ubah jadi Tempo</button>';
+        if (pi.cur !== 'Cash') f += '<button type="button" class="pm-btn cash' + (rec === 'Cash' ? ' rec' : '') + '" data-pact="Cash">✔ Ubah jadi Cash</button>';
+      }
+      f += '<button type="button" class="pm-btn" data-pact="close">Tutup</button>';
+      const ft = document.getElementById('pmFt'); ft.innerHTML = f; ft.dataset.fk = fk;
+      document.getElementById('payModal').classList.add('open');
+    }
+    document.getElementById('table-cek').addEventListener('click', e => {
+      const tr = e.target.closest('tr.ck-row'); if (tr && tr.dataset.fk) payOpen(tr.dataset.fk);
+    });
+    document.getElementById('pmFt').addEventListener('click', e => {
+      const b = e.target.closest('[data-pact]'); if (!b) return;
+      const a = b.dataset.pact, fk = document.getElementById('pmFt').dataset.fk;
+      if (a === 'close') payClose(); else if (a === 'restore') payApply(fk, '', true); else payApply(fk, a, false);
+    });
+    document.getElementById('pmX').addEventListener('click', payClose);
+    document.getElementById('payModal').addEventListener('click', e => { if (e.target.id === 'payModal') payClose(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') payClose(); });
+    /* ===================== /UBAH PEMBAYARAN ===================== */
+
+
+    loadBatal().then(loadHarga).then(loadBayar).then(loadPJ).then(cekLoadUM).then(cekBadgeSoon);
   </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
 <script src="backup.js"></script>
