@@ -1011,6 +1011,7 @@
     async function processAllFiles() {
       const my = ++_pjRun;
       allData = [];
+      cekCache = null;
       
       if (filesMap.size === 0) {
         monthFilter = ''; monthDefaultDone = false; salesFilter = '';
@@ -1427,6 +1428,7 @@
       } catch (e) { console.error('Gagal memuat faktur batal:', e); }
     }
     async function saveBatal(quiet) {
+      cekCache = null;
       const db = await pbOpen();
       try {
         await new Promise((ok, no) => {
@@ -1752,6 +1754,7 @@
     /* Membandingkan faktur Cash di PJ dengan tabel Cash Dropping di UM.
        Data UM dibaca (hanya baca) dari penyimpanan bersama 'um-fixv1' yang diterbitkan halaman UM. */
     let cekRowMap = new Map();
+    let cekCache = null;       // hasil pencocokan; berlaku selama data penjualan & data UM tidak berganti
     let cekUM = null;          // { drop: Map, piut: Map, last: 'YYYY-MM-DD', n, at } atau null bila belum terbaca
     const CEK_PROB = new Set(['BELUM', 'DROP_TEMPO', 'DROP_NOPJ', 'BEDA', 'PIUTANG']);
 
@@ -1780,19 +1783,25 @@
     function cekBuildUM(v) {
       const recs = v && Array.isArray(v.records) ? v.records : [];
       if (!recs.length) return null;
-      const drop = new Map(), piut = new Map();
+      const dropRecs = new Map(), piut = new Map();
       let last = '';
       recs.forEach(r => {
         const k = String(r.no_faktur || '').trim().toUpperCase(); if (!k) return;
         const d = String(r.tanggal_laporan_str || '');
         if (d > last) last = d;
-        const m = r.section === 'PIUTANG' ? piut : drop;
-        const e = m.get(k) || { bayar: 0, tgl: d, toko: r.nama_toko || '', sales: r.sales || '', ket: '' };
-        e.bayar += Number(r.total_bayar) || 0;
-        if (r.status) e.ket = String(r.status);
-        m.set(k, e);
+        if (r.section === 'PIUTANG') {
+          const e = piut.get(k) || { bayar: 0, tgl: d, toko: r.nama_toko || '', sales: r.sales || '', ket: '' };
+          e.bayar += Number(r.total_bayar) || 0;
+          if (r.status) e.ket = String(r.status);
+          piut.set(k, e);
+        } else {
+          const a = dropRecs.get(k) || [];
+          a.push({ bayar: Number(r.total_bayar) || 0, tgl: d, toko: r.nama_toko || '', alamat: r.alamat || '', sales: r.sales || '', ket: r.status ? String(r.status) : '',
+            mny: (Number(r.minyak_cash) || 0) + (Number(r.minyak_tf) || 0), rpa: (Number(r.rupa_cash) || 0) + (Number(r.rupa_tf) || 0) });
+          dropRecs.set(k, a);
+        }
       });
-      return { drop, piut, last, n: recs.length, at: v.updatedAt || 0 };
+      return { dropRecs, piut, last, n: recs.length, at: v.updatedAt || 0 };
     }
     async function cekLoadUM() {
       try { cekUM = cekBuildUM(await cekReadUM()); } catch (e) { console.warn('Gagal membaca data UM:', e); cekUM = null; }
@@ -1808,16 +1817,108 @@
         const k = fkey(r);
         if (!k || batalMap[k] || r._pair) continue;
         let e = m.get(k);
-        if (!e) { e = { k, Tanggal: r.Tanggal, tk: dateKey(r.Tanggal), Sales: r.Sales, Customer: r.Customer, tot: 0, nCash: 0, nOther: 0, pay: r.Pembayaran || '' }; m.set(k, e); }
-        e.tot += Number(r.Total) || 0;
+        if (!e) { e = { k, Tanggal: r.Tanggal, tk: dateKey(r.Tanggal), Sales: r.Sales, Customer: r.Customer, Alamat: r.Alamat || '', tot: 0, mny: 0, rpa: 0, nCash: 0, nOther: 0, pay: r.Pembayaran || '',
+          nm: cekNorm(r.Customer), cr: cekCore(r.Customer), al: cekNorm(r.Alamat), cs: cekNorm(r.Sales) }; m.set(k, e); }
+        const tv = Number(r.Total) || 0;
+        e.tot += tv;
+        if (MINYAK_RE.test(String(r.Produk || ''))) e.mny += tv; else e.rpa += tv;
         if (isCash(r)) e.nCash++; else e.nOther++;
       }
       return m;
     }
-    /* Jarak edit (Levenshtein) untuk mengenali nomor faktur yang salah ketik di UM */
+    /* ===== Pencocokan berbasis skor =====
+       Urutan prioritas: Nama toko → Alamat → Sales → Produk (minyak/rupa-rupa) → Nominal → (Tanggal) → No. faktur terakhir.
+       Nomor faktur sengaja paling lemah karena sering salah ketik di Uang Masuk. */
+    const CEK_STOP = new Set(['TOKO', 'WARUNG', 'UD', 'CV', 'PT', 'KIOS', 'DEPOT', 'TK', 'WR']);
+    function cekNorm(x) { return String(x == null ? '' : x).toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+    function cekCore(x) { return cekNorm(x).split(' ').filter(w => w && !CEK_STOP.has(w)).join(' '); }
+    const _simCache = new Map();
+    function cekSimN(na, ca, nb, cb, loose) {
+      if (!na || !nb) return 0;
+      if (na === nb) return 1;
+      if (ca && ca === cb) return 0.95;
+      const x = ca || na, y = cb || nb;
+      const lx = x.length, ly = y.length, mn = Math.min(lx, ly), mx = Math.max(lx, ly);
+      if (mn >= 4 && (x.includes(y) || y.includes(x))) return 0.85;
+      const th = loose || 0.8;
+      if (mn / mx < th) return 0;
+      const key = x + '|' + y + '|' + th;
+      let v = _simCache.get(key);
+      if (v === undefined) { const ratio = 1 - cekLev(x, y) / mx; v = ratio >= th ? ratio : 0; if (_simCache.size > 200000) _simCache.clear(); _simCache.set(key, v); }
+      return v;
+    }
+    function cekDays(a, b) {
+      const pa = /^(\d{4})-(\d{2})-(\d{2})/.exec(a || ''), pb = /^(\d{4})-(\d{2})-(\d{2})/.exec(b || '');
+      if (!pa || !pb) return 999;
+      return Math.abs(Date.UTC(+pa[1], +pa[2] - 1, +pa[3]) - Date.UTC(+pb[1], +pb[2] - 1, +pb[3])) / 864e5;
+    }
+    /* Satukan baris Cash Dropping yang nomor DAN nama tokonya sama (satu faktur ditulis dua baris);
+       nomor sama tetapi toko berbeda tetap dipisah. */
+    function cekUnits(um) {
+      const units = []; let uid = 0;
+      um.dropRecs.forEach((arr, k) => {
+        const g = new Map();
+        arr.forEach(x => { const key = cekNorm(x.toko); (g.get(key) || g.set(key, []).get(key)).push(x); });
+        g.forEach(list => {
+          const u = list.reduce((a, x) => ({ bayar: a.bayar + x.bayar, mny: a.mny + x.mny, rpa: a.rpa + x.rpa, tgl: a.tgl || x.tgl, toko: a.toko || x.toko, alamat: a.alamat || x.alamat, sales: a.sales || x.sales, ket: x.ket || a.ket }),
+            { bayar: 0, mny: 0, rpa: 0, tgl: '', toko: '', alamat: '', sales: '', ket: '' });
+          u.fk0 = k; u.id = ++uid; u.nm = cekNorm(u.toko); u.cr = cekCore(u.toko); u.al = cekNorm(u.alamat); u.sv = cekNorm(u.sales); units.push(u);
+        });
+      });
+      return units;
+    }
+    /* Skor kecocokan faktur PJ (c) dengan satu baris Dropping UM (u). null = tidak layak dipasangkan. */
+    function cekScore(c, u, strict) {
+      const amtEq = Math.abs(u.bayar - c.tot) < 1;
+      const dd = cekDays(c.tk, u.tgl), dateEq = dd === 0, dateOK = dd <= 7;
+      const numExact = c.k === u.fk0;
+      if (strict && !(amtEq && dateOK)) return null;
+      if (!strict && !amtEq && !(dateEq || numExact)) return null;
+      const nameS = cekSimN(c.nm, c.cr, u.nm, u.cr);
+      if (strict && !(nameS > 0 || numExact)) return null;
+      const alS = cekSimN(c.al, '', u.al, '', 0.75);
+      const salesM = !!c.cs && u.sv.includes(c.cs);
+      let ok;
+      if (strict) ok = true;                                                         // faktur Tempo yang ternyata dibayar tunai
+      else if (nameS > 0) ok = (amtEq && dateOK) || (dateEq && (numExact || (alS >= 0.8 && salesM))) || (numExact && alS >= 0.8);
+      else ok = amtEq && dateOK && (numExact || (dateEq && alS >= 0.8 && salesM));    // nama toko beda total, tapi sisanya cocok
+      if (!ok) return null;
+      const prodS = (Math.abs(u.mny - c.mny) < 1 && Math.abs(u.rpa - c.rpa) < 1) ? 1
+        : (((u.mny > 0) === (c.mny > 0)) && ((u.rpa > 0) === (c.rpa > 0)) ? 0.5 : 0);
+      const numD = numExact ? 0 : (c.k.length === u.fk0.length || Math.abs(c.k.length - u.fk0.length) <= 2 ? cekLev(c.k, u.fk0) : 99);
+      const score = 40 * nameS + 15 * alS + (salesM ? 10 : 0) + 15 * prodS + (amtEq ? 25 : 0) + (dateEq ? 10 : dd <= 3 ? 4 : 0) + (numExact ? 12 : numD <= 2 ? 5 : 0);
+      return { score, amtEq, numExact, nameS, alS, salesM, prodS };
+    }
+    function cekShift(tk, n) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(tk || ''); if (!m) return '';
+      return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + n)).toISOString().slice(0, 10);
+    }
+    function cekMatch(cands, units, used, strict) {
+      const byDate = new Map(), byNum = new Map();
+      units.forEach(u => {
+        if (used.has(u.id)) return;
+        (byDate.get(u.tgl) || byDate.set(u.tgl, []).get(u.tgl)).push(u);
+        (byNum.get(u.fk0) || byNum.set(u.fk0, []).get(u.fk0)).push(u);
+      });
+      const pairs = [];
+      for (const c of cands) {
+        const seen = new Set();
+        const consider = u => { if (seen.has(u.id) || used.has(u.id)) return; seen.add(u.id); const sc = cekScore(c, u, strict); if (sc) pairs.push({ c, u, sc }); };
+        for (let d = -7; d <= 7; d++) { const l = byDate.get(cekShift(c.tk, d)); if (l) l.forEach(consider); }
+        const ln = byNum.get(c.k); if (ln) ln.forEach(consider);
+      }
+      pairs.sort((a, b) => b.sc.score - a.sc.score);
+      const usedC = new Set(), res = new Map();
+      for (const p of pairs) {
+        if (usedC.has(p.c.k) || used.has(p.u.id)) continue;
+        usedC.add(p.c.k); used.add(p.u.id); res.set(p.c.k, p);
+      }
+      return res;
+    }
+    /* Jarak edit (Levenshtein) */
     function cekLev(a, b) {
       a = String(a); b = String(b);
-      if (Math.abs(a.length - b.length) > 3) return 99;
+      if (Math.abs(a.length - b.length) > 40) return 99;
       let prev = Array.from({ length: b.length + 1 }, (_, k) => k);
       for (let x = 1; x <= a.length; x++) {
         const cur = [x];
@@ -1828,31 +1929,19 @@
       }
       return prev[b.length];
     }
-    /* Cocokkan faktur PJ yang tidak ketemu nomornya dengan baris Cash Dropping UM yang "yatim"
-       (nomor tidak ada di PJ). Syarat: nilai sama persis dan (nomor mirip + toko/tanggal sama) atau (toko & tanggal sama). */
-    function cekFuzzy(cands, free, usedK) {
-      const norm = x => String(x || '').toUpperCase().replace(/\s+/g, ' ').trim();
-      const pairs = [];
-      for (const e of cands) {
-        for (const [k, dr] of free) {
-          if (usedK.has(k)) continue;
-          if (!(Math.abs(dr.bayar - e.tot) < 1)) continue;
-          const d = cekLev(e.k, k), nm = norm(e.Customer) === norm(dr.toko), sd = e.tk === dr.tgl;
-          if ((d <= 2 && (nm || sd)) || (nm && sd)) pairs.push({ e, k, dr, d, score: d * 10 - (nm ? 2 : 0) - (sd ? 1 : 0) });
-        }
-      }
-      pairs.sort((a, b) => a.score - b.score);
-      const usedE = new Set(), res = new Map();
-      for (const p of pairs) {
-        if (usedE.has(p.e.k) || usedK.has(p.k)) continue;
-        usedE.add(p.e.k); usedK.add(p.k); res.set(p.e.k, p);
-      }
-      return res;
-    }
     function cekCompute() {
       const um = cekUM, rows = [];
       if (!um) return { rows, um: null };
-      const pj = cekPJFak();
+      if (!cekCache || cekCache.data !== allData || cekCache.um !== um || cekCache.n !== allData.length) {
+        const pj0 = cekPJFak(), units0 = cekUnits(um);
+        const cashC0 = [], otherC0 = [];
+        pj0.forEach(e => { if (Math.abs(e.tot) < 1) return; (e.nCash > 0 && e.nOther === 0 ? cashC0 : otherC0).push(e); });
+        const used0 = new Set();
+        const m10 = cekMatch(cashC0, units0, used0, false);     // faktur Cash PJ  <-> baris Cash Dropping UM
+        const m20 = cekMatch(otherC0, units0, used0, true);     // faktur Tempo PJ <-> baris Dropping yang tersisa (dibayar tunai)
+        cekCache = { data: allData, n: allData.length, um, pj: pj0, units: units0, cashC: cashC0, m1: m10, m2: m20 };
+      }
+      const { pj, units, cashC, m1, m2 } = cekCache;
       const q = (tabState.cek.search || '').toLowerCase();
       const inScope = (tk, sales, exact) => {
         if (monthFilter && String(tk).slice(0, 7) !== monthFilter) return false;
@@ -1866,37 +1955,27 @@
       };
       const hit = (fk, cust, sales) => !q || (fk + ' ' + (cust || '') + ' ' + (sales || '')).toLowerCase().includes(q);
 
-      /* Pencocokan nomor salah ketik (sebelum pemeriksaan biasa) */
-      const free = [];
-      um.drop.forEach((dr, k) => { if (!pj.has(k)) free.push([k, dr]); });
-      const usedK = new Set();
-      const cashCands = [], otherCands = [];
-      pj.forEach(e => {
-        if (um.drop.has(e.k) || Math.abs(e.tot) < 1) return;
-        if (e.nCash > 0 && e.nOther === 0) cashCands.push(e); else otherCands.push(e);
-      });
-      const fz1 = cekFuzzy(cashCands, free, usedK);      // faktur Cash PJ  <-> baris Dropping salah ketik
-      const fz2 = cekFuzzy(otherCands, free, usedK);     // faktur Tempo PJ <-> baris Dropping salah ketik
-      const fz2byUm = new Map(); fz2.forEach((p, pk) => fz2byUm.set(p.k, pk));
+      const m2byUnit = new Map(); m2.forEach((p, pk) => m2byUnit.set(p.u.id, pk));
+      const R = v => Math.round(v).toLocaleString('id-ID');
+      const nmNote = (c, u) => (cekNorm(c.Customer) !== cekNorm(u.toko) ? ' Nama toko di UM: “' + u.toko + '”.' : '');
 
-      pj.forEach(e => {
-        if (!(e.nCash > 0 && e.nOther === 0)) return;                 // hanya faktur Cash
-        const fz = fz1.get(e.k);
-        const dr = um.drop.get(e.k) || (fz ? fz.dr : null);
-        if (Math.abs(e.tot) < 1 && !dr) return;
+      cashC.forEach(e => {
         if (!inScope(e.tk, e.Sales, true) || !hit(e.k, e.Customer, e.Sales)) return;
-        const row = { fk: e.k, tk: e.tk, tgl: e.Tanggal, cust: e.Customer, sales: e.Sales, pj: e.tot, dr: dr ? dr.bayar : null, pjCash: true, ket: '', umKet: dr ? dr.ket : '' };
-        if (fz) {
-          row.st = 'NOMOR'; row.umFk = fz.k;
-          row.ket = 'Nomor faktur di UM tertulis ' + fz.k + ' (beda ketik dari ' + e.k + '). Nilai & toko cocok — sebaiknya diperbaiki di UM.';
-        } else if (dr) {
-          if (Math.abs(dr.bayar - e.tot) < 1) { row.st = 'OK'; row.ket = 'Masuk Cash Dropping ' + cekFmtIso(dr.tgl); }
-          else {
-            row.st = 'BEDA'; row.ket = 'Nilai di Cash Dropping (' + cekFmtIso(dr.tgl) + ') berbeda dari total faktur';
+        const mt = m1.get(e.k), u = mt ? mt.u : null;
+        const row = { fk: e.k, tk: e.tk, tgl: e.Tanggal, cust: e.Customer, sales: e.Sales, pj: e.tot, dr: u ? u.bayar : null, pjCash: true, ket: '', umKet: u ? u.ket : '' };
+        if (u) {
+          if (mt.sc.amtEq) {
+            if (mt.sc.numExact) { row.st = 'OK'; row.ket = 'Masuk Cash Dropping ' + cekFmtIso(u.tgl) + '.' + nmNote(e, u); }
+            else {
+              row.st = 'NOMOR'; row.umFk = u.fk0;
+              row.ket = 'Dicocokkan lewat nama toko, nominal & tanggal. Nomor faktur di UM tertulis ' + u.fk0 + ' (seharusnya ' + e.k + ') — sebaiknya diperbaiki di UM.' + nmNote(e, u);
+            }
+          } else {
+            row.st = 'BEDA'; row.ket = 'Nilai di Cash Dropping (' + cekFmtIso(u.tgl) + ') berbeda dari total faktur.' + (mt.sc.numExact ? '' : ' Nomor di UM: ' + u.fk0 + '.') + nmNote(e, u);
             const tt = titipMap[e.k];
-            if (tt && Math.abs(tt.tot - e.tot) < 1 && Math.abs(tt.dr - dr.bayar) < 1) {      // konfirmasi hanya berlaku jika angkanya belum berubah
-              row.st = 'TITIP'; row.sisa = e.tot - dr.bayar;
-              row.ket = 'Titip dikonfirmasi: dibayar Rp ' + Math.round(dr.bayar).toLocaleString('id-ID') + ' dari Rp ' + Math.round(e.tot).toLocaleString('id-ID') + ', sisa Rp ' + Math.round(row.sisa).toLocaleString('id-ID') + ' belum dibayar';
+            if (tt && Math.abs(tt.tot - e.tot) < 1 && Math.abs(tt.dr - u.bayar) < 1) {      // konfirmasi hanya berlaku jika angkanya belum berubah
+              row.st = 'TITIP'; row.sisa = e.tot - u.bayar;
+              row.ket = 'Titip dikonfirmasi: dibayar Rp ' + R(u.bayar) + ' dari Rp ' + R(e.tot) + ', sisa Rp ' + R(row.sisa) + ' belum dibayar';
             } else if (tt) row.ket += ' (data berubah sejak dikonfirmasi Titip — cek lagi)';
           }
         } else if (um.piut.has(e.k)) {
@@ -1904,23 +1983,22 @@
         } else if (e.tk > um.last) {
           row.st = 'BELUM_LAPORAN'; row.ket = 'Laporan UM terakhir ' + cekFmtIso(um.last) + ' — belum ada setoran / belum diinput';
         } else {
-          row.st = 'BELUM'; row.ket = 'Tidak ditemukan di Cash Dropping UM padahal laporan tanggal ini sudah ada';
+          row.st = 'BELUM'; row.ket = 'Tidak ditemukan di Cash Dropping UM (dicari lewat nama toko, alamat, sales, produk & nominal) padahal laporan tanggal ini sudah ada';
         }
         rows.push(row);
       });
-      um.drop.forEach((dr, k) => {
-        const p = pj.get(k) || (fz2byUm.has(k) ? pj.get(fz2byUm.get(k)) : null);
-        const typoTempo = !pj.has(k) && !!p;
-        if (!p && usedK.has(k)) return;                               // sudah dipasangkan ke faktur Cash PJ (nomor salah ketik)
-        if (p && p.nCash > 0 && p.nOther === 0) return;               // faktur Cash: sudah dibahas di atas
+      const m1u = new Set([...m1.values()].map(p => p.u.id));
+      units.forEach(u => {
+        if (m1u.has(u.id)) return;                                                     // sudah dipasangkan ke faktur Cash
+        const pk = m2byUnit.get(u.id), p = pk ? pj.get(pk) : null;
         if (p) {
           if (!inScope(p.tk, p.Sales, true) || !hit(p.k, p.Customer, p.Sales)) return;
-          rows.push({ fk: p.k, tk: p.tk, tgl: p.Tanggal, cust: p.Customer, sales: p.Sales, pj: p.tot, dr: dr.bayar, pjCash: false, st: 'DROP_TEMPO',
-            ket: 'Masuk Cash Dropping ' + cekFmtIso(dr.tgl) + (typoTempo ? ' (nomor di UM tertulis ' + k + ', beda ketik)' : '') + ', tapi di PJ berlabel ' + (p.pay || 'bukan Cash') + ' → klik baris untuk mengubah jadi Cash' });
+          rows.push({ fk: p.k, tk: p.tk, tgl: p.Tanggal, cust: p.Customer, sales: p.Sales, pj: p.tot, dr: u.bayar, pjCash: false, st: 'DROP_TEMPO', umKet: u.ket,
+            ket: 'Masuk Cash Dropping ' + cekFmtIso(u.tgl) + (u.fk0 !== p.k ? ' (nomor di UM tertulis ' + u.fk0 + ')' : '') + ', tapi di PJ berlabel ' + (p.pay || 'bukan Cash') + ' → klik baris untuk mengubah jadi Cash' });
         } else {
-          if (!inScope(dr.tgl, dr.sales, false) || !hit(k, dr.toko, dr.sales)) return;
-          rows.push({ fk: k, tk: dr.tgl, tgl: cekFmtIso(dr.tgl), cust: dr.toko, sales: dr.sales, pj: null, dr: dr.bayar, pjCash: false, st: 'DROP_NOPJ',
-            ket: 'Ada di Cash Dropping ' + cekFmtIso(dr.tgl) + ', tidak ada di data penjualan PJ (atau fakturnya dibatalkan)' });
+          if (!inScope(u.tgl, u.sales, false) || !hit(u.fk0, u.toko, u.sales)) return;
+          rows.push({ fk: u.fk0 + '~' + u.id, fkTxt: u.fk0, tk: u.tgl, tgl: cekFmtIso(u.tgl), cust: u.toko, sales: u.sales, pj: null, dr: u.bayar, pjCash: false, st: 'DROP_NOPJ',
+            ket: 'Ada di Cash Dropping ' + cekFmtIso(u.tgl) + ', tidak ada faktur Cash yang cocok di data penjualan PJ (atau fakturnya dibatalkan / bernilai nol)' });
         }
       });
       rows.sort((a, b) => (a.tk > b.tk ? 1 : a.tk < b.tk ? -1 : 0) || (a.fk > b.fk ? 1 : -1));
@@ -1990,7 +2068,7 @@
         const sel = (r.pjCash ? (r.pj || 0) : 0) - (r.dr || 0);
         const selTxt = r.st === 'TITIP' ? '<span class="ck-mut" title="Sisa titip">' + formatNum(Math.abs(sel)) + '</span>' : r.st === 'OK' ? '' : (Math.abs(sel) < 1 ? '' : '<span class="' + (sel < 0 ? 'ck-neg' : 'ck-pos') + '">' + (sel < 0 ? '-' : '') + formatNum(Math.abs(sel)) + '</span>');
         h += '<tr class="ck-row" data-fk="' + pe(r.fk) + '" title="Klik untuk detail & ubah pembayaran"><td><span class="bd ' + lb[0] + '" style="margin-left:0">' + lb[1] + '</span></td>' +
-          '<td class="center">' + pe(r.tgl || '') + '</td><td class="center">' + pe(r.fk) + '</td>' +
+          '<td class="center">' + pe(r.tgl || '') + '</td><td class="center">' + pe(r.fkTxt || r.fk) + '</td>' +
           '<td class="col-customer">' + pe(r.cust || '') + '</td><td class="center">' + pe(r.sales || '') + '</td>' +
           '<td class="num">' + (r.pj === null ? '' : formatNum(r.pj)) + '</td>' +
           '<td class="num">' + (r.dr === null ? '' : formatNum(r.dr)) + '</td>' +
@@ -2120,7 +2198,7 @@
       const pi = payInfo(fk);
       const R = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
       const lb = r && CEK_LABEL[r.st] ? CEK_LABEL[r.st] : ['', ''];
-      document.getElementById('pmTitle').textContent = 'Faktur ' + fk;
+      document.getElementById('pmTitle').textContent = 'Faktur ' + (r && r.fkTxt ? r.fkTxt : fk);
       document.getElementById('pmSub').textContent = r ? (r.cust || '') : '';
       let b = '<div class="pm-grid">';
       b += '<div class="k">Status cek</div><div>' + (r ? '<span class="bd ' + lb[0] + '" style="margin-left:0">' + lb[1] + '</span>' : '-') + '</div>';
