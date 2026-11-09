@@ -629,6 +629,7 @@
             <option value="MASALAH">Perlu dicek</option>
             <option value="BELUM_LAPORAN">Belum ada laporan UM (belum setor)</option>
             <option value="OK">Sudah cocok</option>
+            <option value="NOMOR">Cocok tapi nomor faktur beda ketik di UM</option>
             <option value="ALL">Semua</option>
           </select>
           <button class="pb-btn" id="cekReload" type="button">↻ Muat ulang data UM</button>
@@ -1808,6 +1809,41 @@
       }
       return m;
     }
+    /* Jarak edit (Levenshtein) untuk mengenali nomor faktur yang salah ketik di UM */
+    function cekLev(a, b) {
+      a = String(a); b = String(b);
+      if (Math.abs(a.length - b.length) > 3) return 99;
+      let prev = Array.from({ length: b.length + 1 }, (_, k) => k);
+      for (let x = 1; x <= a.length; x++) {
+        const cur = [x];
+        for (let y = 1; y <= b.length; y++) {
+          cur[y] = Math.min(prev[y] + 1, cur[y - 1] + 1, prev[y - 1] + (a[x - 1] === b[y - 1] ? 0 : 1));
+        }
+        prev = cur;
+      }
+      return prev[b.length];
+    }
+    /* Cocokkan faktur PJ yang tidak ketemu nomornya dengan baris Cash Dropping UM yang "yatim"
+       (nomor tidak ada di PJ). Syarat: nilai sama persis dan (nomor mirip + toko/tanggal sama) atau (toko & tanggal sama). */
+    function cekFuzzy(cands, free, usedK) {
+      const norm = x => String(x || '').toUpperCase().replace(/\s+/g, ' ').trim();
+      const pairs = [];
+      for (const e of cands) {
+        for (const [k, dr] of free) {
+          if (usedK.has(k)) continue;
+          if (!(Math.abs(dr.bayar - e.tot) < 1)) continue;
+          const d = cekLev(e.k, k), nm = norm(e.Customer) === norm(dr.toko), sd = e.tk === dr.tgl;
+          if ((d <= 2 && (nm || sd)) || (nm && sd)) pairs.push({ e, k, dr, d, score: d * 10 - (nm ? 2 : 0) - (sd ? 1 : 0) });
+        }
+      }
+      pairs.sort((a, b) => a.score - b.score);
+      const usedE = new Set(), res = new Map();
+      for (const p of pairs) {
+        if (usedE.has(p.e.k) || usedK.has(p.k)) continue;
+        usedE.add(p.e.k); usedK.add(p.k); res.set(p.e.k, p);
+      }
+      return res;
+    }
     function cekCompute() {
       const um = cekUM, rows = [];
       if (!um) return { rows, um: null };
@@ -1825,13 +1861,30 @@
       };
       const hit = (fk, cust, sales) => !q || (fk + ' ' + (cust || '') + ' ' + (sales || '')).toLowerCase().includes(q);
 
+      /* Pencocokan nomor salah ketik (sebelum pemeriksaan biasa) */
+      const free = [];
+      um.drop.forEach((dr, k) => { if (!pj.has(k)) free.push([k, dr]); });
+      const usedK = new Set();
+      const cashCands = [], otherCands = [];
+      pj.forEach(e => {
+        if (um.drop.has(e.k) || Math.abs(e.tot) < 1) return;
+        if (e.nCash > 0 && e.nOther === 0) cashCands.push(e); else otherCands.push(e);
+      });
+      const fz1 = cekFuzzy(cashCands, free, usedK);      // faktur Cash PJ  <-> baris Dropping salah ketik
+      const fz2 = cekFuzzy(otherCands, free, usedK);     // faktur Tempo PJ <-> baris Dropping salah ketik
+      const fz2byUm = new Map(); fz2.forEach((p, pk) => fz2byUm.set(p.k, pk));
+
       pj.forEach(e => {
         if (!(e.nCash > 0 && e.nOther === 0)) return;                 // hanya faktur Cash
-        const dr = um.drop.get(e.k);
+        const fz = fz1.get(e.k);
+        const dr = um.drop.get(e.k) || (fz ? fz.dr : null);
         if (Math.abs(e.tot) < 1 && !dr) return;
         if (!inScope(e.tk, e.Sales, true) || !hit(e.k, e.Customer, e.Sales)) return;
         const row = { fk: e.k, tk: e.tk, tgl: e.Tanggal, cust: e.Customer, sales: e.Sales, pj: e.tot, dr: dr ? dr.bayar : null, pjCash: true, ket: '' };
-        if (dr) {
+        if (fz) {
+          row.st = 'NOMOR'; row.umFk = fz.k;
+          row.ket = 'Nomor faktur di UM tertulis ' + fz.k + ' (beda ketik dari ' + e.k + '). Nilai & toko cocok — sebaiknya diperbaiki di UM.';
+        } else if (dr) {
           if (Math.abs(dr.bayar - e.tot) < 1) { row.st = 'OK'; row.ket = 'Masuk Cash Dropping ' + cekFmtIso(dr.tgl); }
           else { row.st = 'BEDA'; row.ket = 'Nilai di Cash Dropping (' + cekFmtIso(dr.tgl) + ') berbeda dari total faktur'; }
         } else if (um.piut.has(e.k)) {
@@ -1844,12 +1897,14 @@
         rows.push(row);
       });
       um.drop.forEach((dr, k) => {
-        const p = pj.get(k);
-        if (p && p.nCash > 0 && p.nOther === 0) return;               // sudah dibahas di atas
+        const p = pj.get(k) || (fz2byUm.has(k) ? pj.get(fz2byUm.get(k)) : null);
+        const typoTempo = !pj.has(k) && !!p;
+        if (!p && usedK.has(k)) return;                               // sudah dipasangkan ke faktur Cash PJ (nomor salah ketik)
+        if (p && p.nCash > 0 && p.nOther === 0) return;               // faktur Cash: sudah dibahas di atas
         if (p) {
-          if (!inScope(p.tk, p.Sales, true) || !hit(k, p.Customer, p.Sales)) return;
-          rows.push({ fk: k, tk: p.tk, tgl: p.Tanggal, cust: p.Customer, sales: p.Sales, pj: p.tot, dr: dr.bayar, pjCash: false, st: 'DROP_TEMPO',
-            ket: 'Masuk Cash Dropping ' + cekFmtIso(dr.tgl) + ', tapi di PJ berlabel ' + (p.pay || 'bukan Cash') + ' → klik baris untuk mengubah jadi Cash' });
+          if (!inScope(p.tk, p.Sales, true) || !hit(p.k, p.Customer, p.Sales)) return;
+          rows.push({ fk: p.k, tk: p.tk, tgl: p.Tanggal, cust: p.Customer, sales: p.Sales, pj: p.tot, dr: dr.bayar, pjCash: false, st: 'DROP_TEMPO',
+            ket: 'Masuk Cash Dropping ' + cekFmtIso(dr.tgl) + (typoTempo ? ' (nomor di UM tertulis ' + k + ', beda ketik)' : '') + ', tapi di PJ berlabel ' + (p.pay || 'bukan Cash') + ' → klik baris untuk mengubah jadi Cash' });
         } else {
           if (!inScope(dr.tgl, dr.sales, false) || !hit(k, dr.toko, dr.sales)) return;
           rows.push({ fk: k, tk: dr.tgl, tgl: cekFmtIso(dr.tgl), cust: dr.toko, sales: dr.sales, pj: null, dr: dr.bayar, pjCash: false, st: 'DROP_NOPJ',
@@ -1871,6 +1926,7 @@
     }
     const CEK_LABEL = {
       OK:            ['bd-ok',    '✔ Cocok'],
+      NOMOR:         ['bd-parsial', '≈ Cocok, nomor beda ketik'],
       BELUM:         ['bd-batal', '✖ Belum masuk Dropping'],
       BELUM_LAPORAN: ['bd-wait',  '⏳ Belum ada laporan UM'],
       DROP_TEMPO:    ['bd-nol',   '⚠ Dropping, di PJ Tempo'],
@@ -1891,21 +1947,21 @@
       }
       const { rows } = cekCompute();
       cekRowMap = new Map(rows.map(r => [r.fk, r]));
-      let pjSum = 0, pjN = 0, drSum = 0, drN = 0, ok = 0, prob = 0, wait = 0, waitSum = 0;
+      let pjSum = 0, pjN = 0, drSum = 0, drN = 0, ok = 0, typo = 0, prob = 0, wait = 0, waitSum = 0;
       rows.forEach(r => {
         if (r.st === 'BELUM_LAPORAN') { wait++; waitSum += r.pj || 0; }
         else if (r.pjCash) { pjN++; pjSum += r.pj || 0; }
         if (r.dr !== null) { drN++; drSum += r.dr; }
-        if (r.st === 'OK') ok++; else if (CEK_PROB.has(r.st)) prob++;
+        if (r.st === 'OK') ok++; else if (r.st === 'NOMOR') typo++; else if (CEK_PROB.has(r.st)) prob++;
       });
       info.innerHTML = 'Laporan UM terakhir: <b>' + cekFmtIso(cekUM.last) + '</b>. ' +
         'Cash PJ (yang sudah ada laporan UM): <b>' + pjN + '</b> faktur Rp ' + R(pjSum) + ' · ' +
         'Cash Dropping UM: <b>' + drN + '</b> faktur Rp ' + R(drSum) + ' · ' +
         'Selisih (PJ − UM): <b>' + (pjSum - drSum < 0 ? '-' : '') + 'Rp ' + R(Math.abs(pjSum - drSum)) + '</b>. ' +
-        'Cocok: <b>' + ok + '</b> · Perlu dicek: <b>' + prob + '</b> · Belum ada laporan UM: <b>' + wait + '</b> faktur (Rp ' + R(waitSum) + '). ' +
+        'Cocok: <b>' + (ok + typo) + '</b>' + (typo ? ' (<b>' + typo + '</b> nomor faktur beda ketik di UM)' : '') + ' · Perlu dicek: <b>' + prob + '</b> · Belum ada laporan UM: <b>' + wait + '</b> faktur (Rp ' + R(waitSum) + '). ' +
         'Mengikuti filter bulan / tanggal / sales di atas. <b>Klik baris</b> untuk melihat detail dan mengubah pembayaran (Cash ↔ Tempo).';
       const v = document.getElementById('cekView').value;
-      const list = rows.filter(r => v === 'ALL' ? true : v === 'OK' ? r.st === 'OK' : v === 'BELUM_LAPORAN' ? r.st === 'BELUM_LAPORAN' : CEK_PROB.has(r.st));
+      const list = rows.filter(r => v === 'ALL' ? true : v === 'OK' ? r.st === 'OK' : v === 'NOMOR' ? r.st === 'NOMOR' : v === 'BELUM_LAPORAN' ? r.st === 'BELUM_LAPORAN' : CEK_PROB.has(r.st));
       const totalPages = Math.max(1, Math.ceil(list.length / ROWS_PER_PAGE));
       if (st.page > totalPages) st.page = totalPages;
       if (!list.length) {
