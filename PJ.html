@@ -445,6 +445,8 @@
       <div class="tabs" id="tabs">
         <select class="tab-sel" id="tabSel" title="Pilih tampilan"></select>
         <button class="tab active" data-tab="lengkap">Data Lengkap</button>
+        <button class="tab" data-tab="cash_all">Penjualan Cash</button>
+        <button class="tab" data-tab="tempo_all">Penjualan Tempo</button>
         <button class="tab" data-tab="cash_fitri">Cash • Minyak Fitri</button>
         <button class="tab" data-tab="cash_rupa">Cash • Rupa-Rupa</button>
         <button class="tab" data-tab="tempo_fitri">Tempo • Minyak Fitri</button>
@@ -536,6 +538,14 @@
         <div class="table-wrapper"><div id="table-lengkap"></div></div>
         <div class="pagination" id="page-lengkap"></div>
       </div>
+      <div class="tab-content" id="tab-cash_all">
+        <div class="table-wrapper"><div id="table-cash_all"></div></div>
+        <div class="pagination" id="page-cash_all"></div>
+      </div>
+      <div class="tab-content" id="tab-tempo_all">
+        <div class="table-wrapper"><div id="table-tempo_all"></div></div>
+        <div class="pagination" id="page-tempo_all"></div>
+      </div>
       <div class="tab-content" id="tab-cash_fitri">
         <div class="table-wrapper"><div id="table-cash_fitri"></div></div>
         <div class="pagination" id="page-cash_fitri"></div>
@@ -585,6 +595,8 @@
 
     const tabState = {
       lengkap:     { data: [], filtered: [], page: 1, search: '' },
+      cash_all:    { data: [], filtered: [], page: 1, search: '' },
+      tempo_all:   { data: [], filtered: [], page: 1, search: '' },
       cash_fitri:  { data: [], filtered: [], page: 1, search: '' },
       cash_rupa:   { data: [], filtered: [], page: 1, search: '' },
       tempo_fitri: { data: [], filtered: [], page: 1, search: '' },
@@ -1035,6 +1047,8 @@
       const TMPO = r => isTempo(r);
 
       tabState.lengkap.data     = allData;
+      tabState.cash_all.data    = allData.filter(r => CASH(r));
+      tabState.tempo_all.data   = allData.filter(r => TMPO(r));
       tabState.cash_fitri.data  = allData.filter(r => CASH(r) && MNYK(r));
       tabState.cash_rupa.data   = allData.filter(r => CASH(r) && !MNYK(r));
       tabState.tempo_fitri.data = allData.filter(r => TMPO(r) && MNYK(r));
