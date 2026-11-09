@@ -408,6 +408,9 @@
     .pm-btn.tempo { background:#b45309; border-color:#b45309; color:#fff; }
     .pm-btn.tempo:hover:not(:disabled) { background:#92400e; }
     .pm-btn.rec { box-shadow:0 0 0 3px rgba(34,197,94,.35); }
+    .ck-mut { color:var(--muted); }
+    .pm-btn.titip { background:#4338ca; border-color:#4338ca; color:#fff; }
+    .pm-btn.titip:hover:not(:disabled) { background:#3730a3; }
     .bd-ubah { background:#fae8ff; color:#86198f; border:1px solid #f0abfc; }
     .bd-ok { background:#dcfce7; color:#166534; border:1px solid #86efac; }
     .bd-wait { background:#e5e7eb; color:#374151; border:1px solid #cbd5e1; }
@@ -630,6 +633,7 @@
             <option value="BELUM_LAPORAN">Belum ada laporan UM (belum setor)</option>
             <option value="OK">Sudah cocok</option>
             <option value="NOMOR">Cocok tapi nomor faktur beda ketik di UM</option>
+            <option value="TITIP">Titip (sudah dikonfirmasi)</option>
             <option value="ALL">Semua</option>
           </select>
           <button class="pb-btn" id="cekReload" type="button">↻ Muat ulang data UM</button>
@@ -1783,8 +1787,9 @@
         const d = String(r.tanggal_laporan_str || '');
         if (d > last) last = d;
         const m = r.section === 'PIUTANG' ? piut : drop;
-        const e = m.get(k) || { bayar: 0, tgl: d, toko: r.nama_toko || '', sales: r.sales || '' };
+        const e = m.get(k) || { bayar: 0, tgl: d, toko: r.nama_toko || '', sales: r.sales || '', ket: '' };
         e.bayar += Number(r.total_bayar) || 0;
+        if (r.status) e.ket = String(r.status);
         m.set(k, e);
       });
       return { drop, piut, last, n: recs.length, at: v.updatedAt || 0 };
@@ -1880,13 +1885,20 @@
         const dr = um.drop.get(e.k) || (fz ? fz.dr : null);
         if (Math.abs(e.tot) < 1 && !dr) return;
         if (!inScope(e.tk, e.Sales, true) || !hit(e.k, e.Customer, e.Sales)) return;
-        const row = { fk: e.k, tk: e.tk, tgl: e.Tanggal, cust: e.Customer, sales: e.Sales, pj: e.tot, dr: dr ? dr.bayar : null, pjCash: true, ket: '' };
+        const row = { fk: e.k, tk: e.tk, tgl: e.Tanggal, cust: e.Customer, sales: e.Sales, pj: e.tot, dr: dr ? dr.bayar : null, pjCash: true, ket: '', umKet: dr ? dr.ket : '' };
         if (fz) {
           row.st = 'NOMOR'; row.umFk = fz.k;
           row.ket = 'Nomor faktur di UM tertulis ' + fz.k + ' (beda ketik dari ' + e.k + '). Nilai & toko cocok — sebaiknya diperbaiki di UM.';
         } else if (dr) {
           if (Math.abs(dr.bayar - e.tot) < 1) { row.st = 'OK'; row.ket = 'Masuk Cash Dropping ' + cekFmtIso(dr.tgl); }
-          else { row.st = 'BEDA'; row.ket = 'Nilai di Cash Dropping (' + cekFmtIso(dr.tgl) + ') berbeda dari total faktur'; }
+          else {
+            row.st = 'BEDA'; row.ket = 'Nilai di Cash Dropping (' + cekFmtIso(dr.tgl) + ') berbeda dari total faktur';
+            const tt = titipMap[e.k];
+            if (tt && Math.abs(tt.tot - e.tot) < 1 && Math.abs(tt.dr - dr.bayar) < 1) {      // konfirmasi hanya berlaku jika angkanya belum berubah
+              row.st = 'TITIP'; row.sisa = e.tot - dr.bayar;
+              row.ket = 'Titip dikonfirmasi: dibayar Rp ' + Math.round(dr.bayar).toLocaleString('id-ID') + ' dari Rp ' + Math.round(e.tot).toLocaleString('id-ID') + ', sisa Rp ' + Math.round(row.sisa).toLocaleString('id-ID') + ' belum dibayar';
+            } else if (tt) row.ket += ' (data berubah sejak dikonfirmasi Titip — cek lagi)';
+          }
         } else if (um.piut.has(e.k)) {
           row.st = 'PIUTANG'; row.ket = 'Tercatat di Piutang Tempo UM, bukan di Cash Dropping';
         } else if (e.tk > um.last) {
@@ -1927,6 +1939,7 @@
     const CEK_LABEL = {
       OK:            ['bd-ok',    '✔ Cocok'],
       NOMOR:         ['bd-parsial', '≈ Cocok, nomor beda ketik'],
+      TITIP:         ['bd-wait',  '🤝 Titip (dikonfirmasi)'],
       BELUM:         ['bd-batal', '✖ Belum masuk Dropping'],
       BELUM_LAPORAN: ['bd-wait',  '⏳ Belum ada laporan UM'],
       DROP_TEMPO:    ['bd-nol',   '⚠ Dropping, di PJ Tempo'],
@@ -1947,21 +1960,23 @@
       }
       const { rows } = cekCompute();
       cekRowMap = new Map(rows.map(r => [r.fk, r]));
-      let pjSum = 0, pjN = 0, drSum = 0, drN = 0, ok = 0, typo = 0, prob = 0, wait = 0, waitSum = 0;
+      let pjSum = 0, pjN = 0, drSum = 0, drN = 0, ok = 0, typo = 0, prob = 0, wait = 0, waitSum = 0, titipN = 0, titipSisa = 0;
       rows.forEach(r => {
         if (r.st === 'BELUM_LAPORAN') { wait++; waitSum += r.pj || 0; }
         else if (r.pjCash) { pjN++; pjSum += r.pj || 0; }
         if (r.dr !== null) { drN++; drSum += r.dr; }
+        if (r.st === 'TITIP') { titipN++; titipSisa += r.sisa || 0; }
         if (r.st === 'OK') ok++; else if (r.st === 'NOMOR') typo++; else if (CEK_PROB.has(r.st)) prob++;
       });
       info.innerHTML = 'Laporan UM terakhir: <b>' + cekFmtIso(cekUM.last) + '</b>. ' +
         'Cash PJ (yang sudah ada laporan UM): <b>' + pjN + '</b> faktur Rp ' + R(pjSum) + ' · ' +
         'Cash Dropping UM: <b>' + drN + '</b> faktur Rp ' + R(drSum) + ' · ' +
-        'Selisih (PJ − UM): <b>' + (pjSum - drSum < 0 ? '-' : '') + 'Rp ' + R(Math.abs(pjSum - drSum)) + '</b>. ' +
+        'Selisih (PJ − UM): <b>' + (pjSum - drSum - titipSisa < 0 ? '-' : '') + 'Rp ' + R(Math.abs(pjSum - drSum - titipSisa)) + '</b>' + (titipN ? ' (tidak termasuk sisa titip Rp ' + R(titipSisa) + ')' : '') + '. ' +
+        (titipN ? 'Titip dikonfirmasi: <b>' + titipN + '</b> faktur (sisa Rp ' + R(titipSisa) + ' belum dibayar) · ' : '') +
         'Cocok: <b>' + (ok + typo) + '</b>' + (typo ? ' (<b>' + typo + '</b> nomor faktur beda ketik di UM)' : '') + ' · Perlu dicek: <b>' + prob + '</b> · Belum ada laporan UM: <b>' + wait + '</b> faktur (Rp ' + R(waitSum) + '). ' +
         'Mengikuti filter bulan / tanggal / sales di atas. <b>Klik baris</b> untuk melihat detail dan mengubah pembayaran (Cash ↔ Tempo).';
       const v = document.getElementById('cekView').value;
-      const list = rows.filter(r => v === 'ALL' ? true : v === 'OK' ? r.st === 'OK' : v === 'NOMOR' ? r.st === 'NOMOR' : v === 'BELUM_LAPORAN' ? r.st === 'BELUM_LAPORAN' : CEK_PROB.has(r.st));
+      const list = rows.filter(r => v === 'ALL' ? true : v === 'OK' ? r.st === 'OK' : v === 'NOMOR' ? r.st === 'NOMOR' : v === 'TITIP' ? r.st === 'TITIP' : v === 'BELUM_LAPORAN' ? r.st === 'BELUM_LAPORAN' : CEK_PROB.has(r.st));
       const totalPages = Math.max(1, Math.ceil(list.length / ROWS_PER_PAGE));
       if (st.page > totalPages) st.page = totalPages;
       if (!list.length) {
@@ -1973,7 +1988,7 @@
       for (const r of list.slice(start, start + ROWS_PER_PAGE)) {
         const lb = CEK_LABEL[r.st] || ['', r.st];
         const sel = (r.pjCash ? (r.pj || 0) : 0) - (r.dr || 0);
-        const selTxt = r.st === 'OK' ? '' : (Math.abs(sel) < 1 ? '' : '<span class="' + (sel < 0 ? 'ck-neg' : 'ck-pos') + '">' + (sel < 0 ? '-' : '') + formatNum(Math.abs(sel)) + '</span>');
+        const selTxt = r.st === 'TITIP' ? '<span class="ck-mut" title="Sisa titip">' + formatNum(Math.abs(sel)) + '</span>' : r.st === 'OK' ? '' : (Math.abs(sel) < 1 ? '' : '<span class="' + (sel < 0 ? 'ck-neg' : 'ck-pos') + '">' + (sel < 0 ? '-' : '') + formatNum(Math.abs(sel)) + '</span>');
         h += '<tr class="ck-row" data-fk="' + pe(r.fk) + '" title="Klik untuk detail & ubah pembayaran"><td><span class="bd ' + lb[0] + '" style="margin-left:0">' + lb[1] + '</span></td>' +
           '<td class="center">' + pe(r.tgl || '') + '</td><td class="center">' + pe(r.fk) + '</td>' +
           '<td class="col-customer">' + pe(r.cust || '') + '</td><td class="center">' + pe(r.sales || '') + '</td>' +
@@ -2004,6 +2019,7 @@
     /* Perubahan disimpan terpisah dari file Excel (seperti pembatalan faktur & harga beli):
        tetap berlaku walau Excel di-upload ulang. Bisa dikembalikan ke data Excel kapan saja. */
     const PY_DB = 'pjbayar-v1', PY_ST = 'pjbayar-data';
+    let titipMap = {};  // { 'NOFAKTUR': { tot, dr, at, cust, tgl } }  faktur Cash yang memang dititip (dibayar sebagian), sudah dikonfirmasi manual
     let payMap = {};   // { 'NOFAKTUR': { to:'Cash'|'Tempo', orig:'Tempo'|'Cash'|'Campuran', at, cust, tgl } }
     function pyOpen() {
       return new Promise((ok, no) => {
@@ -2016,12 +2032,14 @@
     async function loadBayar() {
       try {
         const db = await pyOpen();
-        const v = await new Promise((ok, no) => {
-          const r = db.transaction(PY_ST, 'readonly').objectStore(PY_ST).get('latest');
+        const rd = key => new Promise((ok, no) => {
+          const r = db.transaction(PY_ST, 'readonly').objectStore(PY_ST).get(key);
           r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
         });
+        const v = await rd('latest'), t = await rd('titip');
         db.close();
         payMap = (v && v.items) || {};
+        titipMap = (t && t.items) || {};
       } catch (e) { console.error('Gagal memuat perubahan pembayaran:', e); }
     }
     async function saveBayar() {
@@ -2034,6 +2052,27 @@
         });
       } finally { db.close(); }
       try { const bc = new BroadcastChannel('laporan-data'); bc.postMessage('penjualan'); bc.close(); } catch (e) {}
+    }
+    async function saveTitip() {
+      const db = await pyOpen();
+      try {
+        await new Promise((ok, no) => {
+          const tx = db.transaction(PY_ST, 'readwrite');
+          tx.objectStore(PY_ST).put({ items: titipMap }, 'titip');
+          tx.oncomplete = ok; tx.onerror = tx.onabort = () => no(tx.error);
+        });
+      } finally { db.close(); }
+    }
+    async function titipSet(fk, on) {
+      const r = cekRowMap.get(fk); if (!r || payBusy) return;
+      payBusy = true;
+      document.querySelectorAll('#pmFt .pm-btn').forEach(b => b.disabled = true);
+      if (on) titipMap[fk] = { tot: r.pj, dr: r.dr, at: Date.now(), cust: r.cust || '', tgl: r.tgl || '' }; else delete titipMap[fk];
+      let saved = true;
+      try { await saveTitip(); } catch (e) { console.error(e); saved = false; }
+      payBusy = false;
+      payClose(); cekBadgeSoon(); renderCek();
+      pbToast(!saved ? 'Berubah di layar, tapi gagal disimpan permanen' : on ? '🤝 Faktur ' + fk + ' dikonfirmasi Titip' : '↺ Konfirmasi Titip dibatalkan');
     }
     function applyPayOverrides() {
       if (!Object.keys(payMap).length) return;
@@ -2094,13 +2133,20 @@
       }
       if (r) b += '<div class="k">Cash Dropping UM</div><div>' + (r.dr === null ? '<span style="color:var(--muted)">Tidak ada</span>' : '<b>' + R(r.dr) + '</b>') + '</div>';
       b += '</div>';
-      if (r && r.ket) b += '<div class="pm-note info">' + pe(r.ket) + '</div>';
+      if (r && r.ket && !(r.st === 'BEDA' && r.dr !== null && r.dr < r.pj - 1)) b += '<div class="pm-note info">' + pe(r.ket) + '</div>';
       let rec = '';
       if (!pi) {
         b += '<div class="pm-note">Faktur ini tidak ada di data penjualan PJ (atau sudah dibatalkan), jadi pembayarannya tidak bisa diubah dari sini.</div>';
       } else {
         if (r && r.st === 'DROP_TEMPO') { rec = 'Cash'; b += '<div class="pm-note ok">Faktur ini sudah masuk Cash Dropping (customer langsung bayar saat pengiriman). Disarankan: <b>ubah jadi Cash</b>.</div>'; }
         else if (r && (r.st === 'BELUM' || r.st === 'BELUM_LAPORAN')) { rec = 'Tempo'; b += '<div class="pm-note">Faktur Cash ini belum masuk Cash Dropping. Jika customer ternyata belum membayar, <b>ubah jadi Tempo</b>. Jika memang sudah bayar tapi belum disetor, biarkan.</div>'; }
+        if (r && r.st === 'BEDA' && r.dr !== null && r.dr < r.pj - 1) {
+          b += '<div class="pm-note info">Pembayaran di Cash Dropping (<b>' + R(r.dr) + '</b>) lebih kecil dari total faktur (<b>' + R(r.pj) + '</b>); sisa <b>' + R(r.pj - r.dr) + '</b>.' +
+            (/TITIP/i.test(r.umKet || '') ? ' Di UM faktur ini juga berstatus <b>TITIP</b>.' : '') +
+            ' Jika setelah dicek memang customer menitip (bayar sebagian), klik <b>Konfirmasi Titip</b> — faktur tidak akan muncul lagi di daftar “Perlu dicek”.</div>';
+        } else if (r && r.st === 'BEDA' && r.dr !== null && r.dr > r.pj + 1) {
+          b += '<div class="pm-note">Pembayaran di Cash Dropping lebih <b>besar</b> dari total faktur. Cek kembali di UM / data penjualan.</div>';
+        }
         b += '<div style="margin:10px 0 6px;font-weight:600">Rincian item</div><div style="overflow:auto"><table class="pm-items"><thead><tr><th>Produk</th><th class="r">Jumlah</th><th class="r">Harga Jual</th><th class="r">Total</th></tr></thead><tbody>';
         pi.rows.forEach(x => { b += '<tr><td>' + pe(x.Produk) + '</td><td class="r">' + formatNum(x.Jumlah) + ' ' + pe(x.Satuan || '') + '</td><td class="r">' + formatNum(x['Harga Jual']) + '</td><td class="r">' + formatNum(x.Total) + '</td></tr>'; });
         b += '</tbody></table></div>';
@@ -2108,6 +2154,8 @@
       document.getElementById('pmBody').innerHTML = b;
       let f = '';
       if (pi) {
+        if (r && r.st === 'TITIP') f += '<button type="button" class="pm-btn" data-pact="titip-off">↺ Batalkan konfirmasi Titip</button>';
+        if (r && r.st === 'BEDA' && r.dr !== null && r.dr < r.pj - 1) f += '<button type="button" class="pm-btn titip rec" data-pact="titip-on">🤝 Konfirmasi Titip</button>';
         if (pi.changed) f += '<button type="button" class="pm-btn" data-pact="restore">↺ Kembalikan ke Excel (' + pe(pi.orig) + ')</button>';
         if (pi.cur !== 'Tempo') f += '<button type="button" class="pm-btn tempo' + (rec === 'Tempo' ? ' rec' : '') + '" data-pact="Tempo">⏳ Ubah jadi Tempo</button>';
         if (pi.cur !== 'Cash') f += '<button type="button" class="pm-btn cash' + (rec === 'Cash' ? ' rec' : '') + '" data-pact="Cash">✔ Ubah jadi Cash</button>';
@@ -2122,7 +2170,7 @@
     document.getElementById('pmFt').addEventListener('click', e => {
       const b = e.target.closest('[data-pact]'); if (!b) return;
       const a = b.dataset.pact, fk = document.getElementById('pmFt').dataset.fk;
-      if (a === 'close') payClose(); else if (a === 'restore') payApply(fk, '', true); else payApply(fk, a, false);
+      if (a === 'close') payClose(); else if (a === 'titip-on') titipSet(fk, true); else if (a === 'titip-off') titipSet(fk, false); else if (a === 'restore') payApply(fk, '', true); else payApply(fk, a, false);
     });
     document.getElementById('pmX').addEventListener('click', payClose);
     document.getElementById('payModal').addEventListener('click', e => { if (e.target.id === 'payModal') payClose(); });
