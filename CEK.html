@@ -471,7 +471,12 @@ function evaluate(rec, S) {
   const tg = Math.max(0, ...um.map(r => Number(r.tagihan) || 0));
   if (tg > 0 && Math.abs(tg - rec.total) > 1) issues.push('Tagihan uang masuk ' + fmt(tg) + ' ≠ total faktur ' + fmt(rec.total));
   if (rec.typoFaktur) issues.push('No Faktur di uang masuk "' + rec.typoFaktur + '" ≠ faktur "' + rec.faktur + '" (kemungkinan salah ketik, dicocokkan lewat customer/nominal)');
-  if (rec.status === 'TITIP') issues.push('Baru dibayar ' + fmt(paid) + ' dari ' + fmt(rec.total) + ' (sisa ' + fmt(Math.max(0, rec.total - paid)) + ')' + (paid >= rec.total - 1 ? ' — nominal sudah menutup, tetapi KET di UM belum LUNAS' : ''));
+  /* Status mengikuti KET di UM. Bila hitungan nominal aplikasi berbeda dari KET UM, selisihnya ditulis di Ket (masuk "Ada Beda Data") */
+  const kets = [...new Set(um.map(r => String(r.status || '').trim()).filter(Boolean))].join(' / ') || '(kosong)';
+  const sisa = Math.max(0, rec.total - paid), cukup = paid >= rec.total - 1;
+  if (rec.status === 'LUNAS' && !rec.lunasMan && !manual && !cukup) issues.push('KET di UM: LUNAS, tetapi uang masuk baru ' + fmt(paid) + ' dari ' + fmt(rec.total) + ' (kurang ' + fmt(sisa) + ')');
+  else if (rec.status === 'TITIP' && cukup) issues.push('Uang masuk ' + fmt(paid) + ' sudah menutup faktur ' + fmt(rec.total) + ', tetapi KET di UM ' + (kets === '(kosong)' ? 'kosong' : '\"' + kets + '\"') + ' (belum LUNAS)');
+  else if (rec.status === 'TITIP') issues.push('Baru dibayar ' + fmt(paid) + ' dari ' + fmt(rec.total) + ' (sisa ' + fmt(sisa) + ') · KET di UM: ' + (kets === '(kosong)' ? 'kosong' : kets));
   rec.issues = issues;
   rec.info = um.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || ''))
     .map(r => dmy(r.tanggal_laporan_str) + ' ' + (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop') + ' ' + fmt(r.total_bayar)).join(' · ');
