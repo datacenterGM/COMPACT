@@ -574,6 +574,45 @@
     const UM_DB = 'laporan_uang_masuk_db', UM_ST = 'kv';
     const UM_BRIDGE = 'um-bridge-v1', UM_BRIDGE_ST = 'um-data', UM_BRIDGE_KEY = 'latest';
 
+    function openExistingIDB(name) {
+      return new Promise((ok, no) => {
+        let created = false;
+        const r = indexedDB.open(name);                       /* tanpa nomor versi: cocok dengan versi berapa pun */
+        r.onupgradeneeded = () => { created = true; r.transaction.abort(); };   /* DB belum ada -> jangan dibuat */
+        r.onsuccess = () => { const db = r.result; db.onversionchange = () => db.close(); ok(db); };
+        r.onerror = () => no(created ? new Error('DB tidak ada') : r.error);
+      });
+    }
+    async function readUMMonthly() {
+      const out = [];
+      const db = await openExistingIDB(UM_DB);
+      try {
+        if (!db.objectStoreNames.contains(UM_ST)) return out;
+        const store = () => db.transaction(UM_ST).objectStore(UM_ST);
+        const allKeys = await new Promise((ok, no) => { const r = store().getAllKeys(); r.onsuccess = () => ok(r.result || []); r.onerror = () => no(r.error); });
+        for (const key of allKeys) {
+          if (typeof key !== 'string' || !key.startsWith('month:')) continue;
+          const val = await new Promise((ok, no) => { const r = store().get(key); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+          if (!val || !Array.isArray(val.days)) continue;
+          let ym = key.slice(6).trim();
+          if (!/^\d{4}-\d{2}$/.test(ym)) { const m = String(val.month || val.ym || '').match(/^(\d{4})-(\d{2})/); ym = m ? m[1] + '-' + m[2] : ''; }
+          if (!ym) continue;
+          const rows = [];
+          for (const d of val.days) {
+            for (const x of (d.txns || [])) {
+              rows.push({
+                tgl: x.tgl || d.tgl || '', mk: ym, ket: x.ket || '', sales: x.sales || '', toko: x.toko || '', alamat: x.alamat || '',
+                tagihan: Number(x.tagihan) || 0, mCash: Number(x.mCash) || 0, mTf: Number(x.mTf) || 0,
+                rCash: Number(x.rCash) || 0, rTf: Number(x.rTf) || 0, section: x.section || '', faktur: x.faktur || ''
+              });
+            }
+          }
+          if (rows.length) out.push({ ym, rows });
+        }
+      } finally { db.close(); }
+      return out;
+    }
+
     async function loadUangMasuk() {
       const dot = document.getElementById('dotUM');
       try {
@@ -591,6 +630,7 @@
             for (const x of pack.records) {
               rows.push({
                 tgl: x.tgl || x.tanggal || '',
+                mk: /^\d{4}-\d{2}/.test(String(x.tanggal_laporan_str || '')) ? String(x.tanggal_laporan_str).slice(0, 7) : '',
                 ket: x.ket || '',
                 sales: x.sales || '',
                 toko: x.nama_toko || x.toko || '',
@@ -607,47 +647,27 @@
           }
         } catch (e) { /* lanjut ke full store */ }
 
-        // Fallback / lengkap: baca per-bulan dari IDB utama
-        if (!rows.length) {
-          const db = await openIDB(UM_DB, UM_ST);
-          // ambil semua key yang diawali month:
-          const allKeys = await new Promise((ok, no) => {
-            const r = db.transaction(UM_ST).objectStore(UM_ST).getAllKeys();
-            r.onsuccess = () => ok(r.result || []); r.onerror = () => no(r.error);
-          });
-          for (const key of allKeys) {
-            if (typeof key !== 'string' || !key.startsWith('month:')) continue;
-            const val = await new Promise((ok, no) => {
-              const r = db.transaction(UM_ST).objectStore(UM_ST).get(key);
-              r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
-            });
-            if (!val || !Array.isArray(val.days)) continue;
-            for (const d of val.days) {
-              for (const x of (d.txns || [])) {
-                rows.push({
-                  tgl: x.tgl || d.tgl || '',
-                  ket: x.ket || '',
-                  sales: x.sales || '',
-                  toko: x.toko || '',
-                  alamat: x.alamat || '',
-                  tagihan: Number(x.tagihan) || 0,
-                  mCash: Number(x.mCash) || 0,
-                  mTf: Number(x.mTf) || 0,
-                  rCash: Number(x.rCash) || 0,
-                  rTf: Number(x.rTf) || 0,
-                  section: x.section || '',
-                  faktur: x.faktur || ''
-                });
-              }
-            }
+        // Data bulanan langsung dari halaman UM (bulan yang baru diupload belum tentu sudah di "bridge").
+        // Bridge tetap dipakai untuk bulan yang sudah ada di dalamnya; bulan yang BELUM ada diisi dari data bulanan UM.
+        const covYM = new Set(), covMM = new Set();
+        rows.forEach(r => {
+          const mk = r.mk || monthKeyFromDate(r.tgl);
+          if (mk) covYM.add(mk);
+          else { const p = String(r.tgl || '').split(/[-\/]/); if (p.length >= 2 && /^\d{1,2}$/.test(p[1])) covMM.add(p[1].padStart(2, '0')); }
+        });
+        try {
+          const months = await readUMMonthly();
+          for (const mo of months) {
+            const mm = mo.ym.slice(5, 7);
+            if (covYM.has(mo.ym) || covMM.has(mm)) continue;
+            mo.rows.forEach(x => rows.push(x));
           }
-          db.close();
-        }
+        } catch (e) { console.warn('baca bulanan UM gagal', e); }
 
         umRows = rows;
         rows.forEach(r => {
           // tgl UM sering format DD-MM atau DD/MM/YYYY
-          let mk = monthKeyFromDate(r.tgl);
+          let mk = r.mk || monthKeyFromDate(r.tgl);
           if (!mk && /^\d{1,2}-\d{1,2}$/.test(String(r.tgl || ''))) {
             // hanya hari-bulan; ambil tahun dari data lain tidak tersedia → skip
           }
@@ -816,7 +836,7 @@
       let umHit = umRows.filter(r => {
         if (monthUMs.length) {
           // dukung tgl DD/MM/YYYY atau YYYY-MM-DD atau DD-MM
-          let mk = monthKeyFromDate(r.tgl);
+          let mk = r.mk || monthKeyFromDate(r.tgl);
           if (!mk && r.tgl) {
             // coba ambil dari format lain: "05-10" + asumsikan month filter
             const parts = String(r.tgl).split(/[-\/]/);
