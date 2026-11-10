@@ -59,6 +59,7 @@
   .st.lunas { background:#2563eb; color:#fff; } .st.titip { background:#fef08a; color:#854d0e; border:1px solid #eab308; }
   .st.orph { background:var(--df-bg); color:var(--df-tx); border:1px solid var(--df-tx); }
   tr.r-or td:first-child { box-shadow:3px 0 0 #a855f7 inset; }
+  .st.tf { background:var(--card); color:var(--text); border:1px solid var(--border); }
   .st.none { background:var(--no-bg); color:var(--no-tx); border:1px solid #fcd34d; }
   .bad { color:var(--df-tx); font-weight:600; } .good { color:var(--ok-tx); font-weight:600; } .dim { color:var(--muted); }
   .x { display:inline-block; margin:1px 3px 1px 0; padding:0 6px; border-radius:4px; background:var(--df-bg); color:var(--df-tx); font-weight:600; font-size:.72rem; }
@@ -433,6 +434,10 @@ function umKetLunas(u) {
   if (k.includes('TF') || k.includes('BG') || k.includes('TRANSFER')) { const tg = Number(u.tagihan) || 0; return tg > 0 && (Number(u.total_bayar) || 0) >= tg; }
   return false;
 }
+/* Teks KET persis seperti di tab UM (getDisplayKet): transfer yang nominalnya sudah >= tagihan diberi tambahan " - LUNAS" */
+function umKetText(u) { const k = String(u.status || '').trim(); if (!k) return ''; const K = k.toUpperCase();
+  return (!K.includes('LUNAS') && umKetLunas(u)) ? k + ' - LUNAS' : k; }
+function stText(r) { return r.ketUM !== undefined ? (r.ketUM || '—') : r.status; }
 function evaluate(rec, S) {
   const um = rec.um;
   rec.lunasMan = null;
@@ -441,6 +446,7 @@ function evaluate(rec, S) {
   const paid = um.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0);
   const manual = um.some(r => r.titip_aksi === 'LUNAS');
   rec.paid = paid;
+  rec.ketUM = [...new Set(um.map(umKetText).filter(Boolean))].join(' / ');   /* yang ditampilkan di kolom Status = tulisan di UM */
   rec.status = (manual || um.some(umKetLunas)) ? 'LUNAS' : 'TITIP';   /* sumber: KET di UM, bukan hasil jumlah nominal */
   rec.lunasMan = null;
   if (rec.status === 'TITIP' && LUNAS_MAN[rec.fk]) { rec.status = 'LUNAS'; rec.lunasMan = LUNAS_MAN[rec.fk]; }   /* dipindahkan manual dari Titip ke Lunas */
@@ -472,11 +478,11 @@ function evaluate(rec, S) {
   if (tg > 0 && Math.abs(tg - rec.total) > 1) issues.push('Tagihan uang masuk ' + fmt(tg) + ' ≠ total faktur ' + fmt(rec.total));
   if (rec.typoFaktur) issues.push('No Faktur di uang masuk "' + rec.typoFaktur + '" ≠ faktur "' + rec.faktur + '" (kemungkinan salah ketik, dicocokkan lewat customer/nominal)');
   /* Status mengikuti KET di UM. Bila hitungan nominal aplikasi berbeda dari KET UM, selisihnya ditulis di Ket (masuk "Ada Beda Data") */
-  const kets = [...new Set(um.map(r => String(r.status || '').trim()).filter(Boolean))].join(' / ') || '(kosong)';
+  const kets = rec.ketUM || '(kosong)';
   const sisa = Math.max(0, rec.total - paid), cukup = paid >= rec.total - 1;
   if (rec.status === 'LUNAS' && !rec.lunasMan && !manual && !cukup) issues.push('KET di UM: LUNAS, tetapi uang masuk baru ' + fmt(paid) + ' dari ' + fmt(rec.total) + ' (kurang ' + fmt(sisa) + ')');
   else if (rec.status === 'TITIP' && cukup) issues.push('Uang masuk ' + fmt(paid) + ' sudah menutup faktur ' + fmt(rec.total) + ', tetapi KET di UM ' + (kets === '(kosong)' ? 'kosong' : '\"' + kets + '\"') + ' (belum LUNAS)');
-  else if (rec.status === 'TITIP') issues.push('Baru dibayar ' + fmt(paid) + ' dari ' + fmt(rec.total) + ' (sisa ' + fmt(sisa) + ') · KET di UM: ' + (kets === '(kosong)' ? 'kosong' : kets));
+  else if (rec.status === 'TITIP') issues.push('Baru dibayar ' + fmt(paid) + ' dari ' + fmt(rec.total) + ' (sisa ' + fmt(sisa) + ')' + (kets === '(kosong)' ? ' · KET di UM kosong' : ''));
   rec.issues = issues;
   rec.info = um.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || ''))
     .map(r => dmy(r.tanggal_laporan_str) + ' ' + (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop') + ' ' + fmt(r.total_bayar)).join(' · ');
@@ -546,7 +552,7 @@ function render() {
   if (!SALES_ROWS.length) body.innerHTML = '<tr><td class="empty" colspan="' + nc + '">Belum ada data Penjualan. Upload dulu di tab PENJUALAN (Menu → Upload File Excel), lalu klik ↻ Muat Ulang.</td></tr>';
   else if (!rows.length) body.innerHTML = '<tr><td class="empty" colspan="' + nc + '">Tidak ada faktur pada filter ini</td></tr>';
   else body.innerHTML = rows.map((r, k) => {
-    const stc = r.status === 'LUNAS' ? 'lunas' : r.status === 'TITIP' ? 'titip' : r.orph ? 'orph' : 'none';
+    const stT = stText(r), stU = stT.toUpperCase(), stc = stU.includes('LUNAS') ? 'lunas' : stU.includes('TITIP') ? 'titip' : r.orph ? 'orph' : r.ketUM !== undefined ? 'tf' : 'none';
     const clk = (r.cat === 'DIFF' || r.manual || r.cat === 'TITIP' || r.cat === 'NONE' || r.lunasMan) ? ' clk" data-i="' + (st + k) + '" title="Klik untuk detail & aksi' : '';
     const lm = r.lunasMan ? '<span class="good">✓ Dilunasi manual' + (r.um.length ? ' (tercatat ' + fmt(r.paid) + ' dari ' + fmt(r.total) + ')' : ' (tanpa catatan uang masuk)') + '</span> ' + (r.lunasMan.note ? '<span class="dim">Catatan: ' + esc(r.lunasMan.note) + '</span><br>' : '<br>') : '';
     const ket = lm + (r.manual ? '<span class="good">✓ Dicek manual: sesuai</span> <span class="dim">' + (r.manual.note ? esc(r.manual.note) + ' · ' : '') + esc(r.info) + '</span>'
@@ -558,7 +564,7 @@ function render() {
       '<td class="ctr">' + L[0] + '</td><td class="ctr">' + L[1] + '</td><td class="num">' + L[2] + '</td>' +
       '<td class="ctr">' + L[3] + '</td><td>' + L[4] + '' + '</td><td>' + L[5] + '</td>' +
       '<td class="ctr">' + L[6] + '</td><td class="ctr">' + L[7] + '</td>' + odCell(r, showOD) +
-      '<td class="ctr"><span class="st ' + stc + '"' + (r.status === 'LUNAS' || r.status === 'TITIP' ? ' title="' + (r.lunasMan ? 'Dilunasi manual di CEK' : r.status === 'LUNAS' ? 'KET di UM: LUNAS' : 'KET di UM belum LUNAS') + '"' : '') + '>' + r.status + '</span></td><td class="ket">' + ket + '</td></tr>';
+      '<td class="ctr"><span class="st ' + stc + '"' + (r.ketUM !== undefined ? ' title="Tertulis di UM (kolom KET)"' : r.lunasMan ? ' title="Dilunasi manual di CEK"' : '') + '>' + esc(stT) + '</span></td><td class="ket">' + ket + '</td></tr>';
   }).join('');
   const opts = [50, 100, 200, 500].map(n => '<option value="' + n + '"' + (n === state.size ? ' selected' : '') + '>' + n + '</option>').join('');
   $('pg').innerHTML = '<span>Menampilkan <b>' + (VIEW.length ? st + 1 : 0) + '–' + Math.min(VIEW.length, st + state.size) + '</b> dari <b>' + fmt(VIEW.length) + '</b> faktur</span>' +
@@ -656,7 +662,7 @@ $('bXls').addEventListener('click', () => {
   if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat (cek koneksi internet).'); return; }
   const od = state.f === 'NONE', head = ['Tanggal','No. Faktur','Total Faktur','Sales','Customer','Alamat','Produk','Pembayaran'].concat(od ? ['OD (hari)'] : [], ['Status','Ket']);
   const aoa = [['DATA PENJUALAN','','','','','','',''].concat(od ? [''] : [], ['DATA UANG MASUK','']), head].concat(VIEW.map(r =>
-    (r.orph ? ['', '', '', '', '', '', '', ''] : [r.tanggal, r.faktur, r.total, r.sales, r.customer, r.alamat, r.prod, r.pay]).concat(od ? [r.orph ? '' : (odDays(r.tanggal) || 0)] : [], [r.status, (r.issues.length ? r.issues.join(' | ') + ' || ' : (r.cat === 'OK' ? 'Sesuai || ' : '')) + r.info])));
+    (r.orph ? ['', '', '', '', '', '', '', ''] : [r.tanggal, r.faktur, r.total, r.sales, r.customer, r.alamat, r.prod, r.pay]).concat(od ? [r.orph ? '' : (odDays(r.tanggal) || 0)] : [], [stText(r), (r.issues.length ? r.issues.join(' | ') + ' || ' : (r.cat === 'OK' ? 'Sesuai || ' : '')) + r.info])));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const o = od ? 1 : 0; ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 + o } }, { s: { r: 0, c: 8 + o }, e: { r: 0, c: 9 + o } }];
   ws['!cols'] = [10,14,14,12,26,30,12,12].concat(od ? [10] : [], [14,80]).map(w => ({ wch: w }));
