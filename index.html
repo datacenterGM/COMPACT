@@ -64,6 +64,7 @@
     <button class="tab" data-tab="pj">PJ</button>
     <button class="tab" data-tab="um">UM</button>
     <button class="tab" data-tab="cek">CEK</button>
+    <button class="tab" data-tab="ar">AR</button>
     <span class="spacer"></span>
     <button class="theme" id="themeBtn" title="Mode gelap / terang">🌙</button>
   </nav>
@@ -71,7 +72,7 @@
 
 <script>
 (function () {
-  var PAGES = { cari:'cari.html', pj:'PJ.html', um:'UM.html', cek:'CEK.html' };
+  var PAGES = { cari:'cari.html', pj:'PJ.html', um:'UM.html', cek:'CEK.html', ar:'AR.html' };
   var frames = {};          // key -> iframe (dibuat saat tab pertama kali dibuka)
   var stale  = {};          // key -> true bila data PJ/UM mungkin berubah sejak dimuat
   var current = null;
@@ -176,7 +177,7 @@
   });
   applyTheme(document.documentElement.getAttribute('data-theme'));
 
-  /* ===== mulai: #pj / #um / #cek / #cari (default CARI) ===== */
+  /* ===== mulai: #pj / #um / #cek / #ar / #cari (default CARI) ===== */
   window.addEventListener('hashchange', function () {
     var k = location.hash.slice(1).toLowerCase();
     if (PAGES[k] && k !== current) show(k);
