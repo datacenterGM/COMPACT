@@ -135,8 +135,10 @@ const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'
 const fmt = n => Number(n || 0).toLocaleString('id-ID');
 const MON = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const fk = v => String(v || '').trim().toUpperCase();
-const norm = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-const toks = s => String(s || '').toUpperCase().split(/[^A-Z0-9]+/).filter(w => w.length > 1);
+const _nm = new Map();
+const norm = s => { const k = String(s || ''); let v = _nm.get(k); if (v === undefined) { v = k.toUpperCase().replace(/[^A-Z0-9]/g, ''); _nm.set(k, v); } return v; };   /* di-cache: dipanggil jutaan kali */
+const _tk = new Map();
+const toks = s => { const k = String(s || ''); let v = _tk.get(k); if (!v) { v = k.toUpperCase().split(/[^A-Z0-9]+/).filter(w => w.length > 1); _tk.set(k, v); } return v; };
 
 /* ===== baca IndexedDB (tanpa membuat database baru) ===== */
 async function idbGet(db, st, key) {
@@ -204,6 +206,10 @@ function prodOfName(n) { return /FITRI/i.test(n || '') ? 'MINYAK' : 'RUPA'; }
 function setLabel(s) { const a = [...s].sort(); if (a.length === 2) return 'CAMPUR'; return a[0] === 'MINYAK' ? 'MINYAK' : a[0] === 'RUPA' ? 'RUPA RUPA' : '-'; }
 function lev(a, b) {
   if (a === b) return 0;
+  let i0 = 0; const mn = Math.min(a.length, b.length);          /* buang awalan & akhiran yang sama (hasil identik, jauh lebih cepat) */
+  while (i0 < mn && a.charCodeAt(i0) === b.charCodeAt(i0)) i0++;
+  let e = 0; while (e < mn - i0 && a.charCodeAt(a.length - 1 - e) === b.charCodeAt(b.length - 1 - e)) e++;
+  if (i0 || e) { a = a.slice(i0, a.length - e); b = b.slice(i0, b.length - e); }
   const n = a.length, m = b.length; if (!n) return m; if (!m) return n;
   let p = new Array(m + 1), c = new Array(m + 1);
   for (let j = 0; j <= m; j++) p[j] = j;
@@ -214,9 +220,37 @@ function lev(a, b) {
   }
   return p[m];
 }
-const sim = (a, b) => { const l = Math.max(a.length, b.length); return l ? 1 - lev(a, b) / l : 1; };
+/* lev dengan batas k: berhenti begitu pasti > k (cukup untuk uji "mirip >= 80%"), jauh lebih cepat */
+function levBound(a, b, k) {
+  let i0 = 0; const mn = Math.min(a.length, b.length);
+  while (i0 < mn && a.charCodeAt(i0) === b.charCodeAt(i0)) i0++;
+  let e = 0; while (e < mn - i0 && a.charCodeAt(a.length - 1 - e) === b.charCodeAt(b.length - 1 - e)) e++;
+  if (i0 || e) { a = a.slice(i0, a.length - e); b = b.slice(i0, b.length - e); }
+  const n = a.length, m = b.length; if (!n) return m; if (!m) return n; if (Math.abs(n - m) > k) return k + 1;
+  const BIG = k + 1; let p = new Array(m + 1).fill(BIG), c = new Array(m + 1).fill(BIG);
+  for (let j = 0; j <= Math.min(m, k); j++) p[j] = j;
+  for (let i = 1; i <= n; i++) {
+    const lo = Math.max(1, i - k), hi = Math.min(m, i + k);
+    c[lo - 1] = (lo === 1) ? i : BIG; let rowMin = c[lo - 1];
+    for (let j = lo; j <= hi; j++) {
+      const v = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1));
+      c[j] = v > BIG ? BIG : v; if (c[j] < rowMin) rowMin = c[j];
+    }
+    if (hi < m) c[hi + 1] = BIG;
+    if (rowMin > k) return k + 1;
+    const t = p; p = c; c = t;
+  }
+  return Math.min(p[m], k + 1);
+}
+const sim = (a, b) => { const l = Math.max(a.length, b.length); if (!l) return 1; const k = Math.floor(0.2 * l); if (Math.abs(a.length - b.length) > k) return 0; const d = levBound(a, b, k); return d > k ? 0 : 1 - d / l; };   /* hanya akurat untuk uji >= 0,8 (cara satu-satunya sim dipakai) */
 /* 'OK' sama | 'NEAR' mirip tapi tidak sama (kemungkinan salah ketik) | 'DIFF' beda | null tidak bisa dibandingkan */
-function textCmp(a, b) {
+const _tc = new Map();
+function textCmp(a, b) {                                   /* hasil di-cache per pasangan teks */
+  const key = a + '\u0001' + b; let v = _tc.get(key);
+  if (v === undefined) { v = textCmpRaw(a, b); _tc.set(key, v); }
+  return v;
+}
+function textCmpRaw(a, b) {
   const x = norm(a), y = norm(b);
   if (!x || !y) return null;
   if (x === y) return 'OK';
@@ -263,6 +297,7 @@ function build() {
     });
   });
   const byFk = new Map(INV.map(r => [r.fk, r]));
+  INV.forEach(r => { r._d = days(r.sk); });
 
   /* ---- Pencocokan Uang Masuk -> Faktur Penjualan ----
      URUTAN PENCARIAN (bobot terbesar -> terkecil):
@@ -278,6 +313,23 @@ function build() {
     o.recs.push(r);
   });
   const paidOf = r => r.um.reduce((s, x) => s + (Number(x.total_bayar) || 0), 0);
+  /* PERCEPATAN: jangan bandingkan tiap uang masuk dengan SEMUA faktur. Kandidat hanya faktur yang
+     (a) nama tokonya cocok (dihitung sekali per nama unik, di-cache), (b) nominalnya sama, atau (c) No Faktur-nya sama persis. */
+  const uniqCust = new Map();                                 /* nama customer unik -> daftar faktur */
+  INV.forEach(r => { const k = norm(r.customer); let l = uniqCust.get(k); if (!l) uniqCust.set(k, l = []); l.push(r); });
+  const byTotal = new Map();                                  /* total faktur (dibulatkan) -> daftar faktur */
+  INV.forEach(r => { const k = Math.round(r.total); let l = byTotal.get(k); if (!l) byTotal.set(k, l = []); l.push(r); });
+  const custCache = new Map();                                /* nama toko UM -> faktur yang customer-nya OK/NEAR */
+  const custInvs = toko => {
+    const key = norm(toko); if (!key) return [];
+    let res = custCache.get(key); if (res) return res;
+    const same = uniqCust.get(key);
+    if (same) { custCache.set(key, same); return same; }     /* nama toko sama persis dengan customer faktur -> tak perlu cari yang mirip */
+    res = [];
+    uniqCust.forEach((list, ck) => { const c = textCmpRaw(list[0].customer, toko);   /* tanpa cache pasangan: sudah di-cache per nama toko */
+      if (c === 'OK' || c === 'NEAR') res.push(...list); });
+    custCache.set(key, res); return res;
+  };
   const cands = [];
   groups.forEach(o => {
     const f0 = o.recs[0];
@@ -288,10 +340,18 @@ function build() {
     const U = umProds(o.recs), sec = f0.section;
     const d0 = days(String(o.recs.map(r => r.tanggal_laporan_str).sort()[0] || '').replace(/-/g, ''));
     const kn = norm(o.k);
-    INV.forEach(r => {
+    const pool = new Set(custInvs(toko));
+    const ex = byFk.get(o.k); if (ex) pool.add(ex);
+    [o.paid, tg].forEach(v => { if (v > 0) for (let d = -1; d <= 1; d++) { const l = byTotal.get(Math.round(v) + d); if (l) l.forEach(r => pool.add(r)); } });
+    /* No Faktur yang sama persis dipercaya bila tokonya cocok & tagihannya = total faktur: UM tsb TIDAK dipindah ke faktur lain
+       (mis. input ganda / kelebihan bayar tetap ditandai di fakturnya sendiri, bukan disembunyikan sebagai cicilan faktur lain) */
+    const exCu = ex ? textCmp(ex.customer, toko) : null;
+    const lockExact = !!ex && (exCu === 'OK' || exCu === 'NEAR') && !(tg > 0 && Math.abs(tg - ex.total) > 1);
+    pool.forEach(r => {
       const exact = r.fk === o.k;
+      if (lockExact && !exact) return;
       if (!exact && LUNAS_MAN[r.fk]) return;                 /* faktur sudah dilunasi manual: tidak menerima uang masuk lain */
-      if (d0 === d0 && days(r.sk) === days(r.sk) && d0 < days(r.sk) - 3) return;          /* uang masuk jauh sebelum faktur: bukan pasangannya */
+      if (d0 === d0 && r._d === r._d && d0 < r._d - 3) return;          /* uang masuk jauh sebelum faktur: bukan pasangannya */
       if (o.paid > r.total + 1) return;                      /* uang masuk tidak boleh melebihi total faktur */
       const rk = norm(r.fk), dk = exact ? 0 : ((kn.length >= 4 && rk.length >= 4 && Math.abs(kn.length - rk.length) <= 2) ? lev(kn, rk) : 99);
       const amt = (Math.abs(o.paid - r.total) <= 1) || (tg > 0 && Math.abs(tg - r.total) <= 1);
