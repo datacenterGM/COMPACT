@@ -586,6 +586,7 @@
           <span style="color:var(--muted);font-size:0.8rem">Klik baris tanggal untuk lihat rincian faktur</span>
         </div>
       </div>
+      <div id="detailSummary" class="cards" style="margin-bottom:14px"></div>
       <div class="table-wrap" data-fit style="min-height: 240px;">
         <table>
           <thead>
@@ -1965,9 +1966,20 @@ function toggleMenu(e) {
       const key = document.getElementById('detailMonth').value;
       const q = (document.getElementById('searchDetail').value || '').toLowerCase();
       const tbody = document.getElementById('detailBody');
-      if (!key || !store[key]) { tbody.innerHTML = ''; closeRincian(); return; }
+      const sumBox = document.getElementById('detailSummary');
+      if (!key || !store[key]) { tbody.innerHTML = ''; if (sumBox) sumBox.innerHTML = ''; closeRincian(); return; }
 
       const allDays = store[key].days || [];
+      if (sumBox) {
+        const ss = sumDays(allDays), sm = ss.mc + ss.mt, sr = ss.rc + ss.rt, sg = sm + sr;
+        sumBox.innerHTML = `
+          <div class="card minyak"><div class="card-label">Total Minyak</div><div class="card-value">Rp ${fmt(sm)}</div>
+            <div class="card-sub">Cash ${fmt(ss.mc)} · TF ${fmt(ss.mt)}</div></div>
+          <div class="card rupa"><div class="card-label">Total Rupa-rupa</div><div class="card-value">Rp ${fmt(sr)}</div>
+            <div class="card-sub">Cash ${fmt(ss.rc)} · TF ${fmt(ss.rt)}</div></div>
+          <div class="card total"><div class="card-label">Grand Total ${esc(store[key].label || '')}</div><div class="card-value">Rp ${fmt(sg)}</div>
+            <div class="card-sub">Minyak ${sg ? (sm/sg*100).toFixed(1) : 0}% · Rupa ${sg ? (sr/sg*100).toFixed(1) : 0}%</div></div>`;
+      }
       let days = allDays;
       if (q) days = days.filter(d => d.tgl.toLowerCase().includes(q));
 
