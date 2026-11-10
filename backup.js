@@ -1,6 +1,6 @@
 /* backup.js — Backup, Restore & Sync antar-device (dipindah dari index lama).
  * Dimuat di SEMUA halaman. Panel dibuka dengan: LaporanBackup.open()
- * Dashboard (index.html): sinkron otomatis penuh. Halaman lain: hanya mengirim perubahan, tidak pernah reload sendiri. */
+ * Dashboard (index.html): sinkron otomatis penuh. Halaman lain: hanya mengirim perubahan, dan hanya reload sendiri bila device masih KOSONG (device baru). */
 (function () {
 function __bkBoot() {
   const st = document.createElement("style"); st.textContent = "  .bk-ov{font-family:\"Segoe UI\",Arial,sans-serif;--bg:#fff;--tx:#1e293b;--mu:#64748b;--bd:#d6dde8;--pr:#1f4e8c;display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:stretch;justify-content:flex-end;padding:0}\n  .bk-ov.dk{--bg:#161b22;--tx:#e6edf3;--mu:#8b949e;--bd:#30363d;--pr:#2f5fa8}\n  .bk-ov.show{display:flex}\n@keyframes bkIn{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}\n  .bk-box{background:var(--bg);color:var(--tx);width:min(100%,360px);height:100%;max-height:none;overflow:auto;border-radius:0;padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px));border:0;border-left:1px solid var(--bd);box-shadow:-8px 0 30px rgba(0,0,0,.35);animation:bkIn .22s ease-out;font-size:.78rem;line-height:1.45}\n  .bk-box h3{font-size:.9rem;margin:2px 0 6px;display:flex;justify-content:space-between;align-items:center}\n  .bk-box h3 button{background:none;border:0;color:var(--mu);font-size:1.1rem;cursor:pointer}\n  .bk-box .mu{color:var(--mu);font-size:.72rem}\n  .bk-b{display:block;width:100%;text-align:left;padding:9px 12px;margin:6px 0;border:1px solid var(--bd);border-radius:8px;background:transparent;color:var(--tx);font:600 .8rem inherit;font-family:inherit;cursor:pointer}\n  .bk-b.p{background:var(--pr);color:#fff;border-color:var(--pr)} .bk-b:disabled{opacity:.45;cursor:not-allowed}\n  .bk-hr{border:0;border-top:1px solid var(--bd);margin:12px 0}\n  #bkMsg{margin-top:8px;padding:7px 9px;border-radius:7px;background:rgba(37,99,235,.12);display:none;word-break:break-word}\n  #bkMsg.err{background:rgba(220,38,38,.14);color:#dc2626}\n  .bk-lnk{background:none;border:0;color:var(--pr);text-decoration:underline;cursor:pointer;font-size:.72rem;padding:0}"; document.head.appendChild(st);
@@ -403,7 +403,9 @@ async function runSync(trigger) {
       LS.removeItem('syncHash');
     }
     const dirty = lh ? h !== lh : !empty;
-    let act = decide(m, ll, dirty, empty, load);
+    /* Device BARU / kosong (tidak ada data apa pun yang bisa tertimpa): di SEMUA halaman (PJ, UM, dst) data cloud langsung diambil otomatis, tanpa klik. */
+    const loadNow = load || ((trigger === 'start' || trigger === 'visible') && empty);
+    let act = decide(m, ll, dirty, empty, loadNow);
     if (act === 'conflict' && autoPaused) act = 'warn';
     if (act === 'up') await autoUp();
     else if (act === 'down') await autoDown();
