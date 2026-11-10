@@ -180,7 +180,7 @@
       white-space: nowrap; vertical-align: top;
     }
     tr:hover td { background: var(--row-hover); }
-    tr.linked td { background: rgba(59,130,246,.18); }          /* faktur ini ada di KEDUA tabel (penjualan & uang masuk) */
+    tr.linked td { background: rgba(59,130,246,.18); }          /* baris penjualan yang fakturnya sudah ada di tabel uang masuk */
     tr.linked:hover td { background: rgba(59,130,246,.28); }
     tr.total-row td {
       background: rgba(59,130,246,0.1); font-weight: 700;
@@ -749,13 +749,13 @@
     }
 
     function doSearch() { doSearchCore(); markLinked(); }
-    /* baris yang fakturnya ada di kedua tabel diberi latar biru */
+    /* baris PENJUALAN yang fakturnya sudah ada di tabel Uang Masuk diberi latar biru */
     function markLinked() {
       const fk = t => t.dataset.fk || '';
       const pj = [...document.querySelectorAll('#bodyPJ tr[data-fk]')], um = [...document.querySelectorAll('#bodyUM tr[data-fk]')];
       const fp = new Set(pj.map(fk).filter(Boolean)), fu = new Set(um.map(fk).filter(Boolean));
       pj.forEach(t => t.classList.toggle('linked', !!fk(t) && fu.has(fk(t))));
-      um.forEach(t => t.classList.toggle('linked', !!fk(t) && fp.has(fk(t))));
+      um.forEach(t => t.classList.remove('linked'));          /* tabel Uang Masuk tidak diberi warna */
     }
     function doSearchCore() {
       const q = norm(document.getElementById('qToko').value);
