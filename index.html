@@ -35,6 +35,7 @@
   }
   .tab:hover { border-color:var(--accent); background:var(--card2); }
   .tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .tab.busy::after { content:' …'; opacity:.7; }
   .spacer { flex:1; }
   .theme {
     height:28px; width:34px; border-radius:5px; border:1px solid var(--border);
@@ -97,7 +98,9 @@
   function hook(frame) {
     try {
       var d = frame.contentDocument;
-      if (!d || !d.head) return;
+      if (!d || !d.head || d.__hooked) return;
+      if (String(d.location.href) === 'about:blank') return;   // dokumen kosong sebelum halaman asli tiba
+      d.__hooked = true;
       var s = d.createElement('style'); s.textContent = EMBED_CSS; d.head.appendChild(s);
       d.addEventListener('click', function (e) {
         var a = e.target.closest && e.target.closest('a[href]');
@@ -110,13 +113,25 @@
     } catch (err) { /* beda origin (mis. file://): link tetap jalan di dalam tab */ }
   }
 
+  function setBusy() {            // tampilkan "Memuat…" di tab yang masih memuat
+    document.querySelectorAll('.tab').forEach(function (b) {
+      var f = frames[b.dataset.tab];
+      b.classList.toggle('busy', !!f && !f.__done);
+    });
+  }
   function make(key, search) {
     var f = document.createElement('iframe');
     f.title = key.toUpperCase();
-    f.addEventListener('load', function () { hook(f); });
+    f.addEventListener('load', function () { hook(f); f.__done = true; setBusy(); });
+    /* pasang perapian lebih awal (tanpa menunggu semua file/CDN selesai), supaya tab tidak tampak macet */
+    var tries = 0, iv = setInterval(function () {
+      hook(f);
+      if (f.__done || ++tries > 300) clearInterval(iv);
+    }, 100);
     f.src = PAGES[key] + (search || '');
     stage.appendChild(f);
     frames[key] = f;
+    setBusy();
     return f;
   }
 
