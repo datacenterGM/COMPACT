@@ -184,6 +184,14 @@
       padding: 4px 8px; font-size: 0.75rem; outline: none;
     }
     select:focus, input:focus { border-color: var(--accent); }
+    .msel { position: relative; display: inline-block; }
+    .msel-btn { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 0.75rem; cursor: pointer; min-width: 130px; text-align: left; white-space: nowrap; }
+    .msel-btn:hover, .msel.open .msel-btn { border-color: var(--accent); }
+    .msel-panel { position: absolute; z-index: 60; top: calc(100% + 4px); left: 0; min-width: 190px; max-height: 320px; overflow: auto; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+    .msel-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 5px; font-size: 0.78rem; cursor: pointer; user-select: none; color: var(--text); }
+    .msel-item:hover { background: var(--card2); }
+    .msel-item input { accent-color: var(--accent); cursor: pointer; }
+    .msel-sep { height: 1px; background: var(--border); margin: 4px 2px; }
     input[type="search"] { min-width: 140px; }
 
     .filter-group {
@@ -643,7 +651,8 @@
     <div id="tab-rincian" style="display: none;">
       <div class="toolbar">
         <div class="toolbar-left">
-          <select id="rincianMonth" onchange="(async()=>{const v=this.value; if(v==='all'){await loadMonthsConcurrent(monthKeys());} else {await ensureMonthLoaded(v);} pagState.rincian.page=1; renderRincianTab();})()"><option value="all">Semua Bulan</option></select>
+          <select id="rincianMonth" style="display:none"><option value="all">Semua Bulan</option></select>
+          <div class="msel" id="rincianMonthBox"><button type="button" class="msel-btn" id="rincianMonthBtn" onclick="rinTogglePanel(event)">Semua Bulan ▾</button><div class="msel-panel" id="rincianMonthPanel" style="display:none"></div></div>
           <select id="rincianDate" onchange="pagState.rincian.page=1; renderRincianTab()"><option value="all">Semua Tanggal</option></select>
           <input type="search" id="searchRincian" placeholder="Cari toko, faktur, sales..." style="min-width:180px">
         </div>
@@ -1684,7 +1693,9 @@ function toggleMenu(e) {
         };
         const id = map[name];
         let ym = id ? document.getElementById(id)?.value : '';
-        if (ym === 'all') {
+        if (ym === 'multi') {
+          await loadMonthsConcurrent(rinKeys());
+        } else if (ym === 'all') {
           await loadMonthsConcurrent(monthKeys());
         } else {
           if (!ym) ym = getActiveMonthKey();
@@ -1842,6 +1853,58 @@ function toggleMenu(e) {
       tbody.innerHTML = html;
     }
 
+    // ===== Filter bulan Rincian Harian: centang beberapa bulan =====
+    // Nilai <select id="rincianMonth">: 'all' (semua / tidak ada centang) | 'YYYY-MM' (1 bulan) | 'multi' (beberapa bulan, lihat rinSel)
+    let rinSel = new Set();
+    function rinKeys() {
+      const v = document.getElementById('rincianMonth')?.value;
+      if (v === 'all') return monthKeys();
+      if (v === 'multi') return monthKeys().filter(k => rinSel.has(k));
+      return v && store[v] ? [v] : [];
+    }
+    function rinLabel() {
+      const keys = monthKeys(), sel = keys.filter(k => rinSel.has(k));
+      if (!sel.length || sel.length === keys.length) return 'Semua Bulan';
+      return sel.length <= 2 ? sel.map(k => store[k].label || k).join(', ') : sel.length + ' bulan dipilih';
+    }
+    function rinSyncFromSelect() {
+      const el = document.getElementById('rincianMonth'); if (!el) return;
+      const keys = monthKeys(); rinSel = new Set([...rinSel].filter(k => keys.includes(k)));
+      if (el.value === 'multi') { if (rinSel.size < 2 || rinSel.size >= keys.length) { el.value = rinSel.size === 1 ? [...rinSel][0] : 'all'; if (el.value === 'all') rinSel.clear(); } }
+      else if (el.value === 'all') { if (rinSel.size >= keys.length) rinSel.clear(); }
+      else rinSel = new Set([el.value]);
+      rinBuildBox();
+    }
+    function rinBuildBox() {
+      const panel = document.getElementById('rincianMonthPanel'), btn = document.getElementById('rincianMonthBtn'); if (!panel || !btn) return;
+      const keys = monthKeys(), none = !keys.some(k => rinSel.has(k));
+      panel.innerHTML = `<label class="msel-item"><input type="checkbox" ${none ? 'checked' : ''} onchange="rinClear()"> <b>Semua Bulan</b></label><div class="msel-sep"></div>` +
+        keys.slice().reverse().map(k => `<label class="msel-item"><input type="checkbox" value="${esc(k)}" ${rinSel.has(k) ? 'checked' : ''} onchange="rinToggle('${esc(k)}', this.checked)"> ${esc(store[k].label || k)}</label>`).join('');
+      btn.textContent = rinLabel() + ' ▾';
+    }
+    function rinTogglePanel(e) {
+      e && e.stopPropagation();
+      const panel = document.getElementById('rincianMonthPanel'), box = document.getElementById('rincianMonthBox'); if (!panel) return;
+      const open = panel.style.display === 'none';
+      panel.style.display = open ? 'block' : 'none'; box.classList.toggle('open', open);
+    }
+    document.addEventListener('click', e => {
+      const box = document.getElementById('rincianMonthBox');
+      if (box && !box.contains(e.target)) { const p = document.getElementById('rincianMonthPanel'); if (p) p.style.display = 'none'; box.classList.remove('open'); }
+    });
+    function rinClear() { rinSel.clear(); rinApply(); }
+    function rinToggle(k, on) { if (on) rinSel.add(k); else rinSel.delete(k); rinApply(); }
+    async function rinApply() {
+      const el = document.getElementById('rincianMonth'), keys = monthKeys(), n = keys.filter(k => rinSel.has(k)).length;
+      if (!n || n === keys.length) { if (n) rinSel.clear(); el.value = 'all'; }
+      else if (n === 1) el.value = keys.find(k => rinSel.has(k));
+      else el.value = 'multi';
+      rinBuildBox();
+      await loadMonthsConcurrent(rinKeys());
+      if (_selectsState.dateMonth) _selectsState.dateMonth.rincian = null;   // paksa isi ulang pilihan tanggal
+      pagState.rincian.page = 1; renderRincianTab();
+    }
+
     function populateMonthSelects() {
       const keys = monthKeys();
       const latest = keys.length ? keys[keys.length - 1] : '';
@@ -1872,7 +1935,7 @@ function toggleMenu(e) {
       const rinMonth = document.getElementById('rincianMonth');
       if (rinMonth) {
         const prevR = rinMonth.value;
-        rinMonth.innerHTML = `<option value="all">Semua Bulan</option>` + (opts || '');
+        rinMonth.innerHTML = `<option value="all">Semua Bulan</option><option value="multi">Beberapa Bulan</option>` + (opts || '');
         if (!rinMonth.dataset.inited) {
           if (latest) rinMonth.value = latest;
           rinMonth.dataset.inited = '1';
@@ -1881,6 +1944,7 @@ function toggleMenu(e) {
         } else if (latest) {
           rinMonth.value = latest;
         }
+        rinSyncFromSelect();
         populateRincianDates();
       }
 
@@ -1942,9 +2006,9 @@ function toggleMenu(e) {
       if (!sel) return;
       const prev = sel.value;
       let opts = [];
-      if (key === 'all') {
-        // Mode semua bulan: value = "monthKey|tgl" agar 01-09 tahun berbeda tidak tercampur
-        for (const k of monthKeys()) {
+      if (key === 'all' || key === 'multi') {
+        // Mode semua / beberapa bulan: value = "monthKey|tgl" agar 01-09 tahun berbeda tidak tercampur
+        for (const k of rinKeys()) {
           for (const d of (store[k]?.days || [])) {
             if (d.tgl) opts.push({ value: k + '|' + d.tgl, label: d.tgl + ' · ' + (store[k].label || k) });
           }
@@ -2536,14 +2600,14 @@ function toggleMenu(e) {
       const tbody = document.getElementById('rincianTabBody');
       if (!tbody) return;
 
-      if (!key || (key !== 'all' && !store[key])) {
+      if (!key || (key !== 'all' && key !== 'multi' && !store[key])) {
         tbody.innerHTML = '';
         renderPagination('rincianPagination', 'rincian', 0);
         return;
       }
 
       // Cache filter+summary — hemat CPU saat ganti halaman / re-render
-      const sig = ['rincian', key, tglFilter, sectionF, ketF, q].join('|');
+      const sig = ['rincian', key === 'multi' ? 'multi:' + rinKeys().join(',') : key, tglFilter, sectionF, ketF, q].join('|');
       let rows, sum;
       const _fc = _fcGet(sig);
       if (_fc) {
@@ -2553,9 +2617,9 @@ function toggleMenu(e) {
         // Value tanggal mode "semua bulan" berbentuk "monthKey|tgl"
         let tglMk = '', tglVal = tglFilter;
         if (tglFilter.includes('|')) { const i = tglFilter.indexOf('|'); tglMk = tglFilter.slice(0, i); tglVal = tglFilter.slice(i + 1); }
-        if (key === 'all') {
+        if (key === 'all' || key === 'multi') {
           rows = [];
-          for (const k of monthKeys()) {
+          for (const k of rinKeys()) {
             if (tglMk && k !== tglMk) continue;
             for (const r of getFlatTxns(k)) rows.push(r);
           }
@@ -2580,8 +2644,8 @@ function toggleMenu(e) {
         _fcSet(sig, rows, sum);
       }
       if (!rows.length) {
-        const hasTxns = key === 'all'
-          ? monthKeys().some(k => (store[k]?.days||[]).some(d => d.txns && d.txns.length))
+        const hasTxns = (key === 'all' || key === 'multi')
+          ? rinKeys().some(k => (store[k]?.days||[]).some(d => d.txns && d.txns.length))
           : !!(store[key] && (store[key].days||[]).some(d => d.txns && d.txns.length));
         tbody.innerHTML = `<tr><td colspan="13" class="empty-rincian">
           Tidak ada data rincian.<br/>
@@ -3526,6 +3590,7 @@ function toggleMenu(e) {
       const id = map[active] || 'filterMonth';
       const el = document.getElementById(id);
       let key = el ? el.value : '';
+      if (key === 'multi') { const ks = rinKeys(); key = ks.length ? ks[ks.length - 1] : ''; }
       if (!key || key === 'all') {
         const keys = monthKeys();
         key = keys.length ? keys[keys.length - 1] : '';
@@ -3550,8 +3615,8 @@ function toggleMenu(e) {
         const selIds = { dashboard:'filterMonth', detail:'detailMonth', rincian:'rincianMonth', minyak:'minyakMonth',
           rupa:'rupaMonth', piutang:'piutangMonth', dropping:'droppingMonth', manage:'filterMonth' };
         const selVal = document.getElementById(selIds[activeTab] || 'filterMonth')?.value;
-        if (selVal === 'all' && monthKeys().length > 1) {
-          const ok = confirm(`Filter "Semua Bulan" sedang aktif, tetapi export Excel hanya mendukung satu bulan.\nYang akan diekspor: ${store[key].label || key} (bulan terbaru).\n\nLanjutkan?`);
+        if ((selVal === 'all' || selVal === 'multi') && monthKeys().length > 1) {
+          const ok = confirm(`Filter "Semua Bulan / Beberapa Bulan" sedang aktif, tetapi export Excel hanya mendukung satu bulan.\nYang akan diekspor: ${store[key].label || key} (bulan terakhir).\n\nLanjutkan?`);
           if (!ok) return;
         }
       }
