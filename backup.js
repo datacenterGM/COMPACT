@@ -17,7 +17,7 @@ const DBS = [
   { k: 'ar', db: 'piutangHarianDB', st: 'slots', kp: 'slot' },   /* data AR dari AR.html (slot A & B) */
 ];
 let QUIET = false;
-const IS_HOME = /\/(index\.html)?$/i.test(location.pathname);   /* hanya dashboard yang boleh 'Ambil dari cloud' otomatis + reload */
+const IS_HOME = /\/(index\.html|cari\.html)?$/i.test(location.pathname);   /* hanya dashboard yang boleh 'Ambil dari cloud' otomatis + reload */
 /* KODE SINKRON BAWAAN: tertanam di aplikasi, jadi semua device otomatis memakai kode yang sama
    tanpa perlu mengisi / memasukkan PIN. Ganti nilai ini bila ingin kode lain (semua device ikut otomatis). */
 const DEFAULT_CODE = 'yhK0ZtOq7De3kJjokhomkRgD';
