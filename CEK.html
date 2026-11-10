@@ -425,6 +425,14 @@ function build() {
   INV.sort((a, b) => a.sk === b.sk ? a.fk.localeCompare(b.fk) : (!a.sk ? 1 : !b.sk ? -1 : (a.sk < b.sk ? -1 : 1)));   /* tanggal terlama di atas */
 }
 
+/* Status LUNAS mengikuti kolom KET di tab UM (sama persis dengan getKetFlags di UM.html):
+   KET berisi "LUNAS" (bukan "belum lunas"), ATAU KET berisi TF/BG/TRANSFER dan total bayar baris itu >= tagihan */
+function umKetLunas(u) {
+  const k = String(u.status || '').toUpperCase();
+  if (k.includes('LUNAS') && !/(BELUM|BLM|BLOM|TDK|TIDAK)\s*LUNAS/.test(k)) return true;
+  if (k.includes('TF') || k.includes('BG') || k.includes('TRANSFER')) { const tg = Number(u.tagihan) || 0; return tg > 0 && (Number(u.total_bayar) || 0) >= tg; }
+  return false;
+}
 function evaluate(rec, S) {
   const um = rec.um;
   rec.lunasMan = null;
@@ -433,7 +441,7 @@ function evaluate(rec, S) {
   const paid = um.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0);
   const manual = um.some(r => r.titip_aksi === 'LUNAS');
   rec.paid = paid;
-  rec.status = (manual || paid >= rec.total - 1) ? 'LUNAS' : 'TITIP';
+  rec.status = (manual || um.some(umKetLunas)) ? 'LUNAS' : 'TITIP';   /* sumber: KET di UM, bukan hasil jumlah nominal */
   rec.lunasMan = null;
   if (rec.status === 'TITIP' && LUNAS_MAN[rec.fk]) { rec.status = 'LUNAS'; rec.lunasMan = LUNAS_MAN[rec.fk]; }   /* dipindahkan manual dari Titip ke Lunas */
   const issues = [];
@@ -463,7 +471,7 @@ function evaluate(rec, S) {
   const tg = Math.max(0, ...um.map(r => Number(r.tagihan) || 0));
   if (tg > 0 && Math.abs(tg - rec.total) > 1) issues.push('Tagihan uang masuk ' + fmt(tg) + ' ≠ total faktur ' + fmt(rec.total));
   if (rec.typoFaktur) issues.push('No Faktur di uang masuk "' + rec.typoFaktur + '" ≠ faktur "' + rec.faktur + '" (kemungkinan salah ketik, dicocokkan lewat customer/nominal)');
-  if (rec.status === 'TITIP') issues.push('Baru dibayar ' + fmt(paid) + ' dari ' + fmt(rec.total) + ' (sisa ' + fmt(rec.total - paid) + ')');
+  if (rec.status === 'TITIP') issues.push('Baru dibayar ' + fmt(paid) + ' dari ' + fmt(rec.total) + ' (sisa ' + fmt(Math.max(0, rec.total - paid)) + ')' + (paid >= rec.total - 1 ? ' — nominal sudah menutup, tetapi KET di UM belum LUNAS' : ''));
   rec.issues = issues;
   rec.info = um.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || ''))
     .map(r => dmy(r.tanggal_laporan_str) + ' ' + (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop') + ' ' + fmt(r.total_bayar)).join(' · ');
@@ -545,7 +553,7 @@ function render() {
       '<td class="ctr">' + L[0] + '</td><td class="ctr">' + L[1] + '</td><td class="num">' + L[2] + '</td>' +
       '<td class="ctr">' + L[3] + '</td><td>' + L[4] + '' + '</td><td>' + L[5] + '</td>' +
       '<td class="ctr">' + L[6] + '</td><td class="ctr">' + L[7] + '</td>' + odCell(r, showOD) +
-      '<td class="ctr"><span class="st ' + stc + '">' + r.status + '</span></td><td class="ket">' + ket + '</td></tr>';
+      '<td class="ctr"><span class="st ' + stc + '"' + (r.status === 'LUNAS' || r.status === 'TITIP' ? ' title="' + (r.lunasMan ? 'Dilunasi manual di CEK' : r.status === 'LUNAS' ? 'KET di UM: LUNAS' : 'KET di UM belum LUNAS') + '"' : '') + '>' + r.status + '</span></td><td class="ket">' + ket + '</td></tr>';
   }).join('');
   const opts = [50, 100, 200, 500].map(n => '<option value="' + n + '"' + (n === state.size ? ' selected' : '') + '>' + n + '</option>').join('');
   $('pg').innerHTML = '<span>Menampilkan <b>' + (VIEW.length ? st + 1 : 0) + '–' + Math.min(VIEW.length, st + state.size) + '</b> dari <b>' + fmt(VIEW.length) + '</b> faktur</span>' +
