@@ -180,6 +180,8 @@
       white-space: nowrap; vertical-align: top;
     }
     tr:hover td { background: var(--row-hover); }
+    tr.linked td { background: rgba(59,130,246,.18); }          /* faktur ini ada di KEDUA tabel (penjualan & uang masuk) */
+    tr.linked:hover td { background: rgba(59,130,246,.28); }
     tr.total-row td {
       background: rgba(59,130,246,0.1); font-weight: 700;
       border-top: 2px solid var(--accent);
@@ -275,7 +277,7 @@
       <div class="panel pj">
         <div class="panel-head">
           <h2>Data Penjualan</h2>
-          <span class="panel-right"><select class="mfilter" id="qMonthPJ" title="Filter bulan tanggal faktur penjualan"><option value="">Semua Bulan</option></select><span class="panel-meta" id="metaPJ">—</span></span>
+          <span class="panel-right"><div class="msel" id="qMonthPJ" title="Filter bulan tanggal faktur penjualan (bisa pilih lebih dari satu)"><button type="button" class="msel-btn" id="qMonthPJBtn">Semua Bulan</button><div class="msel-pop" id="qMonthPJPop"></div></div><span class="panel-meta" id="metaPJ">—</span></span>
         </div>
         <div class="table-wrap">
           <table>
@@ -699,42 +701,37 @@
       // isi filter bulan
       const keys = [...monthsSet].sort().reverse();
       renderUMMonths(keys);
-      ['qMonthPJ'].forEach(id => {
-        const sel = document.getElementById(id), cur = sel.value;
-        sel.innerHTML = '<option value="">Semua Bulan</option>' +
-          keys.map(k => `<option value="${k}">${monthLabel(k)}</option>`).join('');
-        if (cur && monthsSet.has(cur)) sel.value = cur;
-      });
+      pjMulti.render(keys);
     }
 
-    /* ===== Filter bulan Uang Masuk: multi-pilih ===== */
-    let umMonthSel = new Set();
-    function umBtnLabel() {
-      const a = [...umMonthSel].sort().reverse();
-      return a.length ? a.map(monthLabel).join(', ') : 'Semua Bulan';
-    }
-    function renderUMMonths(keys) {
-      umMonthSel = new Set([...umMonthSel].filter(k => keys.includes(k)));
-      const pop = document.getElementById('qMonthUMPop');
-      pop.innerHTML = `<label><input type="checkbox" data-all="1" ${umMonthSel.size ? '' : 'checked'}> Semua Bulan</label>` +
-        keys.map(k => `<label><input type="checkbox" value="${k}" ${umMonthSel.has(k) ? 'checked' : ''}> ${monthLabel(k)}</label>`).join('');
-      document.getElementById('qMonthUMBtn').textContent = umBtnLabel();
-    }
-    (function initUMMulti() {
-      const box = document.getElementById('qMonthUM'), pop = document.getElementById('qMonthUMPop');
-      document.getElementById('qMonthUMBtn').addEventListener('click', e => { e.stopPropagation(); box.classList.toggle('open'); });
+    /* ===== Filter bulan multi-pilih (dipakai tabel Penjualan & Uang Masuk) ===== */
+    function makeMonthMulti(id) {
+      const box = document.getElementById(id), btn = document.getElementById(id + 'Btn'), pop = document.getElementById(id + 'Pop');
+      const sel = new Set();
+      const label = () => { const a = [...sel].sort().reverse(); return a.length ? a.map(monthLabel).join(', ') : 'Semua Bulan'; };
+      function render(keys) {
+        [...sel].forEach(k => { if (!keys.includes(k)) sel.delete(k); });
+        pop.innerHTML = `<label><input type="checkbox" data-all="1" ${sel.size ? '' : 'checked'}> Semua Bulan</label>` +
+          keys.map(k => `<label><input type="checkbox" value="${k}" ${sel.has(k) ? 'checked' : ''}> ${monthLabel(k)}</label>`).join('');
+        btn.textContent = label();
+      }
+      btn.addEventListener('click', e => { e.stopPropagation(); document.querySelectorAll('.msel.open').forEach(x => { if (x !== box) x.classList.remove('open'); }); box.classList.toggle('open'); });
       pop.addEventListener('click', e => e.stopPropagation());
       pop.addEventListener('change', e => {
         const cb = e.target;
-        if (cb.dataset.all) umMonthSel.clear();
-        else if (cb.checked) umMonthSel.add(cb.value); else umMonthSel.delete(cb.value);
-        pop.querySelectorAll('input[value]').forEach(i => i.checked = umMonthSel.has(i.value));
-        pop.querySelector('input[data-all]').checked = umMonthSel.size === 0;
-        document.getElementById('qMonthUMBtn').textContent = umBtnLabel();
+        if (cb.dataset.all) sel.clear();
+        else if (cb.checked) sel.add(cb.value); else sel.delete(cb.value);
+        pop.querySelectorAll('input[value]').forEach(i => i.checked = sel.has(i.value));
+        pop.querySelector('input[data-all]').checked = sel.size === 0;
+        btn.textContent = label();
         doSearch();
       });
       document.addEventListener('click', () => box.classList.remove('open'));
-    })();
+      return { sel, render, label: () => { btn.textContent = label(); } };
+    }
+    const umMulti = makeMonthMulti('qMonthUM'), pjMulti = makeMonthMulti('qMonthPJ');
+    const umMonthSel = umMulti.sel, pjMonthSel = pjMulti.sel;
+    const renderUMMonths = keys => umMulti.render(keys);
 
     /* ========== SEARCH ========== */
     function ketBadge(ket) {
@@ -751,9 +748,19 @@
       return esc(p) || '—';
     }
 
-    function doSearch() {
+    function doSearch() { doSearchCore(); markLinked(); }
+    /* baris yang fakturnya ada di kedua tabel diberi latar biru */
+    function markLinked() {
+      const fk = t => t.dataset.fk || '';
+      const pj = [...document.querySelectorAll('#bodyPJ tr[data-fk]')], um = [...document.querySelectorAll('#bodyUM tr[data-fk]')];
+      const fp = new Set(pj.map(fk).filter(Boolean)), fu = new Set(um.map(fk).filter(Boolean));
+      pj.forEach(t => t.classList.toggle('linked', !!fk(t) && fu.has(fk(t))));
+      um.forEach(t => t.classList.toggle('linked', !!fk(t) && fp.has(fk(t))));
+    }
+    function doSearchCore() {
       const q = norm(document.getElementById('qToko').value);
-      const monthPJ = document.getElementById('qMonthPJ').value;   /* bulan tanggal faktur penjualan */
+      const monthPJs = [...pjMonthSel].sort();                       /* bulan tanggal faktur penjualan (boleh lebih dari satu) */
+      const monthPJ = monthPJs.length ? monthPJs[monthPJs.length - 1] : '';   /* terbaru: petunjuk tahun */
       const monthUMs = [...umMonthSel].sort();
       const monthUM = monthUMs.length ? monthUMs[monthUMs.length - 1] : ''; /* bulan terbaru dipakai sbg petunjuk tahun */   /* bulan tanggal uang masuk (bisa beda, mis. jual Agustus bayar September) */
 
@@ -772,9 +779,9 @@
 
       // --- Penjualan ---
       let pjHit = pjRows.filter(r => {
-        if (monthPJ) {
+        if (monthPJs.length) {
           const mk = monthKeyFromDate(r.Tanggal);
-          if (mk !== monthPJ) return false;
+          if (!monthPJs.includes(mk)) return false;
         }
         if (!q) return true;
         const blob = norm([r.Customer, r.Alamat, r['No. Faktur'], r.Sales, r.Produk].join(' '));
@@ -811,7 +818,7 @@
             sumTotal += r._totalFaktur || 0;
             seenInv.add(k);
           }
-          return `<tr>
+          return `<tr data-fk="${esc(k)}">
             <td class="center">${show ? esc(r.Tanggal) : ''}</td>
             <td>${show ? esc(r['No. Faktur']) + (k ? `<a class="go" href="${cekUrl(String(r['No. Faktur']).trim(), '')}" title="Cek faktur ini di CEK">▲</a>` : '') : ''}</td>
             <td>${esc(r.Produk)}</td>
@@ -871,7 +878,7 @@
           smc += r.mCash || 0; smt += r.mTf || 0;
           src += r.rCash || 0; srt += r.rTf || 0;
           const sec = r.section === 'PIUTANG' ? 'Piutang' : (r.section === 'DROPPING' ? 'Dropping' : (r.section || '—'));
-          return `<tr>
+          return `<tr data-fk="${esc(String(r.faktur || '').trim().toUpperCase())}">
             <td class="center">${esc(r.tgl)}</td>
             <td>${ketBadge(r.ket)}</td>
             <td>${esc(r.sales) || '—'}</td>
@@ -912,7 +919,6 @@
       clearTimeout(_t);
       _t = setTimeout(doSearch, 320);
     });
-    document.getElementById('qMonthPJ').addEventListener('change', doSearch);
     
     /* ========== INIT ========== */
     (async function init() {
@@ -923,8 +929,8 @@
       const P = new URLSearchParams(location.search);
       if (P.get('q') !== null) {
         document.getElementById('qToko').value = P.get('q');
-        const b = P.get('bulan') || '', sel = document.getElementById('qMonthPJ');   /* bulan dari CEK = bulan tanggal faktur -> hanya tabel Penjualan */
-        if ([...sel.options].some(o => o.value === b)) sel.value = b;
+        const b = P.get('bulan') || '';   /* bulan dari CEK = bulan tanggal faktur -> hanya tabel Penjualan */
+        if (b && monthsSet.has(b)) { pjMonthSel.add(b); pjMulti.render([...monthsSet].sort().reverse()); }
         doSearch();
       }
       if (!pjRows.length && !umRows.length) {
