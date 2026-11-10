@@ -320,12 +320,13 @@
         <div class="table-wrap">
           <table class="grid">
             <colgroup>
-              <col style="width:10%"><col style="width:9%"><col style="width:19%"><col style="width:19%">
-              <col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:10%">
+              <col style="width:9%"><col style="width:9%"><col style="width:8%"><col style="width:17%"><col style="width:17%">
+              <col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%">
             </colgroup>
             <thead>
               <tr>
                 <th>Tgl</th>
+                <th>Tgl Faktur</th>
                 <th>Ket</th>
                 <th>Nama Toko</th>
                 <th>Alamat</th>
@@ -617,7 +618,8 @@
               rows.push({
                 tgl: x.tgl || d.tgl || '', mk: ym, ket: x.ket || '', sales: x.sales || '', toko: x.toko || '', alamat: x.alamat || '',
                 tagihan: Number(x.tagihan) || 0, mCash: Number(x.mCash) || 0, mTf: Number(x.mTf) || 0,
-                rCash: Number(x.rCash) || 0, rTf: Number(x.rTf) || 0, section: x.section || '', faktur: x.faktur || ''
+                rCash: Number(x.rCash) || 0, rTf: Number(x.rTf) || 0, section: x.section || '', faktur: x.faktur || '',
+                tglFaktur: x.tglFaktur || x.tgl_faktur || ''
               });
             }
           }
@@ -655,7 +657,8 @@
                 rCash: Number(x.rupa_cash ?? x.rCash) || 0,
                 rTf: Number(x.rupa_tf ?? x.rTf) || 0,
                 section: x.section || '',
-                faktur: x.no_faktur || x.faktur || ''
+                faktur: x.no_faktur || x.faktur || '',
+                tglFaktur: x.tgl_faktur || x.tglFaktur || ''
               });
             }
           }
@@ -865,7 +868,7 @@
           if (!monthUMs.includes(mk)) return false;
         }
         if (!q) return true;
-        const blob = norm([r.toko, r.alamat, r.faktur, r.sales, r.ket, r.section].join(' '));
+        const blob = norm([r.toko, r.alamat, r.faktur, r.sales, r.ket, r.section, r.tglFaktur].join(' '));
         return blob.includes(q);
       });
       // Urut: tanggal termuda (terbaru) di atas — sama dengan penjualan
@@ -879,7 +882,7 @@
       const bodyUM = document.getElementById('bodyUM');
       const metaUM = document.getElementById('metaUM');
       if (!umHit.length) {
-        bodyUM.innerHTML = `<tr><td colspan="8" class="empty-msg"><div class="icon">📭</div>Tidak ada data uang masuk yang cocok</td></tr>`;
+        bodyUM.innerHTML = `<tr><td colspan="9" class="empty-msg"><div class="icon">📭</div>Tidak ada data uang masuk yang cocok</td></tr>`;
         metaUM.textContent = '0 faktur';
       } else {
         let st = 0, smc = 0, smt = 0, src = 0, srt = 0;
@@ -890,6 +893,7 @@
           const sec = r.section === 'PIUTANG' ? 'Piutang' : (r.section === 'DROPPING' ? 'Dropping' : (r.section || '—'));
           return `<tr data-fk="${esc(String(r.faktur || '').trim().toUpperCase())}">
             <td class="center">${esc(r.tgl)}</td>
+            <td class="center">${esc(r.tglFaktur) || '—'}</td>
             <td class="center">${ketBadge(r.ket)}</td>
             <td>${esc(r.toko)}</td>
             <td>${esc(r.alamat)}</td>
@@ -900,7 +904,7 @@
           </tr>`;
         }).join('');
         html += `<tr class="total-row">
-          <td colspan="4">TOTAL (${umHit.length} faktur)</td>
+          <td colspan="5">TOTAL (${umHit.length} faktur)</td>
           <td class="num">${fmt(st)}</td>
           <td class="num">${fmt(smc + smt)}</td>
           <td class="num">${fmt(src + srt)}</td>
