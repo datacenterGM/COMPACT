@@ -681,6 +681,7 @@
               <th class="text-left">No Faktur</th>
               <th class="text-left">Nama Toko</th>
               <th class="text-left">Alamat</th>
+              <th class="text-left">Tgl Faktur</th>
               <th>Tagihan</th>
               <th>Minyak Cash</th>
               <th>Minyak TF</th>
@@ -2647,7 +2648,7 @@ function toggleMenu(e) {
         const hasTxns = (key === 'all' || key === 'multi')
           ? rinKeys().some(k => (store[k]?.days||[]).some(d => d.txns && d.txns.length))
           : !!(store[key] && (store[key].days||[]).some(d => d.txns && d.txns.length));
-        tbody.innerHTML = `<tr><td colspan="13" class="empty-rincian">
+        tbody.innerHTML = `<tr><td colspan="14" class="empty-rincian">
           Tidak ada data rincian.<br/>
           ${!hasTxns
             ? 'Upload ulang file Excel agar rincian faktur terbaca.'
@@ -2670,6 +2671,7 @@ function toggleMenu(e) {
         <td class="text-left">${esc(x.faktur)}</td>
         <td class="text-left">${esc(x.toko)}</td>
         <td class="text-left">${esc(x.alamat)}</td>
+        <td class="text-left">${esc(x.tglFaktur) || '—'}</td>
         <td>${fmtCell(x.tagihan)}</td>
         <td>${fmtCell(x.mCash)}</td>
         <td>${fmtCell(x.mTf)}</td>
@@ -2679,7 +2681,7 @@ function toggleMenu(e) {
       </tr>`).join('');
 
       html += `<tr class="total-row">
-        <td></td><td class="text-left" colspan="6">TOTAL (${fmt(total)} faktur)</td>
+        <td></td><td class="text-left" colspan="7">TOTAL (${fmt(total)} faktur)</td>
         <td>${fmtCell(sum.tag)}</td>
         <td>${fmtCell(sum.mc)}</td><td>${fmtCell(sum.mt)}</td>
         <td>${fmtCell(sum.rc)}</td><td>${fmtCell(sum.rt)}</td>
