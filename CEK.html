@@ -248,7 +248,7 @@ function build() {
   const umBy = new Map();
   UM_ROWS.forEach(r => { if (r.titip_aksi === 'BATAL') return; const k = fk(r.no_faktur); if (!k) return; let l = umBy.get(k); if (!l) umBy.set(k, l = []); l.push(r); });
 
-  INV = []; const used = new Set();
+  INV = [];
   g.forEach((lines, k) => {
     if (BATAL[k]) return;                                   /* faktur dibatalkan di tab Penjualan */
     const total = lines.reduce((s, r) => s + (Number(r.Total) || 0), 0);
@@ -257,91 +257,85 @@ function build() {
     const net = new Map();
     lines.forEach(r => { const p = prodOfName(r.Produk); net.set(p, (net.get(p) || 0) + (Number(r.Total) || 0)); });
     const S = new Set(); net.forEach((v, p) => { if (Math.abs(v) >= 1) S.add(p); });
-    const rec = {
+    INV.push({
       fk: k, tanggal: f.Tanggal || '', faktur: f['No. Faktur'] || k, total, sales: f.Sales || '', customer: f.Customer || '',
-      alamat: f.Alamat || '', prod: S.size ? setLabel(S) : '-', pay, month: monthOf(f.Tanggal), sk: sortKey(f.Tanggal), um: umBy.get(k) || [], S
-    };
-    if (rec.um.length) used.add(k);
-    INV.push(rec);
+      alamat: f.Alamat || '', prod: S.size ? setLabel(S) : '-', pay, month: monthOf(f.Tanggal), sk: sortKey(f.Tanggal), um: [], S
+    });
   });
-
-  /* ---- Tahap 2: Uang Masuk yang No Fakturnya tidak ada di penjualan (kemungkinan salah ketik) ----
-     dicocokkan ke faktur yang belum ada uang masuknya, lewat Customer, Alamat, Sales, Produk, Pembayaran, nominal & kemiripan No Faktur. */
-  const orph = []; umBy.forEach((recs, k) => { if (!used.has(k)) orph.push({ k, recs, taken: false }); });
-  /* Uang Masuk yang No Fakturnya kebetulan sama dengan faktur LAIN (salah ketik jadi nomor faktur orang lain):
-     faktur itu ada, tapi nama tokonya jelas berbeda -> ikut dicarikan pasangan yang lebih tepat. */
   const byFk = new Map(INV.map(r => [r.fk, r]));
-  used.forEach(k => {
-    const r = byFk.get(k); if (!r) return;
-    /* nomor faktur dipercaya hanya bila isinya masuk akal: toko sama DAN tagihan uang masuk = total faktur.
-       Toko sama tapi tagihan jelas beda (nomor salah ketik jadi faktur LAIN milik toko yang sama) -> ikut dicarikan pasangan lewat toko / alamat / sales / produk / nominal */
-    const tgs = r.um.map(x => Number(x.tagihan) || 0).filter(v => v > 0);
-    const clash = tgs.length > 0 && tgs.every(v => Math.abs(v - r.total) > 1);
-    if (textCmp(r.customer, firstOf(r.um, x => x.nama_toko)) === 'DIFF' || clash) orph.push({ k, recs: r.um, taken: false, from: r });
+
+  /* ---- Pencocokan Uang Masuk -> Faktur Penjualan ----
+     URUTAN PENCARIAN (bobot terbesar -> terkecil):
+       1. Customer / Nama Toko   2. Alamat   3. Sales   4. Produk (Minyak Fitri / Rupa Rupa)   5. Nominal   6. (TERAKHIR) No Faktur
+     No Faktur hanya pelengkap / pemutus seri, karena sering salah ketik.
+     Hanya bila tidak ada faktur yang cocok lewat poin 1-5, barulah No Faktur yang sama persis dipakai (supaya selisihnya tetap ditandai). */
+  const groups = new Map();                                  /* satu kelompok = baris uang masuk dengan No Faktur + Nama Toko yang sama */
+  UM_ROWS.forEach(r => {
+    if (r.titip_aksi === 'BATAL') return;
+    const k = fk(r.no_faktur); if (!k) return;
+    const gk = k + '|' + norm(r.nama_toko);
+    let o = groups.get(gk); if (!o) groups.set(gk, o = { k, recs: [], taken: false });
+    o.recs.push(r);
   });
-  const cands = [];
-  /* faktur terbuka = belum ada uang masuk, ATAU baru dibayar sebagian (cicilan berikutnya mungkin salah ketik) */
   const paidOf = r => r.um.reduce((s, x) => s + (Number(x.total_bayar) || 0), 0);
-  const isPartial = r => r.um.length > 0 && !LUNAS_MAN[r.fk] && !r.um.some(x => x.titip_aksi === 'LUNAS') && paidOf(r) < r.total - 1;
-  /* faktur yang UM-nya sendiri dinilai milik toko lain (mis. nomor faktur TERTUKAR antar dua toko) = "dikosongkan" -> boleh jadi tujuan */
-  const vacating = new Map(); orph.forEach(o => { if (o.from) vacating.set(o.from, o); });
-  const open = INV.filter(r => (!r.um.length && !LUNAS_MAN[r.fk]) || isPartial(r) || vacating.has(r));
-  orph.forEach(o => {
-    const f0 = o.recs[0], paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0);
+  const cands = [];
+  groups.forEach(o => {
+    const f0 = o.recs[0];
+    o.paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0);
     const tg = Math.max(0, ...o.recs.map(r => Number(r.tagihan) || 0));
     const toko = firstOf(o.recs, r => r.nama_toko), alm = firstOf(o.recs, r => r.alamat), sls = salesOf(firstOf(o.recs, r => r.sales));
+    o.toko = toko;
     const U = umProds(o.recs), sec = f0.section;
     const d0 = days(String(o.recs.map(r => r.tanggal_laporan_str).sort()[0] || '').replace(/-/g, ''));
     const kn = norm(o.k);
-    open.forEach(r => {
-      if (o.from === r) return;
+    INV.forEach(r => {
+      const exact = r.fk === o.k;
+      if (!exact && LUNAS_MAN[r.fk]) return;                 /* faktur sudah dilunasi manual: tidak menerima uang masuk lain */
       if (d0 === d0 && days(r.sk) === days(r.sk) && d0 < days(r.sk) - 3) return;          /* uang masuk jauh sebelum faktur: bukan pasangannya */
-      const rk = norm(r.fk), dk = (kn.length >= 4 && rk.length >= 4 && Math.abs(kn.length - rk.length) <= 2) ? lev(kn, rk) : 99;
-      const part = r.um.length > 0 && !vacating.has(r), sisa = part ? r.total - paidOf(r) : r.total;
-      const amt = (Math.abs(paid - sisa) <= 1) || (tg > 0 && Math.abs(tg - r.total) <= 1);
-      const fit = paid <= sisa + 1;                           /* cicilan tidak boleh melebihi sisa tagihan */
-      /* URUTAN PENCARIAN: Customer/Nama Toko -> Alamat -> Sales -> Produk -> Nominal -> (terakhir) No Faktur mirip */
+      if (o.paid > r.total + 1) return;                      /* uang masuk tidak boleh melebihi total faktur */
+      const rk = norm(r.fk), dk = exact ? 0 : ((kn.length >= 4 && rk.length >= 4 && Math.abs(kn.length - rk.length) <= 2) ? lev(kn, rk) : 99);
+      const amt = (Math.abs(o.paid - r.total) <= 1) || (tg > 0 && Math.abs(tg - r.total) <= 1);
       const c = textCmp(r.customer, toko), custOk = c === 'OK' || c === 'NEAR';
       const a = textCmp(r.alamat, alm), almOk = a === 'OK' || a === 'NEAR';
       const sa = salesCmp(r.sales, sls), slsOk = sa === 'OK' || sa === 'NEAR';
       const prodOk = U.size > 0 && [...U].every(p => r.S.has(p));
       /* syarat masuk: toko cocok; atau (nama toko beda ketik) alamat + sales + nominal sama-sama cocok */
       if (!(custOk || (almOk && slsOk && amt))) return;
-      if (part && !(fit && (dk <= 2 || (almOk && slsOk)))) return;   /* cicilan: nominal masuk akal + (faktur mirip ATAU alamat & sales cocok) */
       let sc = 0;
-      if (custOk) sc += 4;
-      if (almOk) sc += 3;
-      if (slsOk) sc += 2;
-      if (prodOk) sc += 2;
-      if (amt) sc += 3; else if (part && fit) sc += 1;
-      if (wantSec(r.pay) && wantSec(r.pay) === sec) sc += 1;
-      if (dk <= 2) sc += 1;                                    /* No Faktur: hanya pelengkap (sering salah ketik) */
-      if (o.from ? (sc >= 10 && custOk && amt) : sc >= 8) cands.push({ r, o, sc });
+      if (custOk) sc += 4;                                   /* 1. Customer / Nama Toko */
+      if (almOk) sc += 3;                                    /* 2. Alamat */
+      if (slsOk) sc += 2;                                    /* 3. Sales */
+      if (prodOk) sc += 2;                                   /* 4. Produk */
+      if (amt) sc += 3; else if (o.paid < r.total - 1) sc += 1;   /* 5. Nominal (cicilan = sebagian) */
+      if (wantSec(r.pay) && wantSec(r.pay) === f0.section) sc += 1;
+      if (dk <= 2) sc += 1;                                  /* 6. No Faktur: terakhir, hanya pelengkap */
+      if (sc >= 8) cands.push({ r, o, sc, exact, dkOk: dk <= 2, almOk, slsOk });
     });
   });
-  cands.sort((x, y) => y.sc - x.sc);
-  const pend = [], pendTarget = new Set();
+  cands.sort((x, y) => (y.sc - x.sc) || ((y.exact ? 1 : 0) - (x.exact ? 1 : 0)) || (x.r.sk < y.r.sk ? -1 : x.r.sk > y.r.sk ? 1 : 0));
+  const attach = (o, r) => {
+    o.taken = true; o.to = r; r.um = r.um.concat(o.recs);
+    const tf = firstOf(o.recs, x => x.no_faktur) || o.k;
+    if (fk(tf) !== r.fk) r.typoFaktur = r.typoFaktur ? r.typoFaktur + '", "' + tf : tf;
+  };
   cands.forEach(c => {
     if (c.o.taken) return;
-    const vac = vacating.has(c.r);
-    if (vac) {                                   /* tujuan = faktur yang UM-nya sendiri salah tempat: ditunda sampai UM aslinya terbukti pindah */
-      if (pendTarget.has(c.r)) return;
-      pendTarget.add(c.r); c.o.taken = true; pend.push(c); return;
+    if (c.r.um.length && !c.exact) {                         /* faktur sudah punya uang masuk -> ini cicilan lanjutan */
+      if (c.r.um.some(x => x.titip_aksi === 'LUNAS')) return;
+      if (!(c.dkOk || (c.almOk && c.slsOk))) return;
     }
-    if (c.r.um.length && !isPartial(c.r)) return;
-    const tf = firstOf(c.o.recs, r => r.no_faktur) || c.o.k;
-    c.o.taken = true; c.r.um = c.r.um.concat(c.o.recs); c.r.typoFaktur = c.r.typoFaktur ? c.r.typoFaktur + '", "' + tf : tf;
-    if (c.o.from) { c.o.from.um = []; c.o.from.movedTo = c.r; c.o.from.movedToko = firstOf(c.o.recs, r => r.nama_toko); }
+    if (paidOf(c.r) + c.o.paid > c.r.total + 1) return;      /* cicilan tidak boleh melebihi total faktur */
+    attach(c.o, c.r);
   });
-  /* tukar: pasangan hanya sah bila UM milik faktur tujuan itu sendiri ikut pindah ke tempat yang benar */
-  for (let ch = true; ch;) { ch = false; pend.forEach(c => { if (!c.bad && !vacating.get(c.r).taken) { c.bad = true; c.o.taken = false; ch = true; } }); }
-  pend.filter(c => !c.bad).forEach(c => {
-    const own = vacating.get(c.r).recs, tf = firstOf(c.o.recs, r => r.no_faktur) || c.o.k;
-    c.r.um = c.r.um.filter(x => !own.includes(x)).concat(c.o.recs);
-    c.r.typoFaktur = c.r.typoFaktur ? c.r.typoFaktur + '", "' + tf : tf;
-    if (c.o.from) c.o.from.um = c.o.from.um.filter(x => !c.o.recs.includes(x));
+  /* tidak ada yang cocok lewat Customer/Alamat/Sales/Produk/Nominal -> pakai No Faktur yang sama persis (selisihnya akan ditandai) */
+  groups.forEach(o => { if (!o.taken && byFk.has(o.k)) attach(o, byFk.get(o.k)); });
+  /* No Faktur di Uang Masuk milik faktur lain: tandai faktur aslinya */
+  groups.forEach(o => {
+    if (!o.to || o.to.fk === o.k) return;
+    const kf = byFk.get(o.k);
+    if (kf && !kf.um.length) { kf.movedTo = o.to; kf.movedToko = o.toko; }
   });
-  pend.filter(c => !c.bad).forEach(c => { if (c.o.from && !c.o.from.um.length) { c.o.from.movedTo = c.r; c.o.from.movedToko = firstOf(c.o.recs, r => r.nama_toko); } });
+  const orph = [...groups.values()].filter(o => !o.taken);
 
   INV.forEach(r => {
     evaluate(r, r.S);
@@ -349,7 +343,7 @@ function build() {
   });
 
   /* Uang Masuk yang tetap tidak menemukan faktur */
-  orph.filter(o => !o.taken && !o.from).forEach(o => {
+  orph.forEach(o => {
     const f = o.recs[0], paid = o.recs.reduce((s, r) => s + (Number(r.total_bayar) || 0), 0), U = umProds(o.recs);
     const d0 = o.recs.map(r => r.tanggal_laporan_str).filter(Boolean).sort()[0] || '';
     const toko = firstOf(o.recs, r => r.nama_toko), alm = firstOf(o.recs, r => r.alamat), sls = salesOf(firstOf(o.recs, r => r.sales));
