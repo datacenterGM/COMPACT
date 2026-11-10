@@ -249,6 +249,46 @@
       animation: spin 0.7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== TAMPILAN HP (layar <= 700px): tabel berubah jadi kartu per baris, tanpa geser kanan-kiri ===== */
+    @media (max-width: 700px) {
+      .container { padding: 6px 8px 28px; }
+      .field input[type="search"], .field select { font-size: 16px; height: 42px; }   /* 16px: iOS tidak auto-zoom saat mengetik */
+      .btn-search { height: 42px; padding: 0 18px; }
+      .status-line { gap: 4px 12px; }
+      .hint { padding: 22px 14px; }
+      .panels { gap: 12px; }
+      .panel { min-height: 0; border-radius: 10px; }
+      .panel-head { padding: 8px 10px; }
+      .msel-btn, .mfilter { height: 32px; }
+      .table-wrap { max-height: none; min-height: 0; overflow: visible; padding: 2px 8px 8px; }
+      table.grid { min-width: 0; table-layout: auto; width: 100%; }
+      table.grid colgroup, table.grid thead { display: none; }
+      table.grid, table.grid tbody { display: block; }
+      table.grid tr { display: block; margin: 8px 0; padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+      table.grid td {
+        display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+        border: 0; padding: 3px 0; text-align: right; white-space: normal; background: transparent !important;
+      }
+      table.grid td.num, table.grid td.center { white-space: normal; }
+      table.grid td::before {
+        content: attr(data-label); flex: 0 0 34%; text-align: left;
+        color: var(--muted); font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+      }
+      table.grid td:not([data-label])::before { content: none; }
+      table.grid td:empty { display: none; }
+      table.grid td .v { text-align: right; }
+      table.grid td.empty-msg { display: block; text-align: center; }
+      table.grid tr.linked { background: rgba(59,130,246,.18); }
+      table.grid tr.total-row { background: rgba(59,130,246,.12); border-top: 2px solid var(--accent); }
+      table.grid tr.total-row td:not([data-label]) { display: block; text-align: left; font-weight: 700; }
+      table.grid tr.total-row td[data-label] { font-weight: 700; }
+      /* item lanjutan dari faktur yang sama menempel ke kartu di atasnya */
+      table.grid tr.cont { margin-top: -9px; border-top-style: dashed; border-top-left-radius: 0; border-top-right-radius: 0; }
+      table.grid tr:has(+ tr.cont) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+      .msel-pop { max-width: 86vw; }
+      .toast { left: 10px; right: 10px; bottom: 14px; max-width: none; }
+    }
   </style>
   <script>
     (function () {
@@ -833,19 +873,19 @@
             sumTotal += r._totalFaktur || 0;
             seenInv.add(k);
           }
-          return `<tr data-fk="${esc(k)}">
-            <td class="center">${show ? esc(r.Tanggal) : ''}</td>
-            <td>${show ? esc(r['No. Faktur']) + (k ? `<a class="go" href="${cekUrl(String(r['No. Faktur']).trim(), '')}" title="Cek faktur ini di CEK">▲</a>` : '') : ''}</td>
-            <td>${esc(r.Produk)}${(r.Jumlah != null && r.Jumlah !== '') ? ` <span class="qty">× ${fmt(r.Jumlah)}</span>` : ''}</td>
-            <td class="num">${show ? fmt(r._totalFaktur) : ''}</td>
-            <td>${show ? esc(r.Customer) : ''}</td>
-            <td>${show ? esc(r.Alamat) : ''}</td>
-            <td class="center">${show ? esc(r.Sales) : ''}</td>
+          return `<tr data-fk="${esc(k)}"${show ? '' : ' class="cont"'}>
+            <td class="center" data-label="Tanggal">${show ? esc(r.Tanggal) : ''}</td>
+            <td data-label="No. Faktur">${show ? `<span class="v">${esc(r['No. Faktur'])}${k ? `<a class="go" href="${cekUrl(String(r['No. Faktur']).trim(), '')}" title="Cek faktur ini di CEK">▲</a>` : ''}</span>` : ''}</td>
+            <td data-label="Produk"><span class="v">${esc(r.Produk)}${(r.Jumlah != null && r.Jumlah !== '') ? ` <span class="qty">× ${fmt(r.Jumlah)}</span>` : ''}</span></td>
+            <td class="num" data-label="Total Faktur">${show ? fmt(r._totalFaktur) : ''}</td>
+            <td data-label="Customer">${show ? esc(r.Customer) : ''}</td>
+            <td data-label="Alamat">${show ? esc(r.Alamat) : ''}</td>
+            <td class="center" data-label="Sales">${show ? esc(r.Sales) : ''}</td>
           </tr>`;
         }).join('');
         html += `<tr class="total-row">
           <td colspan="3">TOTAL (${seenInv.size || pjHit.length} faktur · ${pjHit.length} baris)</td>
-          <td class="num">${fmt(sumTotal)}</td>
+          <td class="num" data-label="Total Faktur">${fmt(sumTotal)}</td>
           <td colspan="3"></td>
         </tr>`;
         bodyPJ.innerHTML = html;
@@ -892,22 +932,22 @@
           src += r.rCash || 0; srt += r.rTf || 0;
           const sec = r.section === 'PIUTANG' ? 'Piutang' : (r.section === 'DROPPING' ? 'Dropping' : (r.section || '—'));
           return `<tr data-fk="${esc(String(r.faktur || '').trim().toUpperCase())}">
-            <td class="center">${esc(r.tgl)}</td>
-            <td class="center">${esc(r.tglFaktur) || '—'}</td>
-            <td class="center">${ketBadge(r.ket)}</td>
-            <td>${esc(r.toko)}</td>
-            <td>${esc(r.alamat)}</td>
-            <td class="num">${fmt(r.tagihan)}</td>
-            <td class="num" title="Cash: ${fmt(r.mCash)} · TF: ${fmt(r.mTf)}">${(r.mCash == null && r.mTf == null) ? '—' : fmt((r.mCash || 0) + (r.mTf || 0))}</td>
-            <td class="num" title="Cash: ${fmt(r.rCash)} · TF: ${fmt(r.rTf)}">${(r.rCash == null && r.rTf == null) ? '—' : fmt((r.rCash || 0) + (r.rTf || 0))}</td>
-            <td class="center">${esc(sec)}</td>
+            <td class="center" data-label="Tgl">${esc(r.tgl)}</td>
+            <td class="center" data-label="Tgl Faktur">${esc(r.tglFaktur) || '—'}</td>
+            <td class="center" data-label="Ket">${ketBadge(r.ket)}</td>
+            <td data-label="Nama Toko">${esc(r.toko)}</td>
+            <td data-label="Alamat">${esc(r.alamat)}</td>
+            <td class="num" data-label="Tagihan">${fmt(r.tagihan)}</td>
+            <td class="num" data-label="Minyak" title="Cash: ${fmt(r.mCash)} · TF: ${fmt(r.mTf)}">${(r.mCash == null && r.mTf == null) ? '—' : fmt((r.mCash || 0) + (r.mTf || 0))}</td>
+            <td class="num" data-label="Rupa" title="Cash: ${fmt(r.rCash)} · TF: ${fmt(r.rTf)}">${(r.rCash == null && r.rTf == null) ? '—' : fmt((r.rCash || 0) + (r.rTf || 0))}</td>
+            <td class="center" data-label="Section">${esc(sec)}</td>
           </tr>`;
         }).join('');
         html += `<tr class="total-row">
           <td colspan="5">TOTAL (${umHit.length} faktur)</td>
-          <td class="num">${fmt(st)}</td>
-          <td class="num">${fmt(smc + smt)}</td>
-          <td class="num">${fmt(src + srt)}</td>
+          <td class="num" data-label="Tagihan">${fmt(st)}</td>
+          <td class="num" data-label="Minyak">${fmt(smc + smt)}</td>
+          <td class="num" data-label="Rupa">${fmt(src + srt)}</td>
           <td></td>
         </tr>`;
         bodyUM.innerHTML = html;
