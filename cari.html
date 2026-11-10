@@ -755,7 +755,7 @@
       const pj = [...document.querySelectorAll('#bodyPJ tr[data-fk]')], um = [...document.querySelectorAll('#bodyUM tr[data-fk]')];
       const fp = new Set(pj.map(fk).filter(Boolean)), fu = new Set(um.map(fk).filter(Boolean));
       pj.forEach(t => t.classList.toggle('linked', !!fk(t) && fu.has(fk(t))));
-      um.forEach(t => t.classList.toggle('linked', !!fk(t) && fp.has(fk(t))));
+      um.forEach(t => t.classList.toggle('linked', !!fk(t) && fp.has(fk(t)) && !t.querySelector('.badge-titip'))); /* TITIP = belum lunas, tidak diberi latar biru */
     }
     function doSearchCore() {
       const q = norm(document.getElementById('qToko').value);
