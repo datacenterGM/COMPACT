@@ -151,6 +151,15 @@
     .panel-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .mfilter { height: 26px; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); font-size: 0.75rem; }
 
+    .msel { position: relative; display: inline-block; }
+    .msel-btn { height: 26px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); font-size: 0.75rem; cursor: pointer; min-width: 120px; text-align: left; }
+    .msel-btn::after { content: ' ▾'; float: right; margin-left: 8px; }
+    .msel-pop { display: none; position: absolute; right: 0; top: 30px; z-index: 50; min-width: 170px; max-height: 280px; overflow: auto; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.18); padding: 4px; }
+    .msel.open .msel-pop { display: block; }
+    .msel-pop label { display: flex; align-items: center; gap: 8px; padding: 5px 8px; font-size: 0.78rem; cursor: pointer; border-radius: 5px; }
+    .msel-pop label:hover { background: rgba(37,99,235,.12); }
+    .msel-pop input { margin: 0; }
+
     .table-wrap {
       overflow: auto;
       max-height: calc(100vh - 280px);
@@ -292,7 +301,7 @@
       <div class="panel um">
         <div class="panel-head">
           <h2>Data Uang Masuk</h2>
-          <span class="panel-right"><select class="mfilter" id="qMonthUM" title="Filter bulan tanggal uang masuk"><option value="">Semua Bulan</option></select><span class="panel-meta" id="metaUM">—</span></span>
+          <span class="panel-right"><div class="msel" id="qMonthUM" title="Filter bulan tanggal uang masuk (bisa pilih lebih dari satu)"><button type="button" class="msel-btn" id="qMonthUMBtn">Semua Bulan</button><div class="msel-pop" id="qMonthUMPop"></div></div><span class="panel-meta" id="metaUM">—</span></span>
         </div>
         <div class="table-wrap">
           <table>
@@ -669,13 +678,43 @@
 
       // isi filter bulan
       const keys = [...monthsSet].sort().reverse();
-      ['qMonthPJ', 'qMonthUM'].forEach(id => {
+      renderUMMonths(keys);
+      ['qMonthPJ'].forEach(id => {
         const sel = document.getElementById(id), cur = sel.value;
         sel.innerHTML = '<option value="">Semua Bulan</option>' +
           keys.map(k => `<option value="${k}">${monthLabel(k)}</option>`).join('');
         if (cur && monthsSet.has(cur)) sel.value = cur;
       });
     }
+
+    /* ===== Filter bulan Uang Masuk: multi-pilih ===== */
+    let umMonthSel = new Set();
+    function umBtnLabel() {
+      const a = [...umMonthSel].sort().reverse();
+      return a.length ? a.map(monthLabel).join(', ') : 'Semua Bulan';
+    }
+    function renderUMMonths(keys) {
+      umMonthSel = new Set([...umMonthSel].filter(k => keys.includes(k)));
+      const pop = document.getElementById('qMonthUMPop');
+      pop.innerHTML = `<label><input type="checkbox" data-all="1" ${umMonthSel.size ? '' : 'checked'}> Semua Bulan</label>` +
+        keys.map(k => `<label><input type="checkbox" value="${k}" ${umMonthSel.has(k) ? 'checked' : ''}> ${monthLabel(k)}</label>`).join('');
+      document.getElementById('qMonthUMBtn').textContent = umBtnLabel();
+    }
+    (function initUMMulti() {
+      const box = document.getElementById('qMonthUM'), pop = document.getElementById('qMonthUMPop');
+      document.getElementById('qMonthUMBtn').addEventListener('click', e => { e.stopPropagation(); box.classList.toggle('open'); });
+      pop.addEventListener('click', e => e.stopPropagation());
+      pop.addEventListener('change', e => {
+        const cb = e.target;
+        if (cb.dataset.all) umMonthSel.clear();
+        else if (cb.checked) umMonthSel.add(cb.value); else umMonthSel.delete(cb.value);
+        pop.querySelectorAll('input[value]').forEach(i => i.checked = umMonthSel.has(i.value));
+        pop.querySelector('input[data-all]').checked = umMonthSel.size === 0;
+        document.getElementById('qMonthUMBtn').textContent = umBtnLabel();
+        doSearch();
+      });
+      document.addEventListener('click', () => box.classList.remove('open'));
+    })();
 
     /* ========== SEARCH ========== */
     function ketBadge(ket) {
@@ -695,7 +734,8 @@
     function doSearch() {
       const q = norm(document.getElementById('qToko').value);
       const monthPJ = document.getElementById('qMonthPJ').value;   /* bulan tanggal faktur penjualan */
-      const monthUM = document.getElementById('qMonthUM').value;   /* bulan tanggal uang masuk (bisa beda, mis. jual Agustus bayar September) */
+      const monthUMs = [...umMonthSel].sort();
+      const monthUM = monthUMs.length ? monthUMs[monthUMs.length - 1] : ''; /* bulan terbaru dipakai sbg petunjuk tahun */   /* bulan tanggal uang masuk (bisa beda, mis. jual Agustus bayar September) */
 
       if (!q && !monthPJ && !monthUM) {
         document.getElementById('hintBox').style.display = 'block';
@@ -774,7 +814,7 @@
 
       // --- Uang Masuk ---
       let umHit = umRows.filter(r => {
-        if (monthUM) {
+        if (monthUMs.length) {
           // dukung tgl DD/MM/YYYY atau YYYY-MM-DD atau DD-MM
           let mk = monthKeyFromDate(r.tgl);
           if (!mk && r.tgl) {
@@ -782,10 +822,10 @@
             const parts = String(r.tgl).split(/[-\/]/);
             if (parts.length >= 2) {
               const mm = parts[1].padStart(2, '0');
-              if (monthUM.endsWith('-' + mm)) mk = monthUM; // cocok bulan saja
+              { const hit = monthUMs.find(m => m.endsWith('-' + mm)); if (hit) mk = hit; } // cocok bulan saja
             }
           }
-          if (mk !== monthUM) return false;
+          if (!monthUMs.includes(mk)) return false;
         }
         if (!q) return true;
         const blob = norm([r.toko, r.alamat, r.faktur, r.sales, r.ket, r.section].join(' '));
@@ -853,8 +893,7 @@
       _t = setTimeout(doSearch, 320);
     });
     document.getElementById('qMonthPJ').addEventListener('change', doSearch);
-    document.getElementById('qMonthUM').addEventListener('change', doSearch);
-
+    
     /* ========== INIT ========== */
     (async function init() {
       setLoading(true);
