@@ -179,6 +179,16 @@
       padding: 7px 8px; border-bottom: 1px solid rgba(71,85,105,0.35);
       white-space: nowrap; vertical-align: top;
     }
+    /* TABEL BERGARIS: header di tengah, kolom teks boleh turun baris, lebar kolom tetap */
+    table.grid { table-layout: fixed; min-width: 640px; }
+    table.grid th, table.grid td { border: 1px solid var(--border); }
+    table.grid th {
+      text-align: center; vertical-align: middle; white-space: normal;
+      color: var(--text); text-transform: none; font-size: 0.76rem; letter-spacing: 0;
+    }
+    table.grid td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
+    table.grid td.num, table.grid td.center { white-space: nowrap; }
+    .qty { color: var(--muted); white-space: nowrap; }
     tr:hover td { background: var(--row-hover); }
     tr.linked td { background: rgba(59,130,246,.18); }          /* faktur ini ada di KEDUA tabel (penjualan & uang masuk) */
     tr.linked:hover td { background: rgba(59,130,246,.28); }
@@ -280,17 +290,19 @@
           <span class="panel-right"><div class="msel" id="qMonthPJ" title="Filter bulan tanggal faktur penjualan (bisa pilih lebih dari satu)"><button type="button" class="msel-btn" id="qMonthPJBtn">Semua Bulan</button><div class="msel-pop" id="qMonthPJPop"></div></div><span class="panel-meta" id="metaPJ">—</span></span>
         </div>
         <div class="table-wrap">
-          <table>
+          <table class="grid">
+            <colgroup>
+              <col style="width:12%"><col style="width:14%"><col style="width:19%"><col style="width:13%">
+              <col style="width:17%"><col style="width:17%"><col style="width:8%">
+            </colgroup>
             <thead>
               <tr>
-                <th>Tgl</th>
+                <th>Tanggal</th>
                 <th>No. Faktur</th>
                 <th>Produk</th>
-                <th class="num">Jumlah</th>
-                <th class="num">Total Faktur</th>
+                <th>TOTAL FAKTUR</th>
                 <th>Customer</th>
                 <th>Alamat</th>
-                <th>Pembayaran</th>
                 <th>Sales</th>
               </tr>
             </thead>
@@ -306,21 +318,21 @@
           <span class="panel-right"><div class="msel" id="qMonthUM" title="Filter bulan tanggal uang masuk (bisa pilih lebih dari satu)"><button type="button" class="msel-btn" id="qMonthUMBtn">Semua Bulan</button><div class="msel-pop" id="qMonthUMPop"></div></div><span class="panel-meta" id="metaUM">—</span></span>
         </div>
         <div class="table-wrap">
-          <table>
+          <table class="grid">
+            <colgroup>
+              <col style="width:10%"><col style="width:9%"><col style="width:19%"><col style="width:19%">
+              <col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:10%">
+            </colgroup>
             <thead>
               <tr>
                 <th>Tgl</th>
                 <th>Ket</th>
-                <th>Sales</th>
                 <th>Nama Toko</th>
                 <th>Alamat</th>
-                <th class="num">Tagihan</th>
-                <th class="num">Minyak Cash</th>
-                <th class="num">Minyak TF</th>
-                <th class="num">Rupa Cash</th>
-                <th class="num">Rupa TF</th>
+                <th>Tagihan</th>
+                <th>Minyak</th>
+                <th>Rupa</th>
                 <th>Section</th>
-                <th>No Faktur</th>
               </tr>
             </thead>
             <tbody id="bodyUM"></tbody>
@@ -800,7 +812,7 @@
       const bodyPJ = document.getElementById('bodyPJ');
       const metaPJ = document.getElementById('metaPJ');
       if (!pjHit.length) {
-        bodyPJ.innerHTML = `<tr><td colspan="9" class="empty-msg"><div class="icon">📭</div>Tidak ada data penjualan yang cocok</td></tr>`;
+        bodyPJ.innerHTML = `<tr><td colspan="7" class="empty-msg"><div class="icon">📭</div>Tidak ada data penjualan yang cocok</td></tr>`;
         metaPJ.textContent = '0 baris';
       } else {
         // group by faktur untuk tampil total faktur hanya di baris pertama
@@ -821,19 +833,17 @@
           return `<tr data-fk="${esc(k)}">
             <td class="center">${show ? esc(r.Tanggal) : ''}</td>
             <td>${show ? esc(r['No. Faktur']) + (k ? `<a class="go" href="${cekUrl(String(r['No. Faktur']).trim(), '')}" title="Cek faktur ini di CEK">▲</a>` : '') : ''}</td>
-            <td>${esc(r.Produk)}</td>
-            <td class="num">${fmt(r.Jumlah)}</td>
+            <td>${esc(r.Produk)}${(r.Jumlah != null && r.Jumlah !== '') ? ` <span class="qty">× ${fmt(r.Jumlah)}</span>` : ''}</td>
             <td class="num">${show ? fmt(r._totalFaktur) : ''}</td>
             <td>${show ? esc(r.Customer) : ''}</td>
             <td>${show ? esc(r.Alamat) : ''}</td>
-            <td class="center">${show ? payBadge(r.Pembayaran) : ''}</td>
             <td class="center">${show ? esc(r.Sales) : ''}</td>
           </tr>`;
         }).join('');
         html += `<tr class="total-row">
-          <td colspan="4">TOTAL (${seenInv.size || pjHit.length} faktur · ${pjHit.length} baris)</td>
+          <td colspan="3">TOTAL (${seenInv.size || pjHit.length} faktur · ${pjHit.length} baris)</td>
           <td class="num">${fmt(sumTotal)}</td>
-          <td colspan="4"></td>
+          <td colspan="3"></td>
         </tr>`;
         bodyPJ.innerHTML = html;
         metaPJ.textContent = `${pjHit.length.toLocaleString('id-ID')} baris · ${seenInv.size || pjHit.length} faktur`;
@@ -869,7 +879,7 @@
       const bodyUM = document.getElementById('bodyUM');
       const metaUM = document.getElementById('metaUM');
       if (!umHit.length) {
-        bodyUM.innerHTML = `<tr><td colspan="12" class="empty-msg"><div class="icon">📭</div>Tidak ada data uang masuk yang cocok</td></tr>`;
+        bodyUM.innerHTML = `<tr><td colspan="8" class="empty-msg"><div class="icon">📭</div>Tidak ada data uang masuk yang cocok</td></tr>`;
         metaUM.textContent = '0 faktur';
       } else {
         let st = 0, smc = 0, smt = 0, src = 0, srt = 0;
@@ -880,27 +890,21 @@
           const sec = r.section === 'PIUTANG' ? 'Piutang' : (r.section === 'DROPPING' ? 'Dropping' : (r.section || '—'));
           return `<tr data-fk="${esc(String(r.faktur || '').trim().toUpperCase())}">
             <td class="center">${esc(r.tgl)}</td>
-            <td>${ketBadge(r.ket)}</td>
-            <td>${esc(r.sales) || '—'}</td>
+            <td class="center">${ketBadge(r.ket)}</td>
             <td>${esc(r.toko)}</td>
             <td>${esc(r.alamat)}</td>
             <td class="num">${fmt(r.tagihan)}</td>
-            <td class="num">${fmt(r.mCash)}</td>
-            <td class="num">${fmt(r.mTf)}</td>
-            <td class="num">${fmt(r.rCash)}</td>
-            <td class="num">${fmt(r.rTf)}</td>
-            <td>${esc(sec)}</td>
-            <td>${esc(r.faktur)}</td>
+            <td class="num" title="Cash: ${fmt(r.mCash)} · TF: ${fmt(r.mTf)}">${(r.mCash == null && r.mTf == null) ? '—' : fmt((r.mCash || 0) + (r.mTf || 0))}</td>
+            <td class="num" title="Cash: ${fmt(r.rCash)} · TF: ${fmt(r.rTf)}">${(r.rCash == null && r.rTf == null) ? '—' : fmt((r.rCash || 0) + (r.rTf || 0))}</td>
+            <td class="center">${esc(sec)}</td>
           </tr>`;
         }).join('');
         html += `<tr class="total-row">
-          <td colspan="5">TOTAL (${umHit.length} faktur)</td>
+          <td colspan="4">TOTAL (${umHit.length} faktur)</td>
           <td class="num">${fmt(st)}</td>
-          <td class="num">${fmt(smc)}</td>
-          <td class="num">${fmt(smt)}</td>
-          <td class="num">${fmt(src)}</td>
-          <td class="num">${fmt(srt)}</td>
-          <td colspan="2"></td>
+          <td class="num">${fmt(smc + smt)}</td>
+          <td class="num">${fmt(src + srt)}</td>
+          <td></td>
         </tr>`;
         bodyUM.innerHTML = html;
         metaUM.textContent = `${umHit.length.toLocaleString('id-ID')} faktur`;
