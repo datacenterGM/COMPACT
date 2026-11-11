@@ -295,6 +295,8 @@
     html[data-theme="light"] .cek-modal .cd-same { background: #e0f2fe; color: #0369a1; }
     html[data-theme="light"] .cek-modal .cd-other { background: #fef3c7; color: #b45309; }
     .cek-modal .cd-foot { color: var(--muted); font-size: 0.76rem; line-height: 1.5; margin: 10px 0 14px; }
+    .cek-chain { font-size: 0.66rem; padding: 1px 5px; border-radius: 5px; margin-left: 5px; font-weight: 700; background: rgba(168,85,247,0.22); color: #d8b4fe; cursor: help; }
+    html[data-theme="light"] .cek-chain { background: #f3e8ff; color: #7e22ce; }
     .cek-note { font-size: 0.78rem; color: var(--muted); margin: 0 0 10px; line-height: 1.5; }
     tr.cek-month-row td {
       background: var(--total-row); font-weight: 700; text-align: left;
@@ -910,7 +912,7 @@
             </div>
           </div>
         </div>
-        <p class="cek-note">Setiap faktur TITIP dipindai ke pembayaran toko yang sama (nama toko + alamat) pada <b>bulan TITIP itu sendiri sampai bulan terakhir</b>. Contoh: TITIP Agustus dipindai ke Agustus, September, Oktober, November; TITIP September dipindai ke September, Oktober, November. Kolom bulan menunjukkan pembayaran susulan yang ditemukan di bulan tersebut.</p>
+        <p class="cek-note">Setiap faktur TITIP dipindai ke pembayaran toko yang sama (nama toko + alamat) pada <b>bulan TITIP itu sendiri sampai bulan terakhir</b>. Contoh: TITIP Agustus dipindai ke Agustus, September, Oktober, November; TITIP September dipindai ke September, Oktober, November. Kolom bulan menunjukkan pembayaran susulan yang ditemukan di bulan tersebut. Faktur yang sama yang muncul lagi di bulan berikutnya (tagihan = sisa sebelumnya) digabung: hanya titip terakhirnya yang dihitung, ditandai <b>×2</b>, <b>×3</b>, dan seterusnya.</p>
         <div id="cekRecap" class="table-wrap cek-recap"></div>
         <div class="table-wrap" data-fit style="min-height: 240px;">
           <table>
@@ -2374,7 +2376,19 @@ function toggleMenu(e) {
         if (!g.ts.length) continue;
         g.ts.sort(byDk);
         g.pays.sort(byDk);
-        for (const t of g.ts) {
+        // Faktur yang sama muncul lagi di bulan berikutnya dengan tagihan = sisa sebelumnya.
+        // Digabung: hanya titip TERAKHIR yang dihitung; baris sebelumnya disimpan sebagai riwayat.
+        const chains = new Map(), claim = [];
+        for (const t0 of g.ts) {
+          if (!t0.fk) { claim.push({ t: t0, prev: [] }); continue; }
+          let c0 = chains.get(t0.fk);
+          if (!c0) { c0 = { t: null, prev: [] }; chains.set(t0.fk, c0); claim.push(c0); }
+          if (c0.t) c0.prev.push(c0.t);
+          c0.t = t0;
+        }
+        claim.sort((a, b) => byDk(a.t, b.t));
+        for (const cl of claim) {
+          const t = cl.t;
           const total = Number(t.r.tagihan) || 0;
           const ownPaid = t.paid;
           let remaining = Math.max(0, total - ownPaid);
@@ -2394,7 +2408,9 @@ function toggleMenu(e) {
             }
           }
           const paidTotal = Math.min(total, ownPaid + susulan);
+          const prevRows = cl.prev.map(p => ({ k: p.k, label: p.label, tgl: p.r.tgl, faktur: p.r.faktur, tagihan: Number(p.r.tagihan) || 0, own: p.paid }));
           out.push({ ...t.r, _monthKey: t.k, _monthLabel: t.label, _dk: t.dk,
+            _prev: prevRows, _chainN: prevRows.length + 1, _firstTagihan: prevRows.length ? prevRows[0].tagihan : total,
             _ownPaid: ownPaid, _susulan: susulan, _susByMonth: susByMonth, _susDetail: susDetail, _paidTotal: paidTotal,
             _sisa: Math.max(0, total - paidTotal),
             _status: remaining <= 0 ? 'LUNAS' : (paidTotal > 0 ? 'DIBAYAR SEBAGIAN' : 'BELUM DIBAYAR') });
@@ -2692,7 +2708,7 @@ function toggleMenu(e) {
         out.push(`<tr class="cek-row" tabindex="0" title="Klik untuk lihat detail" onclick="openCekDetail(${start + i})" onkeydown="if(event.key==='Enter')openCekDetail(${start + i})">
           <td class="center">${start + i + 1}</td>
           <td class="text-left">${esc(r.tglFaktur) || '—'}</td>
-          <td class="text-left">${esc(r.faktur)}</td>
+          <td class="text-left">${esc(r.faktur)}${r._chainN > 1 ? `<span class="cek-chain" title="Faktur ini sudah titip ${r._chainN} kali (tagihan awal Rp ${fmt(r._firstTagihan)}). Yang dihitung titip terakhir.">×${r._chainN}</span>` : ''}</td>
           <td class="text-left">${esc(r.tgl)}</td>
           <td class="text-left">${esc(r.toko)}</td>
           <td class="text-left">${esc(r.alamat)}</td>
@@ -2767,6 +2783,19 @@ function toggleMenu(e) {
         </div>
         <div class="cd-bar" title="${pct}% terbayar"><i style="width:${pct}%"></i></div>
         <div class="cd-sub" style="margin:0 0 4px">${pct}% terbayar · dipindai ke ${esc(scanned.map(cekShortMonth).join(', '))}</div>
+
+        ${r._chainN > 1 ? `
+        <h4>Riwayat titip faktur ini (${r._chainN} kali)</h4>
+        <div class="table-wrap" style="overflow-x:auto">
+          <table>
+            <thead><tr><th class="text-left">Tgl Titip</th><th class="text-left">Bulan</th><th>Tagihan</th><th>Bayar saat itu</th><th>Sisa setelahnya</th></tr></thead>
+            <tbody>${r._prev.concat([{ label: r._monthLabel, k: r._monthKey, tgl: r.tgl, tagihan: tag, own: r._ownPaid, last: true }]).map(h => `<tr${h.last ? ' class="cd-month"' : ''}>
+              <td class="text-left">${esc(h.tgl)}${h.last ? ' <span class="cd-tag cd-same">terakhir</span>' : ''}</td>
+              <td class="text-left">${esc(h.label || h.k)}</td>
+              <td>${fmt(h.tagihan)}</td><td>${fmt(h.own)}</td><td>${fmt(Math.max(0, h.tagihan - h.own))}</td></tr>`).join('')}</tbody>
+          </table>
+        </div>
+        <p class="cd-foot">Tagihan awal faktur ini Rp ${fmt(r._firstTagihan)}. Setiap titip baru memakai sisa sebelumnya sebagai tagihan, jadi hanya titip terakhir yang dihitung supaya sisa tidak terhitung dobel.</p>` : ''}
 
         <h4>Rincian bayar awal</h4>
         <div class="cd-grid">
