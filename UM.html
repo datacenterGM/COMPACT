@@ -2409,6 +2409,7 @@ function toggleMenu(e) {
       if (_titipIndex && _titipIndex.sig === sigv) return _titipIndex.rows;
 
       const groups = new Map();
+      const byFk = new Map();   // no faktur (persis) -> semua pembayaran, lintas toko/alamat
       for (const k of monthKeys()) {
         const label = store[k]?.label || k;
         for (const r of getFlatTxns(k)) {
@@ -2419,8 +2420,10 @@ function toggleMenu(e) {
           if (!isTitip && paid <= 0) continue;          // tidak relevan untuk TITIP
           let g = groups.get(id);
           if (!g) { g = { ts: [], pays: [] }; groups.set(id, g); }
-          (isTitip ? g.ts : g.pays).push({ r, k, label, dk: titipDateKeyOf(k, r.tgl), paid,
-            fk: titipNorm(r.faktur), ak: titipNorm(r.alamat), ss: titipSalesSet(r.sales), ps: titipProdSet(r), used: 0 });
+          const ent = { r, k, label, dk: titipDateKeyOf(k, r.tgl), paid, tk: id,
+            fk: titipNorm(r.faktur), ak: titipNorm(r.alamat), ss: titipSalesSet(r.sales), ps: titipProdSet(r), used: 0 };
+          (isTitip ? g.ts : g.pays).push(ent);
+          if (!isTitip && ent.fk) { let l = byFk.get(ent.fk); if (!l) byFk.set(ent.fk, l = []); l.push(ent); }
         }
       }
 
@@ -2438,8 +2441,9 @@ function toggleMenu(e) {
           let c0 = null;
           if (t0.fk) {
             for (const c of claim) {
-              if (!c.t || !c.t.fk || !titipAddrCompat(c.t.ak, t0.ak)) continue;
-              if (c.t.fk === t0.fk) { c0 = c; break; }
+              if (!c.t || !c.t.fk) continue;
+              if (c.t.fk === t0.fk) { c0 = c; break; }          // faktur persis sama: alamat tidak menghalangi
+              if (!titipAddrCompat(c.t.ak, t0.ak)) continue;
               const sisaPrev = (Number(c.t.r.tagihan) || 0) - c.t.paid;
               if (!c0 && sisaPrev > 0 && sisaPrev === (Number(t0.r.tagihan) || 0) && titipFakturMatch(c.t.fk, t0.fk) === 'mirip') c0 = c;
             }
@@ -2459,20 +2463,24 @@ function toggleMenu(e) {
           const susDetail = [];
           if (remaining > 0 && g.pays.length) {
             // kandidat: toko sama (grup) + alamat cocok + tanggal setelah TITIP + masih ada sisa nominal
-            const later = g.pays.filter(p => p.dk > t.dk && p.used < p.paid && titipAddrCompat(t.ak, p.ak));
+            // Faktur persis sama = bukti terkuat (15 digit), jadi tetap dipakai walau alamat/nama toko tertulis beda.
+            const cand = new Set(g.pays.filter(p => titipAddrCompat(t.ak, p.ak) || (t.fk && p.fk === t.fk)));
+            if (t.fk) (byFk.get(t.fk) || []).forEach(p => cand.add(p));
+            const later = [...cand].filter(p => p.dk > t.dk && p.used < p.paid);
             // skor: sales cocok (+4), produk cocok (+4), faktur sama (+2) / mirip (+1); beda eksplisit (-2).
             // Urutan: skor tertinggi dulu, lalu tanggal terawal (stabil).
             const scored = later.map(p => {
               const sm = titipSalesMatch(t.ss, p.ss), pm = titipProdMatch(t.ps, p.ps), fm = titipFakturMatch(t.fk, p.fk);
-              const sc = (sm === true ? 4 : sm === false ? -2 : 0) + (pm === true ? 4 : pm === false ? -2 : 0)
-                       + (fm === 'sama' ? 2 : fm === 'mirip' ? 1 : 0);
-              return { p, sm, pm, fm, sc };
+              const am = titipAddrCompat(t.ak, p.ak), tm = p.tk === t.tk;
+              const sc = (fm === 'sama' ? 10 : fm === 'mirip' ? 1 : 0) + (am ? 3 : -3) + (tm ? 0 : -1)
+                       + (sm === true ? 4 : sm === false ? -2 : 0) + (pm === true ? 4 : pm === false ? -2 : 0);
+              return { p, sm, pm, fm, am, tm, sc };
             });
             scored.sort((x, y) => y.sc - x.sc || byDk(x.p, y.p));
-            for (const { p: pay, sm, pm, fm } of scored) {
+            for (const { p: pay, sm, pm, fm, am, tm } of scored) {
               if (remaining <= 0) break;
               const take = Math.min(remaining, pay.paid - pay.used);
-              if (take > 0) { pay.used += take; susulan += take; remaining -= take; susByMonth[pay.k] = (susByMonth[pay.k] || 0) + take; susDetail.push({ k: pay.k, label: pay.label, tgl: pay.r.tgl, faktur: pay.r.faktur, ket: pay.r.ket, sales: pay.r.sales, payTotal: pay.paid, take, fm, sm, pm, same: fm === 'sama' }); }
+              if (take > 0) { pay.used += take; susulan += take; remaining -= take; susByMonth[pay.k] = (susByMonth[pay.k] || 0) + take; susDetail.push({ k: pay.k, label: pay.label, tgl: pay.r.tgl, faktur: pay.r.faktur, ket: pay.r.ket, sales: pay.r.sales, alamat: pay.r.alamat, toko: pay.r.toko, payTotal: pay.paid, take, fm, sm, pm, am, tm, same: fm === 'sama' }); }
             }
           }
           const paidTotal = Math.min(total, ownPaid + susulan);
@@ -2770,7 +2778,8 @@ function toggleMenu(e) {
       (r._susDetail || []).forEach(d => { (byM[d.k] = byM[d.k] || []).push(d); });
 
       const tg = (ok, yes, no) => ok === true ? `<span class="cd-tag cd-same">${yes}</span>` : (ok === false ? `<span class="cd-tag cd-other">${no}</span>` : '');
-      const tag3 = d => tg(d.sm, 'sales sama', 'sales beda') + tg(d.pm, 'produk sama', 'produk beda')
+      const tag3 = d => (d.tm === false ? '<span class="cd-tag cd-other">nama toko beda</span>' : '') + tg(d.am, 'alamat sama', 'alamat beda')
+        + tg(d.sm, 'sales sama', 'sales beda') + tg(d.pm, 'produk sama', 'produk beda')
         + (d.fm === 'sama' ? '<span class="cd-tag cd-same">faktur sama</span>' : d.fm === 'mirip' ? '<span class="cd-tag cd-same">faktur mirip</span>' : '<span class="cd-tag cd-other">faktur lain</span>');
       const payRows = scanned.map(k => {
         const list = byM[k] || [];
@@ -2841,7 +2850,7 @@ function toggleMenu(e) {
             <tbody>${payRows}</tbody>
           </table>
         </div>
-        <p class="cd-foot">Pembayaran dicocokkan dari <b>nama toko + alamat</b> (utama), lalu diurutkan berdasarkan <b>sales</b> (alias dalam kurung dianggap sama, mis. PAK ITO(RAJU) = RAJU) dan <b>produk</b> (Minyak / Rupa-rupa), dengan no faktur hanya sebagai penguat karena rawan salah ketik. Tanda <b>beda</b> berarti pembayaran ini hanya cocok dari toko, jadi sebaiknya dicek ke bukti bayarnya.</p>`;
+        <p class="cd-foot">Pembayaran dicocokkan dari <b>nama toko + alamat</b> (utama), lalu diurutkan berdasarkan <b>sales</b> (alias dalam kurung dianggap sama, mis. PAK ITO(RAJU) = RAJU) dan <b>produk</b> (Minyak / Rupa-rupa), dengan no faktur sebagai penguat. Bila no faktur <b>persis sama</b>, pembayaran tetap dihitung walau alamat atau nama toko tertulis beda. Tanda <b>beda</b> berarti pembayaran ini hanya cocok dari toko, jadi sebaiknya dicek ke bukti bayarnya.</p>`;
       document.getElementById('cekModal').classList.add('show');
     }
     function closeCekDetail() { document.getElementById('cekModal')?.classList.remove('show'); }
