@@ -271,6 +271,30 @@
     #titipSubCek th.center, #titipSubCek td.center { padding-left: 4px; padding-right: 4px; width: 1%; }
     #titipSubCek th.cek-mth { font-weight: 800; color: var(--text); }
     #titipSubCek tr.cek-month-row td { font-weight: 800; padding: 8px 8px; }
+    tr.cek-row { cursor: pointer; }
+    tr.cek-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .modal.cek-modal { max-width: 780px; max-height: 90vh; overflow: auto; padding: 20px 22px; }
+    .cek-modal .cd-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
+    .cek-modal .cd-head h3 { margin: 0 0 2px; font-size: 1.05rem; }
+    .cek-modal .cd-sub { color: var(--muted); font-size: 0.82rem; margin: 0 0 14px; }
+    .cek-modal .cd-x { background: transparent; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 2px 6px; }
+    .cek-modal .cd-x:hover { color: var(--text); }
+    .cek-modal .cd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 18px; margin-bottom: 14px; }
+    .cek-modal .cd-row { display: flex; justify-content: space-between; gap: 10px; font-size: 0.84rem; padding: 5px 0; border-bottom: 1px dashed var(--border); }
+    .cek-modal .cd-row span { color: var(--muted); }
+    .cek-modal .cd-row b { text-align: right; }
+    .cek-modal h4 { font-size: 0.8rem; margin: 14px 0 6px; color: var(--muted); }
+    .cek-modal .cd-bar { height: 8px; border-radius: 6px; background: var(--border); overflow: hidden; margin: 6px 0 4px; }
+    .cek-modal .cd-bar > i { display: block; height: 100%; background: var(--accent); }
+    .cek-modal table th { padding: 8px; }
+    .cek-modal table td { padding: 6px 8px; font-size: 0.82rem; }
+    .cek-modal tr.cd-month td { background: var(--total-row); font-weight: 700; }
+    .cek-modal .cd-tag { font-size: 0.68rem; padding: 1px 6px; border-radius: 5px; font-weight: 700; margin-left: 4px; }
+    .cek-modal .cd-same { background: rgba(14,165,233,0.2); color: #7dd3fc; }
+    .cek-modal .cd-other { background: rgba(245,158,11,0.22); color: #fcd34d; }
+    html[data-theme="light"] .cek-modal .cd-same { background: #e0f2fe; color: #0369a1; }
+    html[data-theme="light"] .cek-modal .cd-other { background: #fef3c7; color: #b45309; }
+    .cek-modal .cd-foot { color: var(--muted); font-size: 0.76rem; line-height: 1.5; margin: 10px 0 14px; }
     .cek-note { font-size: 0.78rem; color: var(--muted); margin: 0 0 10px; line-height: 1.5; }
     tr.cek-month-row td {
       background: var(--total-row); font-weight: 700; text-align: left;
@@ -1028,6 +1052,10 @@
     <footer>
       Data tersimpan di perangkat Anda (IndexedDB). Bisa diinstal sebagai aplikasi (PWA). Upload Excel laporan harian untuk menambah data.
     </footer>
+  </div>
+
+  <div class="modal-overlay" id="cekModal" onclick="if(event.target===this) closeCekDetail()">
+    <div class="modal cek-modal" role="dialog" aria-modal="true" aria-labelledby="cekModalTitle" id="cekModalBody"></div>
   </div>
 
   <div class="modal-overlay" id="deleteModal">
@@ -2353,6 +2381,7 @@ function toggleMenu(e) {
           let remaining = Math.max(0, total - ownPaid);
           let susulan = 0;
           const susByMonth = {};
+          const susDetail = [];
           if (remaining > 0 && g.pays.length) {
             const later = g.pays.filter(p => p.dk > t.dk && p.used < p.paid);
             // faktur sama didahulukan, sisanya urut tanggal (pays sudah terurut → urutan stabil)
@@ -2362,12 +2391,12 @@ function toggleMenu(e) {
             for (const pay of ordered) {
               if (remaining <= 0) break;
               const take = Math.min(remaining, pay.paid - pay.used);
-              if (take > 0) { pay.used += take; susulan += take; remaining -= take; susByMonth[pay.k] = (susByMonth[pay.k] || 0) + take; }
+              if (take > 0) { pay.used += take; susulan += take; remaining -= take; susByMonth[pay.k] = (susByMonth[pay.k] || 0) + take; susDetail.push({ k: pay.k, label: pay.label, tgl: pay.r.tgl, faktur: pay.r.faktur, ket: pay.r.ket, payTotal: pay.paid, take, same: !!t.fk && pay.fk === t.fk }); }
             }
           }
           const paidTotal = Math.min(total, ownPaid + susulan);
           out.push({ ...t.r, _monthKey: t.k, _monthLabel: t.label, _dk: t.dk,
-            _ownPaid: ownPaid, _susulan: susulan, _susByMonth: susByMonth, _paidTotal: paidTotal,
+            _ownPaid: ownPaid, _susulan: susulan, _susByMonth: susByMonth, _susDetail: susDetail, _paidTotal: paidTotal,
             _sisa: Math.max(0, total - paidTotal),
             _status: remaining <= 0 ? 'LUNAS' : (paidTotal > 0 ? 'DIBAYAR SEBAGIAN' : 'BELUM DIBAYAR') });
         }
@@ -2484,6 +2513,7 @@ function toggleMenu(e) {
 
     // ===================== SUB TAB: CEK TITIP =====================
     let _titipSub = 'list';
+    let _cekView = [];
     const _BLN_PENDEK = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
     function cekShortMonth(k) {
       const m = /^(\d{4})-(\d{2})$/.exec(String(k));
@@ -2554,6 +2584,7 @@ function toggleMenu(e) {
       if (!body || !head) return;
 
       const { keys, rows, scanCols, rec } = collectCekTitip();
+      _cekView = rows;
       const recKeys = [...rec.keys()].sort();
       if (recap) {
         if (!recKeys.length) recap.innerHTML = '';
@@ -2623,7 +2654,7 @@ function toggleMenu(e) {
         }
         const st = r._status;
         const badge = st === 'LUNAS' ? 'badge badge-lunas' : (st === 'DIBAYAR SEBAGIAN' ? 'badge badge-sebagian' : 'badge badge-titip');
-        out.push(`<tr>
+        out.push(`<tr class="cek-row" tabindex="0" title="Klik untuk lihat detail" onclick="openCekDetail(${start + i})" onkeydown="if(event.key==='Enter')openCekDetail(${start + i})">
           <td class="center">${start + i + 1}</td>
           <td class="text-left">${esc(r.tglFaktur) || '—'}</td>
           <td class="text-left">${esc(r.faktur)}</td>
@@ -2642,6 +2673,90 @@ function toggleMenu(e) {
       body.innerHTML = out.join('');
       renderPagination('cekPagination', 'cekTitip', rows.length);
     }
+
+    // ---- Modal detail Cek TITIP ----
+    function openCekDetail(i) {
+      const r = _cekView[i];
+      const box = document.getElementById('cekModalBody');
+      if (!r || !box) return;
+      const keys = monthKeys();
+      const scanned = keys.filter(k => k >= r._monthKey);
+      const tag = Number(r.tagihan) || 0;
+      const pct = tag > 0 ? Math.min(100, Math.round((r._paidTotal / tag) * 100)) : 0;
+      const st = r._status;
+      const badge = st === 'LUNAS' ? 'badge badge-lunas' : (st === 'DIBAYAR SEBAGIAN' ? 'badge badge-sebagian' : 'badge badge-titip');
+      const row = (k, v) => `<div class="cd-row"><span>${k}</span><b>${v}</b></div>`;
+      const byM = {};
+      (r._susDetail || []).forEach(d => { (byM[d.k] = byM[d.k] || []).push(d); });
+
+      const payRows = scanned.map(k => {
+        const list = byM[k] || [];
+        const body = list.length
+          ? list.map(d => `<tr>
+              <td class="text-left">${esc(d.tgl) || '—'}</td>
+              <td class="text-left">${esc(d.faktur) || '—'}<span class="cd-tag ${d.same ? 'cd-same' : 'cd-other'}">${d.same ? 'faktur sama' : 'faktur lain'}</span></td>
+              <td class="text-left">${esc(d.ket) || '—'}</td>
+              <td>${fmt(d.payTotal)}</td><td><b>${fmt(d.take)}</b></td></tr>`).join('')
+          : `<tr><td colspan="5" class="text-left cek-na">Tidak ada pembayaran ditemukan di bulan ini</td></tr>`;
+        return `<tr class="cd-month"><td colspan="4" class="text-left">${esc(store[k]?.label || k)}</td><td>${fmt(r._susByMonth[k] || 0)}</td></tr>${body}`;
+      }).join('');
+
+      box.innerHTML = `
+        <div class="cd-head">
+          <div>
+            <h3 id="cekModalTitle">${esc(r.toko) || '—'}</h3>
+            <p class="cd-sub">${esc(r.alamat) || '—'} · Sales: ${esc(r.sales) || '—'}</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="${badge}">${esc(st)}</span>
+            <button type="button" class="cd-x" onclick="closeCekDetail()" aria-label="Tutup">✕</button>
+          </div>
+        </div>
+
+        <h4>Info faktur</h4>
+        <div class="cd-grid">
+          ${row('No Faktur', esc(r.faktur) || '—')}
+          ${row('Tgl Faktur', esc(r.tglFaktur) || '—')}
+          ${row('Jatuh Tempo', esc(r.jt) || '—')}
+          ${row('Tgl Titip', esc(r.tgl) + ' · ' + esc(r._monthLabel || r._monthKey))}
+          ${row('Keterangan', esc(r.ket) || '—')}
+          ${row('Section', r.section === 'PIUTANG' ? 'Piutang Tempo' : (r.section === 'DROPPING' ? 'Cash Dropping' : '—'))}
+        </div>
+
+        <h4>Ringkasan pembayaran</h4>
+        <div class="cd-grid">
+          ${row('Tagihan', 'Rp ' + fmt(tag))}
+          ${row('Bayar awal (saat titip)', 'Rp ' + fmt(r._ownPaid))}
+          ${row('Bayar susulan', 'Rp ' + fmt(r._susulan))}
+          ${row('Sisa TITIP', 'Rp ' + fmt(r._sisa))}
+        </div>
+        <div class="cd-bar" title="${pct}% terbayar"><i style="width:${pct}%"></i></div>
+        <div class="cd-sub" style="margin:0 0 4px">${pct}% terbayar · dipindai ke ${esc(scanned.map(cekShortMonth).join(', '))}</div>
+
+        <h4>Rincian bayar awal</h4>
+        <div class="cd-grid">
+          ${row('Minyak Cash', fmt(r.mCash))}
+          ${row('Minyak TF/BG', fmt(r.mTf))}
+          ${row('Rupa-rupa Cash', fmt(r.rCash))}
+          ${row('Rupa-rupa TF/BG', fmt(r.rTf))}
+        </div>
+
+        <h4>Pembayaran susulan yang ditemukan</h4>
+        <div class="table-wrap" style="overflow-x:auto">
+          <table>
+            <thead><tr>
+              <th class="text-left">Tgl Bayar</th><th class="text-left">No Faktur Pembayaran</th><th class="text-left">Ket</th>
+              <th>Total Dibayar</th><th>Dialokasikan</th>
+            </tr></thead>
+            <tbody>${payRows}</tbody>
+          </table>
+        </div>
+        <p class="cd-foot">Pembayaran dicocokkan dari toko + alamat + sales dengan tanggal setelah tanggal titip. Tanda <b>faktur sama</b> berarti nomor faktur pembayaran sama dengan faktur TITIP ini. Tanda <b>faktur lain</b> berarti cocok hanya dari toko, jadi sebaiknya dicek ke bukti bayarnya.</p>
+        <div class="modal-actions"><button type="button" class="btn btn-ghost" onclick="closeCekDetail()">Tutup</button></div>`;
+      document.getElementById('cekModal').classList.add('show');
+    }
+    function closeCekDetail() { document.getElementById('cekModal')?.classList.remove('show'); }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCekDetail(); });
 
     // ---- Export Excel siap cetak: Cek TITIP (sesuai filter yang sedang aktif) ----
     let _xlsStyleLoading = null;
