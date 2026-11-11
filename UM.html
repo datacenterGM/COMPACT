@@ -2733,8 +2733,8 @@ function toggleMenu(e) {
       const keys = monthKeys();
       const scanned = keys.filter(k => k >= r._monthKey);
       const tag = Number(r.tagihan) || 0;
-      const pct = tag > 0 ? Math.min(100, Math.round((r._paidTotal / tag) * 100)) : 0;
       const st = r._status;
+      const tglBayarAwal = String(r.tgl || '').replace('-', '/') + '/' + String(r._monthKey || '').slice(0, 4);
       const badge = st === 'LUNAS' ? 'badge badge-lunas' : (st === 'DIBAYAR SEBAGIAN' ? 'badge badge-sebagian' : 'badge badge-titip');
       const row = (k, v) => `<div class="cd-row"><span>${k}</span><b>${v}</b></div>`;
       const byM = {};
@@ -2777,12 +2777,10 @@ function toggleMenu(e) {
         <h4>Ringkasan pembayaran</h4>
         <div class="cd-grid">
           ${row('Tagihan', 'Rp ' + fmt(tag))}
-          ${row('Bayar awal (saat titip)', 'Rp ' + fmt(r._ownPaid))}
+          ${row('Bayar awal (' + esc(tglBayarAwal) + ')', 'Rp ' + fmt(r._ownPaid))}
           ${row('Bayar susulan', 'Rp ' + fmt(r._susulan))}
           ${row('Sisa TITIP', 'Rp ' + fmt(r._sisa))}
         </div>
-        <div class="cd-bar" title="${pct}% terbayar"><i style="width:${pct}%"></i></div>
-        <div class="cd-sub" style="margin:0 0 4px">${pct}% terbayar · dipindai ke ${esc(scanned.map(cekShortMonth).join(', '))}</div>
 
         ${r._chainN > 1 ? `
         <h4>Riwayat titip faktur ini (${r._chainN} kali)</h4>
@@ -2796,14 +2794,6 @@ function toggleMenu(e) {
           </table>
         </div>
         <p class="cd-foot">Tagihan awal faktur ini Rp ${fmt(r._firstTagihan)}. Setiap titip baru memakai sisa sebelumnya sebagai tagihan, jadi hanya titip terakhir yang dihitung supaya sisa tidak terhitung dobel.</p>` : ''}
-
-        <h4>Rincian bayar awal</h4>
-        <div class="cd-grid">
-          ${row('Minyak Cash', fmt(r.mCash))}
-          ${row('Minyak TF/BG', fmt(r.mTf))}
-          ${row('Rupa-rupa Cash', fmt(r.rCash))}
-          ${row('Rupa-rupa TF/BG', fmt(r.rTf))}
-        </div>
 
         <h4>Pembayaran susulan yang ditemukan</h4>
         <div class="table-wrap" style="overflow-x:auto">
