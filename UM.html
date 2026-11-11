@@ -878,7 +878,6 @@
           </div>
         </div>
       </div>
-      <div id="titipSummary" class="cards" style="margin-bottom:14px"></div>
       <div class="table-wrap" data-fit style="min-height: 240px;">
         <table>
           <thead><tr>
@@ -2305,6 +2304,7 @@ function toggleMenu(e) {
     }
 
     // ===================== TAB TITIP =====================
+    let _titipDefaultSet = false;
     async function loadAndRenderTitip() {
       const sel = document.getElementById('titipMonth');
       if (!sel) return;
@@ -2312,7 +2312,11 @@ function toggleMenu(e) {
       const prev = sel.value;
       sel.innerHTML = '<option value="all">Semua Bulan</option>' +
         keys.map(k => `<option value="${esc(k)}">${esc(store[k].label || k)}</option>`).join('');
-      if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+      if (!_titipDefaultSet && keys.length) {           // pertama kali: default = bulan terkini
+        _titipDefaultSet = true;
+        sel.value = keys[keys.length - 1];
+        cekSel = new Set([keys[keys.length - 1]]);
+      } else if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
       else sel.value = 'all';
 
       const chosen = sel.value;
@@ -2572,15 +2576,9 @@ function toggleMenu(e) {
 
     function renderTitipTab() {
       const tbody = document.getElementById('titipBody');
-      const summary = document.getElementById('titipSummary');
       if (!tbody) return;
-      const { rows, sum } = collectTitipFilteredRows({ syncUI: true });
-      if (summary) summary.innerHTML = `
-        <div class="card cash"><div class="card-label">Jumlah Faktur TITIP</div><div class="card-value">${fmt(sum.n)}</div><div class="card-sub">Data sesuai filter</div></div>
-        <div class="card total"><div class="card-label">Total Tagihan TITIP</div><div class="card-value">Rp ${fmt(sum.tag)}</div><div class="card-sub">Nilai tagihan awal</div></div>
-        <div class="card minyak"><div class="card-label">Pembayaran Susulan</div><div class="card-value">Rp ${fmt(sum.sus)}</div><div class="card-sub">Dikaitkan dari toko & alamat</div></div>
-        <div class="card rupa"><div class="card-label">Sisa TITIP</div><div class="card-value">Rp ${fmt(sum.sisa)}</div><div class="card-sub">Belum tertutup pembayaran</div></div>
-        <div class="card total"><div class="card-label">Status TITIP</div><div class="card-value">${fmt(sum.lunas)} Lunas</div><div class="card-sub">${fmt(sum.sebagian)} Sebagian · ${fmt(sum.belum)} Belum bayar</div></div>`;
+      const { rows } = collectTitipFilteredRows({ syncUI: true });
+
 
       if (!rows.length) {
         tbody.innerHTML = `<tr><td colspan="17" class="empty-rincian">Tidak ada transaksi TITIP pada filter ini.</td></tr>`;
