@@ -2618,6 +2618,11 @@ function toggleMenu(e) {
       const m = /^(\d{4})-(\d{2})$/.exec(String(k));
       return m ? (_BLN_PENDEK[+m[2] - 1] + ' ' + m[1].slice(2)) : String(k);
     }
+    function cekMonthNames(keys) {
+      const lab = k => String(store[k]?.label || k);
+      const years = new Set(keys.map(k => (lab(k).match(/\d{4}$/) || [''])[0]));
+      return keys.map(k => years.size > 1 ? lab(k) : lab(k).replace(/\s*\d{4}$/, '')).join(', ');
+    }
     function cekStatusFilterVal() {
       return document.querySelector('#cekStatusGroup .filter-btn.active')?.dataset.val || 'OPEN';
     }
@@ -2746,7 +2751,7 @@ function toggleMenu(e) {
           curMonth = r._monthKey;
           const g = rec.get(curMonth);
           const scanned = keys.filter(x => x >= curMonth);
-          out.push(`<tr class="cek-month-row"><td colspan="${ncols}">TITIP ${esc(r._monthLabel || curMonth)} — dipindai ke ${esc(scanned.map(cekShortMonth).join(', '))} · ${g.n} faktur · sisa Rp ${fmt(g.sisa)}</td></tr>`);
+          out.push(`<tr class="cek-month-row"><td colspan="${ncols}">Data TITIP ${esc(r._monthLabel || curMonth)} — dicek ke ${esc(cekMonthNames(scanned))} · ${g.n} faktur · sisa Rp ${fmt(g.sisa)}</td></tr>`);
         }
         const st = r._status;
         const badge = st === 'LUNAS' ? 'badge badge-lunas' : (st === 'DIBAYAR SEBAGIAN' ? 'badge badge-sebagian' : 'badge badge-titip');
@@ -2959,7 +2964,7 @@ function toggleMenu(e) {
           curMonth = r._monthKey;
           const g = rec.get(curMonth);
           const scanned = keys.filter(x => x >= curMonth);
-          const gr = put(pad(['TITIP ' + (r._monthLabel || curMonth) + ' — dipindai ke ' + scanned.map(cekShortMonth).join(', ') + ' · ' + g.n + ' faktur']), 18);
+          const gr = put(pad(['Data TITIP ' + (r._monthLabel || curMonth) + ' — dicek ke ' + cekMonthNames(scanned) + ' · ' + g.n + ' faktur']), 18);
           for (let c = 0; c < nc; c++) setS(gr, c, S.group);
           merges.push({ s: { r: gr, c: 0 }, e: { r: gr, c: nc - 1 } });
         }
