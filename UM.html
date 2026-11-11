@@ -309,7 +309,6 @@
     html[data-theme="light"] .cek-pay { color: #0369a1; }
     .badge-sebagian { background: rgba(245,158,11,0.22); color: #fcd34d; border: 1px solid rgba(245,158,11,0.7); font-weight: 700; }
     html[data-theme="light"] .badge-sebagian { background: #fef3c7; color: #b45309; border-color: #f59e0b; }
-    .cek-recap { margin-bottom: 14px; }
     .badge-rupa { background: rgba(34,197,94,0.2); color: #86efac; }
 
     .faded { opacity: 0.25; filter: blur(0.6px); user-select: none; }
@@ -915,7 +914,6 @@
           </div>
         </div>
         <p class="cek-note">Setiap faktur TITIP dipindai ke pembayaran toko yang sama (nama toko + alamat; sales, produk, dan no faktur sebagai penguat) pada <b>bulan TITIP itu sendiri sampai bulan terakhir</b>. Contoh: TITIP Agustus dipindai ke Agustus, September, Oktober, November; TITIP September dipindai ke September, Oktober, November. Kolom bulan menunjukkan pembayaran susulan yang ditemukan di bulan tersebut. Faktur yang sama yang muncul lagi di bulan berikutnya (tagihan = sisa sebelumnya) digabung: hanya titip terakhirnya yang dihitung, ditandai <b>×2</b>, <b>×3</b>, dan seterusnya.</p>
-        <div id="cekRecap" class="table-wrap cek-recap"></div>
         <div class="table-wrap" data-fit style="min-height: 240px;">
           <table>
             <thead id="cekHead"></thead>
@@ -2701,49 +2699,10 @@ function toggleMenu(e) {
     function renderCekTitip() {
       const body = document.getElementById('cekBody');
       const head = document.getElementById('cekHead');
-      const recap = document.getElementById('cekRecap');
       if (!body || !head) return;
 
       const { keys, rows, scanCols, rec } = collectCekTitip();
       _cekView = rows;
-      const recKeys = [...rec.keys()].sort();
-      if (recap) {
-        if (!recKeys.length) recap.innerHTML = '';
-        else {
-          let tot = { n: 0, tag: 0, own: 0, sus: 0, sisa: 0, lunas: 0, sebagian: 0, belum: 0, byM: {} };
-          const trs = recKeys.map(k => {
-            const g = rec.get(k);
-            tot.n += g.n; tot.tag += g.tag; tot.own += g.own; tot.sus += g.sus; tot.sisa += g.sisa;
-            tot.lunas += g.lunas; tot.sebagian += g.sebagian; tot.belum += g.belum;
-            for (const mk in g.byM) tot.byM[mk] = (tot.byM[mk] || 0) + g.byM[mk];
-            const scanned = keys.filter(x => x >= k);
-            return `<tr>
-              <td class="text-left"><b>${esc(store[k]?.label || k)}</b></td>
-              <td class="text-left">${esc(cekShortMonth(scanned[0]))} – ${esc(cekShortMonth(scanned[scanned.length - 1]))}</td>
-              <td>${fmt(g.n)}</td><td>${fmt(g.tag)}</td><td>${fmt(g.own)}</td>
-              ${scanCols.map(m => m < k ? '<td><span class="cek-na">·</span></td>' : `<td>${g.byM[m] ? '<span class="cek-pay">' + fmt(g.byM[m]) + '</span>' : fmtCell(0)}</td>`).join('')}
-              <td><b>${fmt(g.sisa)}</b></td>
-              <td class="text-left">${g.lunas} lunas · ${g.sebagian} sebagian · ${g.belum} belum</td>
-            </tr>`;
-          }).join('');
-          recap.innerHTML = `<table>
-            <thead><tr>
-              <th class="text-left">Bulan TITIP</th><th class="text-left">Dipindai</th>
-              <th>Faktur</th><th>Tagihan</th><th>Bayar Awal</th>
-              ${scanCols.map(m => `<th class="cek-mth">Susulan ${esc(cekShortMonth(m))}</th>`).join('')}
-              <th>Sisa</th><th class="text-left">Status</th>
-            </tr></thead>
-            <tbody>${trs}
-              <tr class="total-row">
-                <td class="text-left">TOTAL</td><td></td>
-                <td>${fmt(tot.n)}</td><td>${fmt(tot.tag)}</td><td>${fmt(tot.own)}</td>
-                ${scanCols.map(m => `<td>${fmt(tot.byM[m] || 0)}</td>`).join('')}
-                <td>${fmt(tot.sisa)}</td>
-                <td class="text-left">${tot.lunas} lunas · ${tot.sebagian} sebagian · ${tot.belum} belum</td>
-              </tr>
-            </tbody></table>`;
-        }
-      }
 
       // ---- Tabel rincian ----
       const ncols = 11 + scanCols.length;
