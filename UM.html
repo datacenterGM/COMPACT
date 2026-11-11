@@ -265,6 +265,12 @@
     .titip-subtabs .filter-btn { padding: 5px 16px; font-size: 0.8rem; }
     /* Cek TITIP */
     #tab-titip #titipSubCek th, #tab-titip #titipSubCek td { width: auto; max-width: none; }
+    /* Cek TITIP: kolom dirapatkan */
+    #titipSubCek th { padding: 9px 6px; font-size: 0.7rem; letter-spacing: 0.02em; }
+    #titipSubCek td { padding: 7px 6px; font-size: 0.82rem; }
+    #titipSubCek th.center, #titipSubCek td.center { padding-left: 4px; padding-right: 4px; width: 1%; }
+    #titipSubCek th.cek-mth { font-weight: 800; color: var(--text); }
+    #titipSubCek tr.cek-month-row td { font-weight: 800; padding: 8px 8px; }
     .cek-note { font-size: 0.78rem; color: var(--muted); margin: 0 0 10px; line-height: 1.5; }
     tr.cek-month-row td {
       background: var(--total-row); font-weight: 700; text-align: left;
@@ -2567,7 +2573,7 @@ function toggleMenu(e) {
             <thead><tr>
               <th class="text-left">Bulan TITIP</th><th class="text-left">Dipindai</th>
               <th>Faktur</th><th>Tagihan</th><th>Bayar Awal</th>
-              ${scanCols.map(m => `<th>Susulan ${esc(cekShortMonth(m))}</th>`).join('')}
+              ${scanCols.map(m => `<th class="cek-mth">Susulan ${esc(cekShortMonth(m))}</th>`).join('')}
               <th>Sisa</th><th class="text-left">Status</th>
             </tr></thead>
             <tbody>${trs}
@@ -2588,7 +2594,7 @@ function toggleMenu(e) {
         <th class="center">No</th><th class="text-left">Tgl Titip</th><th class="text-left">No Faktur</th>
         <th class="text-left">Nama Toko</th><th class="text-left">Alamat</th><th class="text-left">Sales</th>
         <th>Tagihan</th><th>Bayar Awal</th>
-        ${scanCols.map(m => `<th>${esc(cekShortMonth(m))}</th>`).join('')}
+        ${scanCols.map(m => `<th class="cek-mth">${esc(cekShortMonth(m))}</th>`).join('')}
         <th>Sisa TITIP</th><th class="text-left">Status</th>
       </tr>`;
 
