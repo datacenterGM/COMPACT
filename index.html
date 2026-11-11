@@ -64,6 +64,7 @@
     <button class="tab" data-tab="cari">🔍 CARI</button>
     <button class="tab" data-tab="pj">PJ</button>
     <button class="tab" data-tab="um">UM</button>
+    <button class="tab" data-tab="titip">🤝 TITIP</button>
     <button class="tab" data-tab="cek">CEK</button>
     <button class="tab" data-tab="ar">AR</button>
     <span class="spacer"></span>
@@ -73,7 +74,8 @@
 
 <script>
 (function () {
-  var PAGES = { cari:'cari.html', pj:'PJ.html', um:'UM.html', cek:'CEK.html', ar:'AR.html' };
+  var PAGES = { cari:'cari.html', pj:'PJ.html', um:'UM.html', titip:'UM.html', cek:'CEK.html', ar:'AR.html' };
+  var QUERY = { titip:'?view=titip' };   // TITIP = UM.html dalam mode khusus TITIP
   var frames = {};          // key -> iframe (dibuat saat tab pertama kali dibuka)
   var stale  = {};          // key -> true bila data PJ/UM mungkin berubah sejak dimuat
   var current = null;
@@ -88,7 +90,8 @@
     try {
       var u = new URL(href, location.href);
       var file = u.pathname.split('/').pop().toLowerCase();
-      for (var k in PAGES) if (PAGES[k].toLowerCase() === file) return { key:k, search:u.search };
+      if (file === 'um.html' && u.searchParams.get('view') === 'titip') return { key:'titip', search:u.search };
+      for (var k in PAGES) if (PAGES[k].toLowerCase() === file && !QUERY[k]) return { key:k, search:u.search };
       if (file === 'index.html' || file === '') return { key:'cari', search:'' };
     } catch (e) {}
     return null;
@@ -128,7 +131,7 @@
       hook(f);
       if (f.__done || ++tries > 300) clearInterval(iv);
     }, 100);
-    f.src = PAGES[key] + (search || '');
+    f.src = PAGES[key] + (search || QUERY[key] || '');
     stage.appendChild(f);
     frames[key] = f;
     setBusy();
@@ -154,10 +157,10 @@
     if (!PAGES[key]) key = 'cari';
     var f = frames[key];
     if (!f) f = make(key, search);
-    else if (search) { f.src = PAGES[key] + search; stale[key] = false; }   // dibuka dari link (mis. ▲ / ▼)
+    else if (search && !QUERY[key]) { f.src = PAGES[key] + search; stale[key] = false; }   // dibuka dari link (mis. ▲ / ▼)
     else if (stale[key]) refresh(key);
 
-    if (key === 'pj' || key === 'um') { stale.cari = true; stale.cek = true; }
+    if (key === 'pj' || key === 'um') { stale.cari = true; stale.cek = true; stale.titip = true; }
 
     for (var k in frames) frames[k].classList.toggle('show', k === key);
     document.querySelectorAll('.tab').forEach(function (b) {

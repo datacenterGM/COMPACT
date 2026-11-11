@@ -2,6 +2,10 @@
 <!-- saved from url=(0067)file:///C:/Users/LENOVO%20T470S/OneDrive/Desktop/KasGM-main/UM.html -->
 <html lang="id"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <script src="theme.js"></script>
+<script>
+  /* Mode tab TITIP mandiri (dibuka dari index.html lewat ?view=titip) */
+  try { if (new URLSearchParams(location.search).get('view') === 'titip') document.documentElement.classList.add('titip-only'); } catch (e) {}
+</script>
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1e293b">
@@ -262,6 +266,12 @@
     }
     /* Sub tab TITIP (Daftar / Cek) */
     .titip-subtabs { margin-bottom: 12px; }
+    /* TITIP kini tab utama di index.html: di UM biasa disembunyikan, di mode ?view=titip hanya TITIP yang tampil */
+    html:not(.titip-only) .tab[data-tab="titip"] { display: none; }
+    .titip-only .tabs { display: none; }
+    .titip-only .um-only { display: none !important; }
+    .titip-only .tabs-row { justify-content: space-between; flex-wrap: nowrap; }
+    .titip-only .tabs-row .titip-subtabs { margin: 0; }
     .titip-subtabs .filter-btn { padding: 5px 16px; font-size: 0.8rem; }
     /* Cek TITIP */
     #tab-titip #titipSubCek th, #tab-titip #titipSubCek td { width: auto; max-width: none; }
@@ -567,18 +577,18 @@
           <span></span><span></span><span></span>
         </button>
         <div class="menu-dropdown" id="menuDropdown">
-          <button class="menu-item" onclick="document.getElementById('fileInput').click(); closeMenu();">
+          <button class="um-only menu-item" onclick="document.getElementById('fileInput').click(); closeMenu();">
             ⬆️ Upload Data Bulanan
           </button>
-          <button type="button" class="menu-item danger" id="btnDelete" onclick="handleDeleteClick(); closeMenu();">🗑️ Hapus Bulan Terpilih</button>
-          <div class="menu-divider"></div>
-          <button class="menu-item" onclick="switchTab('manage'); closeMenu();">
+          <button type="button" class="um-only menu-item danger" id="btnDelete" onclick="handleDeleteClick(); closeMenu();">🗑️ Hapus Bulan Terpilih</button>
+          <div class="menu-divider um-only"></div>
+          <button class="um-only menu-item" onclick="switchTab('manage'); closeMenu();">
             🗂️ Kelola Bulan
           </button>
           <button class="menu-item" onclick="exportExcelByFilter(); closeMenu();">
             📊 Export Excel (Bulan Aktif)
           </button>
-          <button class="menu-item" onclick="window.LaporanBackup&&LaporanBackup.open(); closeMenu();">
+          <button class="um-only menu-item" onclick="window.LaporanBackup&&LaporanBackup.open(); closeMenu();">
             ☁️ Backup &amp; Sync Semua Data
           </button>
           <button class="menu-item" onclick="exportAllJSON(); closeMenu();">
@@ -1768,6 +1778,7 @@ function toggleMenu(e) {
 
     // ===================== TABS =====================
     async function switchTab(name) {
+      if (document.documentElement.classList.contains('titip-only') && name !== 'titip') name = 'titip';
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
       ['dashboard','detail','rincian','minyak','rupa','titip','piutang','dropping','manage'].forEach(t => {
         const el = document.getElementById('tab-' + t);
@@ -4524,6 +4535,12 @@ function toggleMenu(e) {
       }
       renderAll();
       renderManage();
+      if (document.documentElement.classList.contains('titip-only')) {
+        // pindahkan sub tab (Daftar / Cek TITIP) ke baris atas, menggantikan barisan tab UM
+        const row = document.querySelector('.tabs-row'), sub = document.getElementById('titipSubGroup'), act = row && row.querySelector('.header-actions');
+        if (row && sub && act) row.insertBefore(sub, act);
+        switchTab('titip');
+      }
       setTimeout(bridgeEnsureFresh, 1500);        // pastikan CEK punya data Uang Masuk terbaru
       // Preload bulan terakhir di background (lazy → full)
       const keys = monthKeys();
