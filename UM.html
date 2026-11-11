@@ -878,6 +878,7 @@
             <input type="search" id="searchCek" placeholder="Cari toko, faktur, sales..." style="min-width:180px">
           </div>
           <div class="toolbar-right">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="exportCekTitipExcel()" title="Simpan tabel Cek TITIP (sesuai filter) ke Excel siap cetak">📊 Excel siap cetak</button>
             <div class="filter-group" id="cekStatusGroup" aria-label="Filter status Cek TITIP">
               <button type="button" class="filter-btn active" data-val="OPEN" onclick="setCekStatus('OPEN')">Belum Lunas</button>
               <button type="button" class="filter-btn" data-val="BELUM DIBAYAR" onclick="setCekStatus('BELUM DIBAYAR')">Belum Dibayar</button>
@@ -2515,12 +2516,7 @@ function toggleMenu(e) {
     }
     // Aturan pindai: faktur TITIP bulan M dipindai ke bulan M s/d bulan terakhir.
     // Pembayaran dialokasikan oleh getTitipIndex() (toko+alamat+sales, tanggal setelah TITIP).
-    function renderCekTitip() {
-      const body = document.getElementById('cekBody');
-      const head = document.getElementById('cekHead');
-      const recap = document.getElementById('cekRecap');
-      if (!body || !head) return;
-
+    function collectCekTitip() {
       const keys = monthKeys();
       const last = keys.length ? keys[keys.length - 1] : '';
       const monthSel = document.getElementById('cekMonth')?.value || 'all';
@@ -2531,7 +2527,7 @@ function toggleMenu(e) {
       if (monthSel !== 'all') rows = rows.filter(r => r._monthKey === monthSel);
       if (statusF === 'OPEN') rows = rows.filter(r => r._status !== 'LUNAS');
       else if (statusF !== 'all') rows = rows.filter(r => r._status === statusF);
-      if (q) rows = rows.filter(r => [r.tgl, r.sales, r.faktur, r.toko, r.alamat, r._monthLabel, r._status].join(' ').toLowerCase().includes(q));
+      if (q) rows = rows.filter(r => [r.tgl, r.sales, r.faktur, r.tglFaktur, r.toko, r.alamat, r._monthLabel, r._status].join(' ').toLowerCase().includes(q));
       // urut: bulan TITIP, lalu tanggal, lalu toko
       rows.sort((a, b) => a._monthKey < b._monthKey ? -1 : a._monthKey > b._monthKey ? 1
         : (a._dk < b._dk ? -1 : a._dk > b._dk ? 1 : String(a.toko).localeCompare(String(b.toko))));
@@ -2549,6 +2545,15 @@ function toggleMenu(e) {
         if (r._status === 'LUNAS') g.lunas++; else if (r._status === 'DIBAYAR SEBAGIAN') g.sebagian++; else g.belum++;
         for (const mk in r._susByMonth) g.byM[mk] = (g.byM[mk] || 0) + r._susByMonth[mk];
       }
+      return { keys, rows, scanCols, rec, monthSel, statusF, q };
+    }
+    function renderCekTitip() {
+      const body = document.getElementById('cekBody');
+      const head = document.getElementById('cekHead');
+      const recap = document.getElementById('cekRecap');
+      if (!body || !head) return;
+
+      const { keys, rows, scanCols, rec } = collectCekTitip();
       const recKeys = [...rec.keys()].sort();
       if (recap) {
         if (!recKeys.length) recap.innerHTML = '';
@@ -2589,10 +2594,10 @@ function toggleMenu(e) {
       }
 
       // ---- Tabel rincian ----
-      const ncols = 10 + scanCols.length;
+      const ncols = 11 + scanCols.length;
       head.innerHTML = `<tr>
         <th class="center">No</th><th class="text-left">Tgl Titip</th><th class="text-left">No Faktur</th>
-        <th class="text-left">Nama Toko</th><th class="text-left">Alamat</th><th class="text-left">Sales</th>
+        <th class="text-left">Tgl Faktur</th><th class="text-left">Nama Toko</th><th class="text-left">Alamat</th><th class="text-left">Sales</th>
         <th>Tagihan</th><th>Bayar Awal</th>
         ${scanCols.map(m => `<th class="cek-mth">${esc(cekShortMonth(m))}</th>`).join('')}
         <th>Sisa TITIP</th><th class="text-left">Status</th>
@@ -2622,6 +2627,7 @@ function toggleMenu(e) {
           <td class="center">${start + i + 1}</td>
           <td class="text-left">${esc(r.tgl)}</td>
           <td class="text-left">${esc(r.faktur)}</td>
+          <td class="text-left">${esc(r.tglFaktur) || '—'}</td>
           <td class="text-left">${esc(r.toko)}</td>
           <td class="text-left">${esc(r.alamat)}</td>
           <td class="text-left">${esc(r.sales) || '—'}</td>
@@ -2635,6 +2641,194 @@ function toggleMenu(e) {
       });
       body.innerHTML = out.join('');
       renderPagination('cekPagination', 'cekTitip', rows.length);
+    }
+
+    // ---- Export Excel siap cetak: Cek TITIP (sesuai filter yang sedang aktif) ----
+    let _xlsStyleLoading = null;
+    function ensureXLSXStyle() {
+      if (window._XLSX_STYLED) return Promise.resolve(window._XLSX_STYLED);
+      if (_xlsStyleLoading) return _xlsStyleLoading;
+      _xlsStyleLoading = new Promise((resolve, reject) => {
+        const prev = window.XLSX;
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+        s.onload = () => { window._XLSX_STYLED = window.XLSX; if (prev) window.XLSX = prev; resolve(window._XLSX_STYLED); };
+        s.onerror = () => { _xlsStyleLoading = null; reject(new Error('Gagal memuat library Excel (style)')); };
+        document.head.appendChild(s);
+      });
+      return _xlsStyleLoading;
+    }
+    let _jszipLoading = null;
+    function ensureJSZip() {
+      if (window.JSZip) return Promise.resolve(window.JSZip);
+      if (_jszipLoading) return _jszipLoading;
+      _jszipLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        s.onload = () => resolve(window.JSZip);
+        s.onerror = () => { _jszipLoading = null; reject(new Error('JSZip gagal dimuat')); };
+        document.head.appendChild(s);
+      });
+      return _jszipLoading;
+    }
+
+    // Susun sheet "Cek TITIP" (murni data → worksheet; tanpa akses DOM)
+    function buildCekTitipSheet(XL, d) {
+      const { rows, keys, scanCols, rec, filters, tglCetak, store: st } = d;
+      const nc = 11 + scanCols.length;
+      const thin = { style: 'thin', color: { rgb: '808080' } };
+      const box = { top: thin, bottom: thin, left: thin, right: thin };
+      const NUM = '#,##0;-#,##0;"-"';
+      const S = {
+        title: { font: { bold: true, sz: 14 }, alignment: { horizontal: 'left', vertical: 'center' } },
+        info: { font: { sz: 9, color: { rgb: '444444' } }, alignment: { horizontal: 'left', vertical: 'center', wrapText: true } },
+        head: { font: { bold: true, sz: 9 }, fill: { fgColor: { rgb: 'D9E1F2' } }, border: box, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } },
+        headMonth: { font: { bold: true, sz: 10 }, fill: { fgColor: { rgb: 'BDD7EE' } }, border: box, alignment: { horizontal: 'center', vertical: 'center' } },
+        group: { font: { bold: true, sz: 10 }, fill: { fgColor: { rgb: 'EDEDED' } }, border: box, alignment: { horizontal: 'left', vertical: 'center' } },
+        txt: { font: { sz: 9 }, border: box, alignment: { horizontal: 'left', vertical: 'center' } },
+        ctr: { font: { sz: 9 }, border: box, alignment: { horizontal: 'center', vertical: 'center' } },
+        num: { font: { sz: 9 }, border: box, numFmt: NUM, alignment: { horizontal: 'right', vertical: 'center' } },
+        numB: { font: { sz: 9, bold: true }, border: box, numFmt: NUM, alignment: { horizontal: 'right', vertical: 'center' } },
+        na: { font: { sz: 9, color: { rgb: '999999' } }, fill: { fgColor: { rgb: 'F2F2F2' } }, border: box, alignment: { horizontal: 'center', vertical: 'center' } },
+        sub: { font: { sz: 9, bold: true }, fill: { fgColor: { rgb: 'F7F7F7' } }, border: box, numFmt: NUM, alignment: { horizontal: 'right', vertical: 'center' } },
+        subL: { font: { sz: 9, bold: true }, fill: { fgColor: { rgb: 'F7F7F7' } }, border: box, alignment: { horizontal: 'right', vertical: 'center' } },
+        tot: { font: { sz: 10, bold: true }, fill: { fgColor: { rgb: 'D9E1F2' } }, border: { top: { style: 'medium', color: { rgb: '000000' } }, bottom: thin, left: thin, right: thin }, numFmt: NUM, alignment: { horizontal: 'right', vertical: 'center' } },
+        totL: { font: { sz: 10, bold: true }, fill: { fgColor: { rgb: 'D9E1F2' } }, border: { top: { style: 'medium', color: { rgb: '000000' } }, bottom: thin, left: thin, right: thin }, alignment: { horizontal: 'right', vertical: 'center' } },
+      };
+      const stStyle = (v) => ({ font: { sz: 9, bold: true, color: { rgb: v === 'LUNAS' ? '0369A1' : (v === 'DIBAYAR SEBAGIAN' ? 'B45309' : 'B91C1C') } }, border: box, alignment: { horizontal: 'center', vertical: 'center' } });
+
+      const aoa = []; const merges = []; const rowH = [];
+      const put = (arr, h) => { aoa.push(arr); rowH.push(h || null); return aoa.length - 1; };
+      const pad = (arr) => { while (arr.length < nc) arr.push(''); return arr; };
+
+      const monthText = filters.monthSel === 'all' ? 'Semua Bulan TITIP' : (st[filters.monthSel]?.label || filters.monthSel);
+      const statusText = filters.statusF === 'OPEN' ? 'Belum Lunas (Belum Dibayar + Dibayar Sebagian)'
+        : (filters.statusF === 'all' ? 'Semua Status' : filters.statusF);
+      const r0 = put(pad(['CEK TITIP — PEMBAYARAN SUSULAN']), 22);
+      const r1 = put(pad(['Bulan TITIP: ' + monthText + '   |   Status: ' + statusText + (filters.q ? '   |   Pencarian: ' + filters.q : '')]), 16);
+      const r2 = put(pad(['Dipindai: bulan TITIP s/d ' + (keys.length ? cekShortMonth(keys[keys.length - 1]) : '-') + '   |   Dicetak: ' + tglCetak + '   |   Jumlah faktur: ' + rows.length]), 16);
+      [r0, r1, r2].forEach(r => merges.push({ s: { r, c: 0 }, e: { r, c: nc - 1 } }));
+      put(pad([]), 6);
+
+      const head = ['No', 'Tgl Titip', 'No Faktur', 'Tgl Faktur', 'Nama Toko', 'Alamat', 'Sales', 'Tagihan', 'Bayar Awal']
+        .concat(scanCols.map(m => cekShortMonth(m)), ['Sisa TITIP', 'Status']);
+      const headRow = put(head, 24);
+
+      const styles = new Map(); // "r,c" -> style
+      const setS = (r, c, sty) => styles.set(r + ',' + c, sty);
+      head.forEach((_, c) => setS(headRow, c, (c >= 9 && c < 9 + scanCols.length) ? S.headMonth : S.head));
+      [r0].forEach(r => setS(r, 0, S.title)); [r1, r2].forEach(r => setS(r, 0, S.info));
+
+      let curMonth = null, n = 0;
+      const grand = { tag: 0, own: 0, sisa: 0, byM: {} };
+      const flushSub = (mk) => {
+        const g = rec.get(mk); if (!g) return;
+        const row = pad(['', '', '', '', '', '', 'Subtotal', g.tag, g.own]);
+        scanCols.forEach(m => { row[9 + scanCols.indexOf(m)] = (m < mk) ? '' : (g.byM[m] || 0); });
+        row[9 + scanCols.length] = g.sisa; row[10 + scanCols.length] = '';
+        const r = put(row, 15);
+        for (let c = 0; c < nc; c++) setS(r, c, c < 7 ? S.subL : S.sub);
+        merges.push({ s: { r, c: 0 }, e: { r, c: 6 } });
+        grand.tag += g.tag; grand.own += g.own; grand.sisa += g.sisa;
+        for (const m in g.byM) grand.byM[m] = (grand.byM[m] || 0) + g.byM[m];
+      };
+      rows.forEach(r => {
+        if (r._monthKey !== curMonth) {
+          if (curMonth !== null) flushSub(curMonth);
+          curMonth = r._monthKey;
+          const g = rec.get(curMonth);
+          const scanned = keys.filter(x => x >= curMonth);
+          const gr = put(pad(['TITIP ' + (r._monthLabel || curMonth) + ' — dipindai ke ' + scanned.map(cekShortMonth).join(', ') + ' · ' + g.n + ' faktur']), 18);
+          for (let c = 0; c < nc; c++) setS(gr, c, S.group);
+          merges.push({ s: { r: gr, c: 0 }, e: { r: gr, c: nc - 1 } });
+        }
+        n++;
+        const row = [n, r.tgl || '', r.faktur || '', r.tglFaktur || '', r.toko || '', r.alamat || '', r.sales || '', Number(r.tagihan) || 0, r._ownPaid || 0];
+        scanCols.forEach(m => row.push(m < r._monthKey ? '' : (r._susByMonth[m] || 0)));
+        row.push(r._sisa || 0, r._status || '');
+        const ri = put(row, 15);
+        const stl = [S.ctr, S.ctr, S.txt, S.ctr, S.txt, S.txt, S.txt, S.num, S.num];
+        stl.forEach((sty, c) => setS(ri, c, sty));
+        scanCols.forEach((m, j) => setS(ri, 9 + j, m < r._monthKey ? S.na : S.num));
+        setS(ri, 9 + scanCols.length, S.numB);
+        setS(ri, 10 + scanCols.length, stStyle(r._status));
+      });
+      if (curMonth !== null) flushSub(curMonth);
+
+      const trow = pad(['', '', '', '', '', '', 'TOTAL', grand.tag, grand.own]);
+      scanCols.forEach((m, j) => { trow[9 + j] = grand.byM[m] || 0; });
+      trow[9 + scanCols.length] = grand.sisa;
+      const tr = put(trow, 18);
+      for (let c = 0; c < nc; c++) setS(tr, c, c < 7 ? S.totL : S.tot);
+      merges.push({ s: { r: tr, c: 0 }, e: { r: tr, c: 6 } });
+
+      const ws = XL.utils.aoa_to_sheet(aoa);
+      for (const [k, sty] of styles) {
+        const [r, c] = k.split(',').map(Number);
+        const addr = XL.utils.encode_cell({ r, c });
+        if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+        ws[addr].s = sty;
+      }
+      ws['!merges'] = merges;
+      ws['!cols'] = [{ wch: 4 }, { wch: 7 }, { wch: 17 }, { wch: 11 }, { wch: 22 }, { wch: 19 }, { wch: 10 }, { wch: 12 }, { wch: 12 }]
+        .concat(scanCols.map(() => ({ wch: 11 })), [{ wch: 12 }, { wch: 17 }]);
+      ws['!rows'] = rowH.map(h => h ? { hpt: h } : {});
+      ws['!margins'] = { left: 0.3, right: 0.3, top: 0.4, bottom: 0.5, header: 0.2, footer: 0.25 };
+      return { ws, headRow };
+    }
+
+    // Library tidak menulis pengaturan cetak → sisipkan langsung ke XML sheet:
+    // A4 landscape, muat 1 halaman lebar, rata tengah, nomor halaman.
+    async function patchXlsxForPrint(bytes) {
+      const JSZip = await ensureJSZip();
+      const zip = await JSZip.loadAsync(bytes);
+      const f = zip.file('xl/worksheets/sheet1.xml');
+      if (!f) return bytes;
+      let x = await f.async('string');
+      if (!x.includes('<sheetPr')) x = x.replace('<dimension', '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension');
+      x = x.replace(/<pageMargins[^>]*\/>/, m => '<printOptions horizontalCentered="1"/>' + m +
+        '<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>' +
+        '<headerFooter><oddFooter>&amp;LCek TITIP&amp;RHalaman &amp;P dari &amp;N</oddFooter></headerFooter>');
+      zip.file('xl/worksheets/sheet1.xml', x);
+      return await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+    }
+
+    async function exportCekTitipExcel() {
+      await loadMonthsConcurrent(monthKeys());
+      let XL;
+      try { XL = await ensureXLSXStyle(); }
+      catch (e) { toast(e.message || 'Gagal memuat library Excel', 'error'); return; }
+
+      const d = collectCekTitip();
+      if (!d.rows.length) { toast('Tidak ada data Cek TITIP pada filter ini untuk diekspor.', 'error'); return; }
+
+      const now = new Date();
+      const tglCetak = String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear()
+        + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      const { ws, headRow } = buildCekTitipSheet(XL, {
+        rows: d.rows, keys: d.keys, scanCols: d.scanCols, rec: d.rec, store,
+        filters: { monthSel: d.monthSel, statusF: d.statusF, q: d.q }, tglCetak
+      });
+      const wb = XL.utils.book_new();
+      XL.utils.book_append_sheet(wb, ws, 'Cek TITIP');
+      // header tabel diulang di setiap halaman cetak
+      wb.Workbook = { Names: [{ Name: '_xlnm.Print_Titles', Ref: "'Cek TITIP'!$" + (headRow + 1) + ':$' + (headRow + 1), Sheet: 0 }] };
+
+      const monthFile = d.monthSel === 'all' ? 'SemuaBulan' : (store[d.monthSel]?.label || d.monthSel).replace(/\s+/g, '_');
+      const statusFile = d.statusF === 'OPEN' ? 'BelumLunas' : (d.statusF === 'all' ? 'SemuaStatus' : d.statusF.replace(/\s+/g, '_'));
+      const fname = `CekTITIP_${monthFile}_${statusFile}.xlsx`;
+
+      let bytes = XL.write(wb, { bookType: 'xlsx', type: 'array' });
+      let printOk = true;
+      try { bytes = await patchXlsxForPrint(bytes); } catch (e) { printOk = false; }
+
+      const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast(printOk ? `Excel Cek TITIP diunduh (${fmt(d.rows.length)} faktur) — siap cetak`
+                    : `Excel Cek TITIP diunduh (${fmt(d.rows.length)} faktur). Atur Landscape + Fit to 1 page wide di Excel sebelum cetak.`);
     }
 
     async function exportTitipExcel() {
@@ -3821,8 +4015,8 @@ function toggleMenu(e) {
       const activeTab = document.querySelector('.tab.active')?.dataset.tab || 'dashboard';
       // Tab TITIP: ekspor sesuai filter UI (bulan/tgl/section/status/cari)
       if (activeTab === 'titip') {
-        if (_titipSub === 'cek') toast('Export mengikuti Daftar TITIP (semua bulan, semua status).', 'success');
-        await exportTitipExcel();
+        if (_titipSub === 'cek') await exportCekTitipExcel();
+        else await exportTitipExcel();
         return;
       }
       const key = getActiveMonthKey();
@@ -4095,6 +4289,7 @@ function toggleMenu(e) {
     document.getElementById('searchDetail').addEventListener('input', debouncedDetailSearch);
     document.getElementById('searchRincian').addEventListener('input', debouncedRincianSearch);
     document.getElementById('searchTitip')?.addEventListener('input', debounce(() => { pagState.titip.page=1; renderTitipTab(); }, 250));
+    document.getElementById('searchCek')?.addEventListener('input', debounce(() => { pagState.cekTitip.page=1; renderCekTitip(); }, 250));
     document.getElementById('searchPiutang').addEventListener('input', debouncedPiutangSearch);
     document.getElementById('searchDropping').addEventListener('input', debouncedDroppingSearch);
     const debouncedMinyakSearch = debounce(() => { pagState.minyak.page = 1; renderProdukTab('minyak'); }, 250);
