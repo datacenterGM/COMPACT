@@ -260,6 +260,22 @@
     #tab-titip td:nth-child(3) .badge {
       padding: 1px 5px; font-size: 0.68rem;
     }
+    /* Sub tab TITIP (Daftar / Cek) */
+    .titip-subtabs { margin-bottom: 12px; }
+    .titip-subtabs .filter-btn { padding: 5px 16px; font-size: 0.8rem; }
+    /* Cek TITIP */
+    #tab-titip #titipSubCek th, #tab-titip #titipSubCek td { width: auto; max-width: none; }
+    .cek-note { font-size: 0.78rem; color: var(--muted); margin: 0 0 10px; line-height: 1.5; }
+    tr.cek-month-row td {
+      background: var(--total-row); font-weight: 700; text-align: left;
+      border-top: 2px solid var(--accent); white-space: normal;
+    }
+    .cek-na { color: var(--muted); opacity: 0.45; }
+    .cek-pay { color: #38bdf8; font-weight: 600; }
+    html[data-theme="light"] .cek-pay { color: #0369a1; }
+    .badge-sebagian { background: rgba(245,158,11,0.22); color: #fcd34d; border: 1px solid rgba(245,158,11,0.7); font-weight: 700; }
+    html[data-theme="light"] .badge-sebagian { background: #fef3c7; color: #b45309; border-color: #f59e0b; }
+    .cek-recap { margin-bottom: 14px; }
     .badge-rupa { background: rgba(34,197,94,0.2); color: #86efac; }
 
     .faded { opacity: 0.25; filter: blur(0.6px); user-select: none; }
@@ -790,6 +806,11 @@
     </div>
 
     <div id="tab-titip" style="display:none">
+      <div class="filter-group titip-subtabs" id="titipSubGroup" aria-label="Sub tab TITIP">
+        <button type="button" class="filter-btn active" data-val="list" onclick="switchTitipSub('list')">Daftar TITIP</button>
+        <button type="button" class="filter-btn" data-val="cek" onclick="switchTitipSub('cek')">Cek TITIP</button>
+      </div>
+      <div id="titipSubList">
       <div class="toolbar">
         <div class="toolbar-left">
           <select id="titipMonth" onchange="loadAndRenderTitip()" aria-label="Filter bulan titip">
@@ -840,6 +861,36 @@
         </table>
       </div>
       <div class="pagination" id="titipPagination"></div>
+      </div>
+
+      <div id="titipSubCek" style="display:none">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <select id="cekMonth" onchange="pagState.cekTitip.page=1; renderCekTitip()" aria-label="Filter bulan TITIP">
+              <option value="all">Semua Bulan TITIP</option>
+            </select>
+            <input type="search" id="searchCek" placeholder="Cari toko, faktur, sales..." style="min-width:180px">
+          </div>
+          <div class="toolbar-right">
+            <div class="filter-group" id="cekStatusGroup" aria-label="Filter status Cek TITIP">
+              <button type="button" class="filter-btn active" data-val="OPEN" onclick="setCekStatus('OPEN')">Belum Lunas</button>
+              <button type="button" class="filter-btn" data-val="BELUM DIBAYAR" onclick="setCekStatus('BELUM DIBAYAR')">Belum Dibayar</button>
+              <button type="button" class="filter-btn" data-val="DIBAYAR SEBAGIAN" onclick="setCekStatus('DIBAYAR SEBAGIAN')">Dibayar Sebagian</button>
+              <button type="button" class="filter-btn" data-val="LUNAS" onclick="setCekStatus('LUNAS')">Lunas</button>
+              <button type="button" class="filter-btn" data-val="all" onclick="setCekStatus('all')">Semua</button>
+            </div>
+          </div>
+        </div>
+        <p class="cek-note">Setiap faktur TITIP dipindai ke pembayaran toko yang sama (toko + alamat + sales) pada <b>bulan TITIP itu sendiri sampai bulan terakhir</b>. Contoh: TITIP Agustus dipindai ke Agustus, September, Oktober, November; TITIP September dipindai ke September, Oktober, November. Kolom bulan menunjukkan pembayaran susulan yang ditemukan di bulan tersebut.</p>
+        <div id="cekRecap" class="table-wrap cek-recap"></div>
+        <div class="table-wrap" data-fit style="min-height: 240px;">
+          <table>
+            <thead id="cekHead"></thead>
+            <tbody id="cekBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="cekPagination"></div>
+      </div>
     </div>
 
     <div id="tab-piutang" style="display:none">
@@ -1002,6 +1053,7 @@
       minyak: { page: 1, size: PAGE_SIZE },
       rupa: { page: 1, size: PAGE_SIZE },
       titip: { page: 1, size: PAGE_SIZE },
+      cekTitip: { page: 1, size: PAGE_SIZE },
       piutang: { page: 1, size: PAGE_SIZE },
       dropping: { page: 1, size: PAGE_SIZE },
     };
@@ -1766,6 +1818,7 @@ function toggleMenu(e) {
       else if (prefix === 'dropping') renderDroppingTab();
       else if (prefix === 'minyak' || prefix === 'rupa') renderProdukTab(prefix);
       else if (prefix === 'titip') renderTitipTab();
+      else if (prefix === 'cekTitip') renderCekTitip();
     }
 
     // ===================== DASHBOARD =====================
@@ -2220,7 +2273,8 @@ function toggleMenu(e) {
       // Semua bulan perlu dimuat agar pembayaran susulan lintas bulan ikut terbaca.
       await loadMonthsConcurrent(keys);
       pagState.titip.page = 1;
-      renderTitipTab();
+      if (_titipSub === 'cek') { populateCekMonths(); renderCekTitip(); }
+      else renderTitipTab();
     }
 
     function titipNorm(v) {
@@ -2291,6 +2345,7 @@ function toggleMenu(e) {
           const ownPaid = t.paid;
           let remaining = Math.max(0, total - ownPaid);
           let susulan = 0;
+          const susByMonth = {};
           if (remaining > 0 && g.pays.length) {
             const later = g.pays.filter(p => p.dk > t.dk && p.used < p.paid);
             // faktur sama didahulukan, sisanya urut tanggal (pays sudah terurut → urutan stabil)
@@ -2300,12 +2355,12 @@ function toggleMenu(e) {
             for (const pay of ordered) {
               if (remaining <= 0) break;
               const take = Math.min(remaining, pay.paid - pay.used);
-              if (take > 0) { pay.used += take; susulan += take; remaining -= take; }
+              if (take > 0) { pay.used += take; susulan += take; remaining -= take; susByMonth[pay.k] = (susByMonth[pay.k] || 0) + take; }
             }
           }
           const paidTotal = Math.min(total, ownPaid + susulan);
           out.push({ ...t.r, _monthKey: t.k, _monthLabel: t.label, _dk: t.dk,
-            _ownPaid: ownPaid, _susulan: susulan, _paidTotal: paidTotal,
+            _ownPaid: ownPaid, _susulan: susulan, _susByMonth: susByMonth, _paidTotal: paidTotal,
             _sisa: Math.max(0, total - paidTotal),
             _status: remaining <= 0 ? 'LUNAS' : (paidTotal > 0 ? 'DIBAYAR SEBAGIAN' : 'BELUM DIBAYAR') });
         }
@@ -2418,6 +2473,162 @@ function toggleMenu(e) {
       </tr>`;
       }).join('');
       renderPagination('titipPagination','titip',rows.length);
+    }
+
+    // ===================== SUB TAB: CEK TITIP =====================
+    let _titipSub = 'list';
+    const _BLN_PENDEK = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    function cekShortMonth(k) {
+      const m = /^(\d{4})-(\d{2})$/.exec(String(k));
+      return m ? (_BLN_PENDEK[+m[2] - 1] + ' ' + m[1].slice(2)) : String(k);
+    }
+    function cekStatusFilterVal() {
+      return document.querySelector('#cekStatusGroup .filter-btn.active')?.dataset.val || 'OPEN';
+    }
+    function setCekStatus(v) {
+      document.querySelectorAll('#cekStatusGroup .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.val === v));
+      pagState.cekTitip.page = 1;
+      renderCekTitip();
+    }
+    function populateCekMonths() {
+      const sel = document.getElementById('cekMonth');
+      if (!sel) return;
+      const prev = sel.value;
+      sel.innerHTML = '<option value="all">Semua Bulan TITIP</option>' +
+        monthKeys().map(k => `<option value="${esc(k)}">${esc(store[k].label || k)}</option>`).join('');
+      sel.value = [...sel.options].some(o => o.value === prev) ? prev : 'all';
+    }
+    async function switchTitipSub(name) {
+      _titipSub = name === 'cek' ? 'cek' : 'list';
+      document.querySelectorAll('#titipSubGroup .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.val === _titipSub));
+      document.getElementById('titipSubList').style.display = _titipSub === 'list' ? 'block' : 'none';
+      document.getElementById('titipSubCek').style.display = _titipSub === 'cek' ? 'block' : 'none';
+      await loadAndRenderTitip();
+      fitTables();
+      requestAnimationFrame(fitTables);
+    }
+    // Aturan pindai: faktur TITIP bulan M dipindai ke bulan M s/d bulan terakhir.
+    // Pembayaran dialokasikan oleh getTitipIndex() (toko+alamat+sales, tanggal setelah TITIP).
+    function renderCekTitip() {
+      const body = document.getElementById('cekBody');
+      const head = document.getElementById('cekHead');
+      const recap = document.getElementById('cekRecap');
+      if (!body || !head) return;
+
+      const keys = monthKeys();
+      const last = keys.length ? keys[keys.length - 1] : '';
+      const monthSel = document.getElementById('cekMonth')?.value || 'all';
+      const statusF = cekStatusFilterVal();
+      const q = (document.getElementById('searchCek')?.value || '').trim().toLowerCase();
+
+      let rows = getTitipIndex().slice();
+      if (monthSel !== 'all') rows = rows.filter(r => r._monthKey === monthSel);
+      if (statusF === 'OPEN') rows = rows.filter(r => r._status !== 'LUNAS');
+      else if (statusF !== 'all') rows = rows.filter(r => r._status === statusF);
+      if (q) rows = rows.filter(r => [r.tgl, r.sales, r.faktur, r.toko, r.alamat, r._monthLabel, r._status].join(' ').toLowerCase().includes(q));
+      // urut: bulan TITIP, lalu tanggal, lalu toko
+      rows.sort((a, b) => a._monthKey < b._monthKey ? -1 : a._monthKey > b._monthKey ? 1
+        : (a._dk < b._dk ? -1 : a._dk > b._dk ? 1 : String(a.toko).localeCompare(String(b.toko))));
+
+      // kolom bulan yang dipindai = semua bulan mulai dari bulan TITIP tertua pada hasil filter
+      const firstKey = rows.length ? rows[0]._monthKey : (keys[0] || '');
+      const scanCols = keys.filter(k => k >= firstKey);
+
+      // ---- Rekap per bulan TITIP ----
+      const rec = new Map();
+      for (const r of rows) {
+        let g = rec.get(r._monthKey);
+        if (!g) { g = { n: 0, tag: 0, own: 0, sus: 0, sisa: 0, lunas: 0, sebagian: 0, belum: 0, byM: {} }; rec.set(r._monthKey, g); }
+        g.n++; g.tag += Number(r.tagihan) || 0; g.own += r._ownPaid; g.sus += r._susulan; g.sisa += r._sisa;
+        if (r._status === 'LUNAS') g.lunas++; else if (r._status === 'DIBAYAR SEBAGIAN') g.sebagian++; else g.belum++;
+        for (const mk in r._susByMonth) g.byM[mk] = (g.byM[mk] || 0) + r._susByMonth[mk];
+      }
+      const recKeys = [...rec.keys()].sort();
+      if (recap) {
+        if (!recKeys.length) recap.innerHTML = '';
+        else {
+          let tot = { n: 0, tag: 0, own: 0, sus: 0, sisa: 0, lunas: 0, sebagian: 0, belum: 0, byM: {} };
+          const trs = recKeys.map(k => {
+            const g = rec.get(k);
+            tot.n += g.n; tot.tag += g.tag; tot.own += g.own; tot.sus += g.sus; tot.sisa += g.sisa;
+            tot.lunas += g.lunas; tot.sebagian += g.sebagian; tot.belum += g.belum;
+            for (const mk in g.byM) tot.byM[mk] = (tot.byM[mk] || 0) + g.byM[mk];
+            const scanned = keys.filter(x => x >= k);
+            return `<tr>
+              <td class="text-left"><b>${esc(store[k]?.label || k)}</b></td>
+              <td class="text-left">${esc(cekShortMonth(scanned[0]))} – ${esc(cekShortMonth(scanned[scanned.length - 1]))}</td>
+              <td>${fmt(g.n)}</td><td>${fmt(g.tag)}</td><td>${fmt(g.own)}</td>
+              ${scanCols.map(m => m < k ? '<td><span class="cek-na">·</span></td>' : `<td>${g.byM[m] ? '<span class="cek-pay">' + fmt(g.byM[m]) + '</span>' : fmtCell(0)}</td>`).join('')}
+              <td><b>${fmt(g.sisa)}</b></td>
+              <td class="text-left">${g.lunas} lunas · ${g.sebagian} sebagian · ${g.belum} belum</td>
+            </tr>`;
+          }).join('');
+          recap.innerHTML = `<table>
+            <thead><tr>
+              <th class="text-left">Bulan TITIP</th><th class="text-left">Dipindai</th>
+              <th>Faktur</th><th>Tagihan</th><th>Bayar Awal</th>
+              ${scanCols.map(m => `<th>Susulan ${esc(cekShortMonth(m))}</th>`).join('')}
+              <th>Sisa</th><th class="text-left">Status</th>
+            </tr></thead>
+            <tbody>${trs}
+              <tr class="total-row">
+                <td class="text-left">TOTAL</td><td></td>
+                <td>${fmt(tot.n)}</td><td>${fmt(tot.tag)}</td><td>${fmt(tot.own)}</td>
+                ${scanCols.map(m => `<td>${fmt(tot.byM[m] || 0)}</td>`).join('')}
+                <td>${fmt(tot.sisa)}</td>
+                <td class="text-left">${tot.lunas} lunas · ${tot.sebagian} sebagian · ${tot.belum} belum</td>
+              </tr>
+            </tbody></table>`;
+        }
+      }
+
+      // ---- Tabel rincian ----
+      const ncols = 10 + scanCols.length;
+      head.innerHTML = `<tr>
+        <th class="center">No</th><th class="text-left">Tgl Titip</th><th class="text-left">No Faktur</th>
+        <th class="text-left">Nama Toko</th><th class="text-left">Alamat</th><th class="text-left">Sales</th>
+        <th>Tagihan</th><th>Bayar Awal</th>
+        ${scanCols.map(m => `<th>${esc(cekShortMonth(m))}</th>`).join('')}
+        <th>Sisa TITIP</th><th class="text-left">Status</th>
+      </tr>`;
+
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="${ncols}" class="empty-rincian">${keys.length ? 'Tidak ada faktur TITIP pada filter ini.' : 'Belum ada data bulan. Upload data bulanan terlebih dahulu.'}</td></tr>`;
+        renderPagination('cekPagination', 'cekTitip', 0);
+        return;
+      }
+
+      clampPage('cekTitip', rows.length);
+      const start = (pagState.cekTitip.page - 1) * pagState.cekTitip.size;
+      const pageRows = rows.slice(start, start + pagState.cekTitip.size);
+      let curMonth = null;
+      const out = [];
+      pageRows.forEach((r, i) => {
+        if (r._monthKey !== curMonth) {
+          curMonth = r._monthKey;
+          const g = rec.get(curMonth);
+          const scanned = keys.filter(x => x >= curMonth);
+          out.push(`<tr class="cek-month-row"><td colspan="${ncols}">TITIP ${esc(r._monthLabel || curMonth)} — dipindai ke ${esc(scanned.map(cekShortMonth).join(', '))} · ${g.n} faktur · sisa Rp ${fmt(g.sisa)}</td></tr>`);
+        }
+        const st = r._status;
+        const badge = st === 'LUNAS' ? 'badge badge-lunas' : (st === 'DIBAYAR SEBAGIAN' ? 'badge badge-sebagian' : 'badge badge-titip');
+        out.push(`<tr>
+          <td class="center">${start + i + 1}</td>
+          <td class="text-left">${esc(r.tgl)}</td>
+          <td class="text-left">${esc(r.faktur)}</td>
+          <td class="text-left">${esc(r.toko)}</td>
+          <td class="text-left">${esc(r.alamat)}</td>
+          <td class="text-left">${esc(r.sales) || '—'}</td>
+          <td>${fmtCell(r.tagihan)}</td>
+          <td>${fmtCell(r._ownPaid)}</td>
+          ${scanCols.map(m => m < r._monthKey ? '<td><span class="cek-na">·</span></td>'
+              : (r._susByMonth[m] ? `<td><span class="cek-pay">${fmt(r._susByMonth[m])}</span></td>` : `<td>${fmtCell(0)}</td>`)).join('')}
+          <td><b>${fmt(r._sisa)}</b></td>
+          <td class="text-left"><span class="${badge}">${esc(st)}</span></td>
+        </tr>`);
+      });
+      body.innerHTML = out.join('');
+      renderPagination('cekPagination', 'cekTitip', rows.length);
     }
 
     async function exportTitipExcel() {
@@ -3604,6 +3815,7 @@ function toggleMenu(e) {
       const activeTab = document.querySelector('.tab.active')?.dataset.tab || 'dashboard';
       // Tab TITIP: ekspor sesuai filter UI (bulan/tgl/section/status/cari)
       if (activeTab === 'titip') {
+        if (_titipSub === 'cek') toast('Export mengikuti Daftar TITIP (semua bulan, semua status).', 'success');
         await exportTitipExcel();
         return;
       }
