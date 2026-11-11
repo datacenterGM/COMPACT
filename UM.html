@@ -896,9 +896,7 @@
       <div id="titipSubCek" style="display:none">
         <div class="toolbar">
           <div class="toolbar-left">
-            <select id="cekMonth" onchange="pagState.cekTitip.page=1; renderCekTitip()" aria-label="Filter bulan TITIP">
-              <option value="all">Semua Bulan TITIP</option>
-            </select>
+            <div class="msel" id="cekMonthBox"><button type="button" class="msel-btn" id="cekMonthBtn" onclick="cekTogglePanel(event)" aria-label="Filter bulan TITIP (bisa pilih beberapa)">Semua Bulan TITIP ▾</button><div class="msel-panel" id="cekMonthPanel" style="display:none"></div></div>
             <input type="search" id="searchCek" placeholder="Cari toko, faktur, sales..." style="min-width:180px">
           </div>
           <div class="toolbar-right">
@@ -912,7 +910,7 @@
             </div>
           </div>
         </div>
-        <p class="cek-note">Setiap faktur TITIP dipindai ke pembayaran toko yang sama (toko + alamat + sales) pada <b>bulan TITIP itu sendiri sampai bulan terakhir</b>. Contoh: TITIP Agustus dipindai ke Agustus, September, Oktober, November; TITIP September dipindai ke September, Oktober, November. Kolom bulan menunjukkan pembayaran susulan yang ditemukan di bulan tersebut.</p>
+        <p class="cek-note">Setiap faktur TITIP dipindai ke pembayaran toko yang sama (nama toko + alamat) pada <b>bulan TITIP itu sendiri sampai bulan terakhir</b>. Contoh: TITIP Agustus dipindai ke Agustus, September, Oktober, November; TITIP September dipindai ke September, Oktober, November. Kolom bulan menunjukkan pembayaran susulan yang ditemukan di bulan tersebut.</p>
         <div id="cekRecap" class="table-wrap cek-recap"></div>
         <div class="table-wrap" data-fit style="min-height: 240px;">
           <table>
@@ -2322,8 +2320,9 @@ function toggleMenu(e) {
       return mk + '-00-00';
     }
     function titipIdentity(r) {
-      // Identitas utama: toko + alamat + sales. No faktur hanya penguat.
-      return [titipNorm(r.toko), titipNorm(r.alamat), titipNorm(r.sales)].join('|');
+      // Identitas utama: toko + alamat (sales TIDAK dipakai: penulisannya bisa beda antar bulan,
+      // mis. "RAJU" vs "PAK ITO(RAJU)"). No faktur hanya penguat saat alokasi.
+      return [titipNorm(r.toko), titipNorm(r.alamat)].join('|');
     }
     function titipPaid(r) {
       return (Number(r.mCash)||0) + (Number(r.mTf)||0) + (Number(r.rCash)||0) + (Number(r.rTf)||0);
@@ -2476,7 +2475,7 @@ function toggleMenu(e) {
       if (summary) summary.innerHTML = `
         <div class="card cash"><div class="card-label">Jumlah Faktur TITIP</div><div class="card-value">${fmt(sum.n)}</div><div class="card-sub">Data sesuai filter</div></div>
         <div class="card total"><div class="card-label">Total Tagihan TITIP</div><div class="card-value">Rp ${fmt(sum.tag)}</div><div class="card-sub">Nilai tagihan awal</div></div>
-        <div class="card minyak"><div class="card-label">Pembayaran Susulan</div><div class="card-value">Rp ${fmt(sum.sus)}</div><div class="card-sub">Dikaitkan dari toko, alamat & sales</div></div>
+        <div class="card minyak"><div class="card-label">Pembayaran Susulan</div><div class="card-value">Rp ${fmt(sum.sus)}</div><div class="card-sub">Dikaitkan dari toko & alamat</div></div>
         <div class="card rupa"><div class="card-label">Sisa TITIP</div><div class="card-value">Rp ${fmt(sum.sisa)}</div><div class="card-sub">Belum tertutup pembayaran</div></div>
         <div class="card total"><div class="card-label">Status TITIP</div><div class="card-value">${fmt(sum.lunas)} Lunas</div><div class="card-sub">${fmt(sum.sebagian)} Sebagian · ${fmt(sum.belum)} Belum bayar</div></div>`;
 
@@ -2527,14 +2526,50 @@ function toggleMenu(e) {
       pagState.cekTitip.page = 1;
       renderCekTitip();
     }
-    function populateCekMonths() {
-      const sel = document.getElementById('cekMonth');
-      if (!sel) return;
-      const prev = sel.value;
-      sel.innerHTML = '<option value="all">Semua Bulan TITIP</option>' +
-        monthKeys().map(k => `<option value="${esc(k)}">${esc(store[k].label || k)}</option>`).join('');
-      sel.value = [...sel.options].some(o => o.value === prev) ? prev : 'all';
+    // Filter bulan TITIP: centang beberapa bulan. Tanpa centang (atau semua dicentang) = semua bulan.
+    let cekSel = new Set();
+    function cekSelectedMonths() {
+      const keys = monthKeys(), sel = keys.filter(k => cekSel.has(k));
+      return (!sel.length || sel.length === keys.length) ? [] : sel;
     }
+    function cekMonthLabel() {
+      const sel = cekSelectedMonths();
+      if (!sel.length) return 'Semua Bulan TITIP';
+      return sel.length <= 2 ? sel.map(k => store[k]?.label || k).join(', ') : sel.length + ' bulan dipilih';
+    }
+    function cekBuildBox() {
+      const panel = document.getElementById('cekMonthPanel'), btn = document.getElementById('cekMonthBtn');
+      if (!panel || !btn) return;
+      const keys = monthKeys(), none = !cekSelectedMonths().length;
+      panel.innerHTML = `<label class="msel-item"><input type="checkbox" ${none ? 'checked' : ''} onchange="cekClearMonths()"> <b>Semua Bulan</b></label><div class="msel-sep"></div>` +
+        keys.slice().reverse().map(k => `<label class="msel-item"><input type="checkbox" ${cekSel.has(k) ? 'checked' : ''} onchange="cekToggleMonth('${esc(k)}', this.checked)"> ${esc(store[k].label || k)}</label>`).join('');
+      btn.textContent = cekMonthLabel() + ' ▾';
+    }
+    function populateCekMonths() {
+      const keys = monthKeys();
+      cekSel = new Set([...cekSel].filter(k => keys.includes(k)));
+      cekBuildBox();
+    }
+    function cekTogglePanel(e) {
+      e && e.stopPropagation();
+      const panel = document.getElementById('cekMonthPanel'), box = document.getElementById('cekMonthBox');
+      if (!panel) return;
+      const open = panel.style.display === 'none';
+      panel.style.display = open ? 'block' : 'none'; box.classList.toggle('open', open);
+    }
+    document.addEventListener('click', e => {
+      const box = document.getElementById('cekMonthBox');
+      if (box && !box.contains(e.target)) { const pn = document.getElementById('cekMonthPanel'); if (pn) pn.style.display = 'none'; box.classList.remove('open'); }
+    });
+    function cekApplyMonths() {
+      const keys = monthKeys();
+      if (keys.every(k => cekSel.has(k))) cekSel.clear();     // semua dicentang = semua bulan
+      cekBuildBox();
+      pagState.cekTitip.page = 1;
+      renderCekTitip();
+    }
+    function cekClearMonths() { cekSel.clear(); cekApplyMonths(); }
+    function cekToggleMonth(k, on) { if (on) cekSel.add(k); else cekSel.delete(k); cekApplyMonths(); }
     async function switchTitipSub(name) {
       _titipSub = name === 'cek' ? 'cek' : 'list';
       document.querySelectorAll('#titipSubGroup .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.val === _titipSub));
@@ -2549,12 +2584,12 @@ function toggleMenu(e) {
     function collectCekTitip() {
       const keys = monthKeys();
       const last = keys.length ? keys[keys.length - 1] : '';
-      const monthSel = document.getElementById('cekMonth')?.value || 'all';
+      const monthSel = cekSelectedMonths();   // [] = semua bulan
       const statusF = cekStatusFilterVal();
       const q = (document.getElementById('searchCek')?.value || '').trim().toLowerCase();
 
       let rows = getTitipIndex().slice();
-      if (monthSel !== 'all') rows = rows.filter(r => r._monthKey === monthSel);
+      if (monthSel.length) { const ms = new Set(monthSel); rows = rows.filter(r => ms.has(r._monthKey)); }
       if (statusF === 'OPEN') rows = rows.filter(r => r._status !== 'LUNAS');
       else if (statusF !== 'all') rows = rows.filter(r => r._status === statusF);
       if (q) rows = rows.filter(r => [r.tgl, r.sales, r.faktur, r.tglFaktur, r.toko, r.alamat, r._monthLabel, r._status].join(' ').toLowerCase().includes(q));
@@ -2751,7 +2786,7 @@ function toggleMenu(e) {
             <tbody>${payRows}</tbody>
           </table>
         </div>
-        <p class="cd-foot">Pembayaran dicocokkan dari toko + alamat + sales dengan tanggal setelah tanggal titip. Tanda <b>faktur sama</b> berarti nomor faktur pembayaran sama dengan faktur TITIP ini. Tanda <b>faktur lain</b> berarti cocok hanya dari toko, jadi sebaiknya dicek ke bukti bayarnya.</p>
+        <p class="cd-foot">Pembayaran dicocokkan dari nama toko + alamat dengan tanggal setelah tanggal titip. Tanda <b>faktur sama</b> berarti nomor faktur pembayaran sama dengan faktur TITIP ini. Tanda <b>faktur lain</b> berarti cocok hanya dari toko, jadi sebaiknya dicek ke bukti bayarnya.</p>
         <div class="modal-actions"><button type="button" class="btn btn-ghost" onclick="closeCekDetail()">Tutup</button></div>`;
       document.getElementById('cekModal').classList.add('show');
     }
@@ -2816,7 +2851,7 @@ function toggleMenu(e) {
       const put = (arr, h) => { aoa.push(arr); rowH.push(h || null); return aoa.length - 1; };
       const pad = (arr) => { while (arr.length < nc) arr.push(''); return arr; };
 
-      const monthText = filters.monthSel === 'all' ? 'Semua Bulan TITIP' : (st[filters.monthSel]?.label || filters.monthSel);
+      const monthText = filters.monthSel.length ? filters.monthSel.map(k => st[k]?.label || k).join(', ') : 'Semua Bulan TITIP';
       const statusText = filters.statusF === 'OPEN' ? 'Belum Lunas (Belum Dibayar + Dibayar Sebagian)'
         : (filters.statusF === 'all' ? 'Semua Status' : filters.statusF);
       const r0 = put(pad(['CEK TITIP — PEMBAYARAN SUSULAN']), 22);
@@ -2929,7 +2964,7 @@ function toggleMenu(e) {
       // header tabel diulang di setiap halaman cetak
       wb.Workbook = { Names: [{ Name: '_xlnm.Print_Titles', Ref: "'Cek TITIP'!$" + (headRow + 1) + ':$' + (headRow + 1), Sheet: 0 }] };
 
-      const monthFile = d.monthSel === 'all' ? 'SemuaBulan' : (store[d.monthSel]?.label || d.monthSel).replace(/\s+/g, '_');
+      const monthFile = d.monthSel.length ? d.monthSel.map(k => cekShortMonth(k).replace(/\s+/g, '')).join('_') : 'SemuaBulan';
       const statusFile = d.statusF === 'OPEN' ? 'BelumLunas' : (d.statusF === 'all' ? 'SemuaStatus' : d.statusF.replace(/\s+/g, '_'));
       const fname = `CekTITIP_${monthFile}_${statusFile}.xlsx`;
 
