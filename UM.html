@@ -2596,8 +2596,8 @@ function toggleMenu(e) {
       // ---- Tabel rincian ----
       const ncols = 11 + scanCols.length;
       head.innerHTML = `<tr>
-        <th class="center">No</th><th class="text-left">Tgl Titip</th><th class="text-left">No Faktur</th>
-        <th class="text-left">Tgl Faktur</th><th class="text-left">Nama Toko</th><th class="text-left">Alamat</th><th class="text-left">Sales</th>
+        <th class="center">No</th><th class="text-left">Tgl Faktur</th><th class="text-left">No Faktur</th>
+        <th class="text-left">Tgl Titip</th><th class="text-left">Nama Toko</th><th class="text-left">Alamat</th><th class="text-left">Sales</th>
         <th>Tagihan</th><th>Bayar Awal</th>
         ${scanCols.map(m => `<th class="cek-mth">${esc(cekShortMonth(m))}</th>`).join('')}
         <th>Sisa TITIP</th><th class="text-left">Status</th>
@@ -2625,9 +2625,9 @@ function toggleMenu(e) {
         const badge = st === 'LUNAS' ? 'badge badge-lunas' : (st === 'DIBAYAR SEBAGIAN' ? 'badge badge-sebagian' : 'badge badge-titip');
         out.push(`<tr>
           <td class="center">${start + i + 1}</td>
-          <td class="text-left">${esc(r.tgl)}</td>
-          <td class="text-left">${esc(r.faktur)}</td>
           <td class="text-left">${esc(r.tglFaktur) || '—'}</td>
+          <td class="text-left">${esc(r.faktur)}</td>
+          <td class="text-left">${esc(r.tgl)}</td>
           <td class="text-left">${esc(r.toko)}</td>
           <td class="text-left">${esc(r.alamat)}</td>
           <td class="text-left">${esc(r.sales) || '—'}</td>
@@ -2710,7 +2710,7 @@ function toggleMenu(e) {
       [r0, r1, r2].forEach(r => merges.push({ s: { r, c: 0 }, e: { r, c: nc - 1 } }));
       put(pad([]), 6);
 
-      const head = ['No', 'Tgl Titip', 'No Faktur', 'Tgl Faktur', 'Nama Toko', 'Alamat', 'Sales', 'Tagihan', 'Bayar Awal']
+      const head = ['No', 'Tgl Faktur', 'No Faktur', 'Tgl Titip', 'Nama Toko', 'Alamat', 'Sales', 'Tagihan', 'Bayar Awal']
         .concat(scanCols.map(m => cekShortMonth(m)), ['Sisa TITIP', 'Status']);
       const headRow = put(head, 24);
 
@@ -2743,7 +2743,7 @@ function toggleMenu(e) {
           merges.push({ s: { r: gr, c: 0 }, e: { r: gr, c: nc - 1 } });
         }
         n++;
-        const row = [n, r.tgl || '', r.faktur || '', r.tglFaktur || '', r.toko || '', r.alamat || '', r.sales || '', Number(r.tagihan) || 0, r._ownPaid || 0];
+        const row = [n, r.tglFaktur || '', r.faktur || '', r.tgl || '', r.toko || '', r.alamat || '', r.sales || '', Number(r.tagihan) || 0, r._ownPaid || 0];
         scanCols.forEach(m => row.push(m < r._monthKey ? '' : (r._susByMonth[m] || 0)));
         row.push(r._sisa || 0, r._status || '');
         const ri = put(row, 15);
