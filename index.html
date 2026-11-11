@@ -195,6 +195,21 @@
   });
   applyTheme(document.documentElement.getAttribute('data-theme'));
 
+  /* ===== data baru dari cloud/restore: muat ulang tab yang sudah terbuka (agar tidak tertinggal tampilan kosong) ===== */
+  try {
+    var bcPull = new BroadcastChannel('laporan-pulled');
+    bcPull.onmessage = function (e) {
+      var from = (e.data && e.data.from) || '';
+      for (var k in frames) {
+        try {
+          var w = frames[k].contentWindow;
+          if (w.location.pathname + w.location.search === from) continue;   // tab yang mengambil data memuat ulang dirinya sendiri
+          w.location.reload();
+        } catch (err) {}
+      }
+    };
+  } catch (e) {}
+
   /* ===== mulai: #pj / #um / #cek / #ar / #cari (default CARI) ===== */
   window.addEventListener('hashchange', function () {
     var k = location.hash.slice(1).toLowerCase();

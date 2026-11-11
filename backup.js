@@ -290,6 +290,9 @@ async function upload() {
   await sb(`laporan_sync?ns=eq.${ns}&ver=lt.${encodeURIComponent(ver)}`, { method: 'DELETE' }).catch(() => {});
   LS.setItem('syncLast', ver); LS.setItem('syncFp', await fpOfSnap(o)); LS.removeItem('syncHash'); autoPaused = false; msg('✅ Upload ke cloud berhasil.\n' + sum(o));
 }
+/* Setelah data cloud/backup ditulis ke penyimpanan: beri tahu halaman induk (index.html) supaya tab lain yang sudah terbuka
+   (dan masih menampilkan data kosong) dimuat ulang. Tanpa ini, tab yang dibuka SEBELUM data tiba tetap kosong. */
+function notifyPulled() { try { const bc = new BroadcastChannel('laporan-pulled'); bc.postMessage({ from: location.pathname + location.search }); bc.close(); } catch (e) {} }
 async function download(silent) {
   /* Ambil dari cloud memakai Kode Sinkron yang sudah tersimpan di perangkat.
      Tombol Ambil tidak lagi memunculkan prompt PIN/Kode. Kode tetap diperlukan
@@ -303,14 +306,14 @@ async function download(silent) {
   if (!rows || rows.length !== m.n) throw new Error('Data cloud belum lengkap, coba lagi.');
   const o = await unpack(await unseal(await unb64(rows.map(r => r.data).join('')), code));
   if (!silent && !confirm(`Ambil data dari cloud (${fmtT(m.ver)})?\n\n${sum(o)}\n\nData di device ini akan DITIMPA.`)) return msg('Dibatalkan.');
-  await apply(o); LS.setItem('syncLast', m.ver); LS.setItem('syncFp', (await quick()).fp); LS.removeItem('syncHash'); msg('✅ Selesai. Memuat ulang...'); setTimeout(() => location.reload(), 700);
+  await apply(o); LS.setItem('syncLast', m.ver); LS.setItem('syncFp', (await quick()).fp); LS.removeItem('syncHash'); notifyPulled(); msg('✅ Selesai. Memuat ulang...'); setTimeout(() => location.reload(), 700);
 }
 
 /* ---------- aksi backup ---------- */
 async function restoreFrom(bytes, label) {
   const o = await unpack(bytes);
   if (!confirm(`Restore dari ${label} (backup ${fmtT(o.at)})?\n\n${sum(o)}\n\nData di device ini akan DITIMPA.`)) return msg('Dibatalkan.');
-  await apply(o); msg('✅ Restore selesai. Memuat ulang...'); setTimeout(() => location.reload(), 700);
+  await apply(o); notifyPulled(); msg('✅ Restore selesai. Memuat ulang...'); setTimeout(() => location.reload(), 700);
 }
 const A = {
   close: () => $('#bkOv').classList.remove('show'),
@@ -387,7 +390,11 @@ async function autoDown() {
   pill('⏳ Mengambil data terbaru dari cloud...', 'busy'); QUIET = true;
   try { await download(true); } finally { QUIET = false; }
 }
-async function runSync(trigger) {
+function runSync(trigger) {
+  try { if (navigator.locks && navigator.locks.request) return navigator.locks.request('laporan-sync', () => runSyncCore(trigger)); } catch (e) {}
+  return runSyncCore(trigger);
+}
+async function runSyncCore(trigger) {
   if (syncing || !autoOn()) return;
   if (!LS.getItem('syncCode')) { if (trigger === 'start') pill('☁️ Isi Kode Sinkron (Backup/Sync → Upload) untuk sinkron otomatis', 'warn'); return; }
   const load = IS_HOME && (trigger === 'start' || trigger === 'visible');
@@ -445,7 +452,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { if (chgTimer) { clearTimeout(chgTimer); chgTimer = null; runSync('change'); } }
   else if (Date.now() - lastCheck > 60000) runSync('visible');
 });
-setTimeout(() => { if (IS_HOME || Date.now() - (+LS.getItem('syncChecked') || 0) > 300000) runSync('start'); }, 2500);
+setTimeout(() => { if (IS_HOME || !LS.getItem('syncLast') || Date.now() - (+LS.getItem('syncChecked') || 0) > 300000) runSync('start'); }, 2500);
 
 /* ---------- UI ---------- */
 function msg(t, err) {
