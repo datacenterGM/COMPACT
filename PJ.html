@@ -296,6 +296,9 @@
       font-size: 1.3rem;
     }
     .welcome p { font-size: 0.95rem; }
+    .welcome-spin { display: none; width: 26px; height: 26px; margin: 0 auto 12px; border: 3px solid var(--border, #cbd5e1); border-top-color: var(--primary); border-radius: 50%; animation: welcomeSpin .8s linear infinite; }
+    .welcome.loading .welcome-spin { display: block; }
+    @keyframes welcomeSpin { to { transform: rotate(360deg); } }
 
     /* PAGINATION TIPIS */
     .pagination {
@@ -571,10 +574,10 @@
     </div>
 
     <!-- PESAN SELAMAT DATANG -->
-    <div id="welcome" class="welcome">
-      <h2>Selamat Datang</h2>
-      <p>Klik <strong>Menu</strong> di pojok kanan atas → <strong>Upload File Excel</strong><br>
-         untuk memulai. Bisa upload banyak file (per bulan).</p>
+    <div id="welcome" class="welcome loading">
+      <div class="welcome-spin" aria-hidden="true"></div>
+      <h2 id="welcomeTitle">Tunggu Sebentar..</h2>
+      <p id="welcomeText">Ambil Data Server</p>
     </div>
 
     <!-- KONTEN TAB (Tabel) -->
@@ -2260,5 +2263,27 @@
   </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
 <script src="backup.js"></script>
+<script>
+/* Pesan awal "Tunggu Sebentar.. Ambil Data Server" tampil selama aplikasi mengecek/mengambil data dari server.
+   Bila pengecekan selesai (atau gagal/offline) dan data tetap kosong, tampilkan petunjuk upload supaya tidak menggantung. */
+(function () {
+  var w = document.getElementById('welcome'), t = document.getElementById('welcomeTitle'), p = document.getElementById('welcomeText');
+  if (!w || !t || !p) return;
+  var done = false;
+  function fallback() {
+    if (done) return; done = true;
+    w.classList.remove('loading');
+    t.textContent = 'Belum Ada Data';
+    p.innerHTML = 'Klik <strong>Menu</strong> di pojok kanan atas → <strong>Upload File Excel</strong><br>untuk memulai. Bisa upload banyak file (per bulan).';
+  }
+  function onState(st) {
+    if (!st || st.kind === 'busy') return;
+    setTimeout(fallback, 2000);      // beri waktu: bila data cloud baru diambil, halaman memuat ulang sendiri sebelum ini
+  }
+  window.addEventListener('laporan-sync-state', function (e) { onState(e.detail); });
+  try { onState(window.LaporanBackup && window.LaporanBackup.last); } catch (e) {}
+  setTimeout(fallback, 20000);       // pengaman bila sinkron tidak berjalan sama sekali
+})();
+</script>
 </body>
 </html>
