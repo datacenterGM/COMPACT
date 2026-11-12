@@ -67,6 +67,7 @@
     <button class="tab" data-tab="titip">🤝 TITIP</button>
     <button class="tab" data-tab="cek">CEK</button>
     <button class="tab" data-tab="ar">AR</button>
+    <button class="tab" data-tab="rekon">REKON</button>
     <span class="spacer"></span>
     <button class="theme" id="themeBtn" title="Mode gelap / terang">🌙</button>
   </nav>
@@ -74,7 +75,7 @@
 
 <script>
 (function () {
-  var PAGES = { cari:'cari.html', pj:'PJ.html', um:'UM.html', titip:'UM.html', cek:'CEK.html', ar:'AR.html' };
+  var PAGES = { cari:'cari.html', pj:'PJ.html', um:'UM.html', titip:'UM.html', cek:'CEK.html', ar:'AR.html', rekon:'REKON.html' };
   var QUERY = { titip:'?view=titip' };   // TITIP = UM.html dalam mode khusus TITIP
   var frames = {};          // key -> iframe (dibuat saat tab pertama kali dibuka)
   var stale  = {};          // key -> true bila data PJ/UM mungkin berubah sejak dimuat
@@ -160,7 +161,7 @@
     else if (search && !QUERY[key]) { f.src = PAGES[key] + search; stale[key] = false; }   // dibuka dari link (mis. ▲ / ▼)
     else if (stale[key]) refresh(key);
 
-    if (key === 'pj' || key === 'um') { stale.cari = true; stale.cek = true; stale.titip = true; }
+    if (key === 'pj' || key === 'um') { stale.cari = true; stale.cek = true; stale.titip = true; stale.rekon = true; }
 
     for (var k in frames) frames[k].classList.toggle('show', k === key);
     document.querySelectorAll('.tab').forEach(function (b) {
@@ -210,7 +211,7 @@
     };
   } catch (e) {}
 
-  /* ===== mulai: #pj / #um / #cek / #ar / #cari (default CARI) ===== */
+  /* ===== mulai: #pj / #um / #cek / #ar / #rekon / #cari (default CARI) ===== */
   window.addEventListener('hashchange', function () {
     var k = location.hash.slice(1).toLowerCase();
     if (PAGES[k] && k !== current) show(k);
