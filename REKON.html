@@ -298,7 +298,7 @@ function build(cek, ar) {
 }
 
 /* ===== filter bulan model centang ===== */
-let MS = new Set(), MS_MONTHS = [];
+let MS = new Set(), MS_MONTHS = [], msInit = false;
 const msName = m => MON[+m.slice(5) - 1] + ' ' + m.slice(0, 4);
 function msLabel() {
   const a = [...MS].sort();
@@ -331,6 +331,7 @@ let state = { f: 'ALL', page: 1, size: 100 };
 function populate() {
   MS_MONTHS = [...new Set(ROWS.map(r => r.ym).filter(Boolean))].sort().reverse();
   MS = new Set([...MS].filter(m => MS_MONTHS.includes(m)));
+  if (!msInit && MS_MONTHS.length) { MS = new Set([MS_MONTHS[0]]); msInit = true; }   /* pertama dibuka: bulan terkini */
   msRender();
   const ss = $('fSales'), pv = ss.value, mp = new Map();
   ROWS.forEach(r => { const k = String(r.sales).trim().toUpperCase(); if (k && !mp.has(k)) mp.set(k, r.sales); });
