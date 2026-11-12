@@ -162,9 +162,14 @@
 
     .table-wrap {
       overflow: auto;
-      max-height: calc(100vh - 280px);
+      max-height: calc(100vh - 230px);   /* diatur ulang otomatis oleh fitTables() agar tabel sampai ke bawah layar */
       min-height: 180px;
     }
+    /* filter Kategori Produk & Sales di bar pencarian */
+    .msel.big .msel-btn { height: 32px; font-size: 0.84rem; min-width: 170px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .msel.big .msel-pop { left: 0; right: auto; top: 36px; }
+    .btn-reset { align-self: flex-end; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); font-size: 0.78rem; cursor: pointer; }
+    .btn-reset:hover { border-color: var(--accent); color: var(--text); }
     table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
     thead { position: sticky; top: 0; z-index: 2; }
     th {
@@ -308,7 +313,16 @@
         <label for="qToko">Cari toko / customer</label>
         <input type="search" id="qToko" placeholder="Ketik nama toko atau customer..." autocomplete="off">
       </div>
+      <div class="field">
+        <label>Kategori produk</label>
+        <div class="msel big" id="qCat" title="Filter kategori produk (bisa pilih lebih dari satu) — berlaku untuk Data Penjualan"><button type="button" class="msel-btn" id="qCatBtn">Semua Kategori</button><div class="msel-pop" id="qCatPop"></div></div>
+      </div>
+      <div class="field">
+        <label>Sales</label>
+        <div class="msel big" id="qSales" title="Filter sales (bisa pilih lebih dari satu) — berlaku untuk Penjualan & Uang Masuk"><button type="button" class="msel-btn" id="qSalesBtn">Semua Sales</button><div class="msel-pop" id="qSalesPop"></div></div>
+      </div>
       <button type="button" class="btn-search" id="btnCari" onclick="doSearch()">Cari</button>
+      <button type="button" class="btn-reset" onclick="resetFilters()" title="Hapus filter kategori & sales">✕ Reset</button>
     </div>
 
     <div class="status-line" id="statusLine">
@@ -340,7 +354,7 @@
                 <th>Tanggal</th>
                 <th>No. Faktur</th>
                 <th>Produk</th>
-                <th>TOTAL FAKTUR</th>
+                <th id="thTotPJ">TOTAL FAKTUR</th>
                 <th>Customer</th>
                 <th>Alamat</th>
                 <th>Sales</th>
@@ -456,6 +470,14 @@
       const names = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
       return (names[parseInt(m, 10)] || m) + ' ' + y;
     }
+    /* ===== KATEGORI PRODUK =====
+     * Hanya dua kategori: MINYAK FITRI (nama produk diawali FITRI) dan RUPA RUPA (semua produk selain itu).
+     * Kalau nanti ada merek minyak lain yang ikut Minyak Fitri, tambahkan di regex, mis. /^(FITRI|MERKBARU)\b/i */
+    function catOf(p) {
+      return /^FITRI\b/i.test(String(p || '').trim()) ? 'MINYAK FITRI' : 'RUPA RUPA';
+    }
+    const skey = v => String(v || '').trim().toUpperCase();
+
     function setLoading(on) {
       document.getElementById('loading').classList.toggle('show', !!on);
     }
@@ -610,6 +632,7 @@
         });
 
         pjRows = rows;
+        rows.forEach(r => { r._cat = catOf(r.Produk); });
         rows.forEach(r => {
           const mk = monthKeyFromDate(r.Tanggal);
           if (mk) monthsSet.add(mk);
@@ -757,17 +780,23 @@
       const keys = [...monthsSet].sort().reverse();
       renderUMMonths(keys);
       pjMulti.render(keys);
+      catMulti.render([...new Set(pjRows.map(r => r._cat).filter(Boolean))].sort());
+      const sl = new Set();
+      pjRows.forEach(r => { const k = skey(r.Sales); if (k) sl.add(k); });
+      umRows.forEach(r => { const k = skey(r.sales); if (k) sl.add(k); });
+      salesMulti.render([...sl].sort());
     }
 
     /* ===== Filter bulan multi-pilih (dipakai tabel Penjualan & Uang Masuk) ===== */
-    function makeMonthMulti(id) {
+    function makeMonthMulti(id, lf, allTxt, rev) {
+      lf = lf || monthLabel; allTxt = allTxt || 'Semua Bulan';
       const box = document.getElementById(id), btn = document.getElementById(id + 'Btn'), pop = document.getElementById(id + 'Pop');
       const sel = new Set();
-      const label = () => { const a = [...sel].sort().reverse(); return a.length ? a.map(monthLabel).join(', ') : 'Semua Bulan'; };
+      const label = () => { const a = [...sel].sort(); if (rev !== false) a.reverse(); return a.length ? a.map(lf).join(', ') : allTxt; };
       function render(keys) {
         [...sel].forEach(k => { if (!keys.includes(k)) sel.delete(k); });
-        pop.innerHTML = `<label><input type="checkbox" data-all="1" ${sel.size ? '' : 'checked'}> Semua Bulan</label>` +
-          keys.map(k => `<label><input type="checkbox" value="${k}" ${sel.has(k) ? 'checked' : ''}> ${monthLabel(k)}</label>`).join('');
+        pop.innerHTML = `<label><input type="checkbox" data-all="1" ${sel.size ? '' : 'checked'}> ${allTxt}</label>` +
+          keys.map(k => `<label><input type="checkbox" value="${k}" ${sel.has(k) ? 'checked' : ''}> ${esc(lf(k))}</label>`).join('');
         btn.textContent = label();
       }
       btn.addEventListener('click', e => { e.stopPropagation(); document.querySelectorAll('.msel.open').forEach(x => { if (x !== box) x.classList.remove('open'); }); box.classList.toggle('open'); });
@@ -787,6 +816,19 @@
     const umMulti = makeMonthMulti('qMonthUM'), pjMulti = makeMonthMulti('qMonthPJ');
     const umMonthSel = umMulti.sel, pjMonthSel = pjMulti.sel;
     const renderUMMonths = keys => umMulti.render(keys);
+    const catMulti = makeMonthMulti('qCat', x => x, 'Semua Kategori', false), salesMulti = makeMonthMulti('qSales', x => x, 'Semua Sales', false);
+    const catSel = catMulti.sel, salesSel = salesMulti.sel;
+    function resetFilters() { catSel.clear(); salesSel.clear(); updateStatus(); doSearch(); }
+
+    /* tabel dibuat memanjang sampai dasar layar */
+    function fitTables() {
+      document.querySelectorAll('.table-wrap').forEach(w => {
+        if (window.innerWidth <= 700) { w.style.maxHeight = ''; return; }
+        const top = w.getBoundingClientRect().top;
+        w.style.maxHeight = Math.max(240, window.innerHeight - top - 14) + 'px';
+      });
+    }
+    window.addEventListener('resize', fitTables);
 
     /* ========== SEARCH ========== */
     function ketBadge(ket) {
@@ -803,7 +845,7 @@
       return esc(p) || '—';
     }
 
-    function doSearch() { doSearchCore(); markLinked(); }
+    function doSearch() { doSearchCore(); markLinked(); fitTables(); }
     /* baris yang fakturnya ada di kedua tabel diberi latar biru */
     function markLinked() {
       const fk = t => t.dataset.fk || '';
@@ -819,7 +861,7 @@
       const monthUMs = [...umMonthSel].sort();
       const monthUM = monthUMs.length ? monthUMs[monthUMs.length - 1] : ''; /* bulan terbaru dipakai sbg petunjuk tahun */   /* bulan tanggal uang masuk (bisa beda, mis. jual Agustus bayar September) */
 
-      if (!q && !monthPJ && !monthUM) {
+      if (!q && !monthPJ && !monthUM && !catSel.size && !salesSel.size) {
         document.getElementById('hintBox').style.display = 'block';
         document.getElementById('panels').style.display = 'none';
         return;
@@ -838,6 +880,8 @@
           const mk = monthKeyFromDate(r.Tanggal);
           if (!monthPJs.includes(mk)) return false;
         }
+        if (catSel.size && !catSel.has(r._cat)) return false;
+        if (salesSel.size && !salesSel.has(skey(r.Sales))) return false;
         if (!q) return true;
         const blob = norm([r.Customer, r.Alamat, r['No. Faktur'], r.Sales, r.Produk].join(' '));
         return blob.includes(q);
@@ -865,26 +909,35 @@
           if (k && !firstIdx.has(k)) firstIdx.set(k, i);
         });
         let sumTotal = 0;
+        /* bila filter kategori aktif: total per faktur = jumlah item yang lolos filter saja */
+        const filtTot = new Map();
+        if (catSel.size) pjHit.forEach(r => { const k = String(r['No. Faktur'] || '').trim().toUpperCase(); if (k) filtTot.set(k, (filtTot.get(k) || 0) + (Number(r.Total) || 0)); });
+        const totF = (r, k) => catSel.size ? (k ? (filtTot.get(k) || 0) : (Number(r.Total) || 0)) : r._totalFaktur;
+        document.getElementById('thTotPJ').textContent = catSel.size ? 'SUBTOTAL ITEM' : 'TOTAL FAKTUR';
+        const qtyBy = new Map();
+        pjHit.forEach(r => { const u = r.Satuan || ''; qtyBy.set(u, (qtyBy.get(u) || 0) + (Number(r.Jumlah) || 0)); });
+        const qtyTxt = catSel.size ? [...qtyBy].map(([u, n]) => fmt(n) + (u ? ' ' + esc(u) : '')).join(' + ') : '';
         const seenInv = new Set();
         let html = pjHit.map((r, i) => {
           const k = String(r['No. Faktur'] || '').trim().toUpperCase();
           const show = !k || firstIdx.get(k) === i;
           if (show && k && !seenInv.has(k)) {
-            sumTotal += r._totalFaktur || 0;
+            sumTotal += totF(r, k) || 0;
             seenInv.add(k);
           }
           return `<tr data-fk="${esc(k)}"${show ? '' : ' class="cont"'}>
             <td class="center" data-label="Tanggal">${show ? esc(r.Tanggal) : ''}</td>
             <td data-label="No. Faktur">${show ? `<span class="v">${esc(r['No. Faktur'])}${k ? `<a class="go" href="${cekUrl(String(r['No. Faktur']).trim(), '')}" title="Cek faktur ini di CEK">▲</a>` : ''}</span>` : ''}</td>
             <td data-label="Produk"><span class="v">${esc(r.Produk)}${(r.Jumlah != null && r.Jumlah !== '') ? ` <span class="qty">× ${fmt(r.Jumlah)}</span>` : ''}</span></td>
-            <td class="num" data-label="Total Faktur">${show ? fmt(r._totalFaktur) : ''}</td>
+            <td class="num" data-label="Total Faktur">${show ? fmt(totF(r, k)) : ''}</td>
             <td data-label="Customer">${show ? esc(r.Customer) : ''}</td>
             <td data-label="Alamat">${show ? esc(r.Alamat) : ''}</td>
             <td class="center" data-label="Sales">${show ? esc(r.Sales) : ''}</td>
           </tr>`;
         }).join('');
         html += `<tr class="total-row">
-          <td colspan="3">TOTAL (${seenInv.size || pjHit.length} faktur · ${pjHit.length} baris)</td>
+          <td colspan="2">TOTAL (${seenInv.size || pjHit.length} faktur · ${pjHit.length} baris)</td>
+          <td${qtyTxt ? ' data-label="Total Qty"' : ''}>${qtyTxt}</td>
           <td class="num" data-label="Total Faktur">${fmt(sumTotal)}</td>
           <td colspan="3"></td>
         </tr>`;
@@ -907,6 +960,7 @@
           }
           if (!monthUMs.includes(mk)) return false;
         }
+        if (salesSel.size && !salesSel.has(skey(r.sales))) return false;
         if (!q) return true;
         const blob = norm([r.toko, r.alamat, r.faktur, r.sales, r.ket, r.section, r.tglFaktur].join(' '));
         return blob.includes(q);
