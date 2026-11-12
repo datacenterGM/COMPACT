@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rekonsiliasi CEK dan AR</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --primary:#1F4E79; --bg:#f0f4f8; --card:#fff; --border:#d0d7de; --text:#1a1a2e; --muted:#6b7280;
+    --hover:#eef3fb; --input:#fff; --th1:#0d47a1; --th2:#1F4E79; --thu:#2e5e4e; --thr:#6d28d9;
+    --ok-bg:#ecfdf5; --ok-tx:#047857; --df-bg:#fef2f2; --df-tx:#b91c1c; --no-bg:#fffbeb; --no-tx:#92400e;
+    --ar-bg:#eff6ff; --ar-tx:#1d4ed8;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --primary:#58a6ff; --bg:#0d1117; --card:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e;
+    --hover:#1c2533; --input:#0d1117; --th1:#1f4e8c; --th2:#1b3a5f; --thu:#245445; --thr:#5b21b6;
+    --ok-bg:#0f2a20; --ok-tx:#56d364; --df-bg:#3b1a1f; --df-tx:#ff7b72; --no-bg:#3a2e12; --no-tx:#ffd58a;
+    --ar-bg:#0f2036; --ar-tx:#79b8ff;
+    color-scheme: dark;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body { font-family:'Segoe UI',system-ui,Arial,sans-serif; background:var(--bg); color:var(--text); display:flex; flex-direction:column; overflow:hidden; font-size:.8rem; }
+  .bar { display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; padding:.4rem .6rem; background:var(--card); border-bottom:1px solid var(--border); flex-shrink:0; }
+  select, input[type=text] { padding:.32rem .6rem; border:1px solid var(--border); border-radius:6px; background:var(--input); color:var(--text); font-size:.8rem; outline:none; }
+  input[type=text] { flex:1 1 180px; min-width:150px; max-width:340px; }
+  .bar select { max-width:170px; }
+  .acts { display:flex; gap:.3rem; margin-left:auto; white-space:nowrap; }
+  .btn { padding:.32rem .8rem; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--primary); font-weight:600; font-size:.78rem; cursor:pointer; }
+  .btn:hover { background:var(--hover); }
+  .acts .btn { padding:.32rem .55rem; min-width:2rem; text-align:center; }
+  .msel { position:relative; }
+  .msel-btn { padding:.32rem .6rem; border:1px solid var(--border); border-radius:6px; background:var(--input); color:var(--text); font-size:.8rem; cursor:pointer; white-space:nowrap; max-width:230px; overflow:hidden; text-overflow:ellipsis; }
+  .msel-btn:hover { background:var(--hover); }
+  .msel-panel { position:absolute; top:calc(100% + 4px); left:0; z-index:50; min-width:190px; max-height:60vh; overflow:auto; padding:.3rem; background:var(--card); border:1px solid var(--border); border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
+  .msel-panel[hidden] { display:none; }
+  .msel-panel .ms-top { display:flex; gap:.3rem; padding:.2rem .2rem .35rem; border-bottom:1px solid var(--border); margin-bottom:.2rem; }
+  .msel-panel .ms-top button { flex:1; padding:.25rem .4rem; border:1px solid var(--border); border-radius:5px; background:var(--card); color:var(--primary); font-size:.72rem; font-weight:600; cursor:pointer; }
+  .msel-panel .ms-top button:hover { background:var(--hover); }
+  .msel-panel label { display:flex; align-items:center; gap:.5rem; padding:.3rem .45rem; border-radius:5px; cursor:pointer; font-size:.8rem; white-space:nowrap; }
+  .msel-panel label:hover { background:var(--hover); }
+  .msel-panel input { width:15px; height:15px; cursor:pointer; accent-color:var(--primary); }
+
+  .head { padding:.5rem .7rem .1rem; flex-shrink:0; }
+  .head .ttl { font-weight:800; letter-spacing:.04em; font-size:.92rem; }
+  .head .sub { color:var(--muted); font-size:.72rem; margin-top:1px; }
+  .duo { display:flex; align-items:stretch; gap:.5rem; padding:.45rem .7rem; flex-shrink:0; }
+  .src { flex:1; min-width:0; border:2px solid var(--border); border-radius:8px; background:var(--card); padding:.45rem .8rem; }
+  .src.cek { border-color:var(--th2); } .src.ar { border-color:var(--thu); }
+  .src .lab { font-weight:800; letter-spacing:.06em; font-size:.74rem; }
+  .src.cek .lab { color:var(--primary); } .src.ar .lab { color:var(--thu); }
+  :root[data-theme="dark"] .src.ar .lab { color:#56d364; }
+  .src .big { font-size:1.35rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.2; }
+  .src .big small { font-size:.75rem; font-weight:600; color:var(--muted); }
+  .src .amt { font-weight:700; font-variant-numeric:tabular-nums; }
+  .src .note { color:var(--muted); font-size:.68rem; margin-top:2px; line-height:1.35; }
+  .vs { align-self:center; font-size:1.4rem; color:var(--muted); font-weight:700; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:.5rem; padding:0 .7rem .5rem; flex-shrink:0; }
+  .chip { flex:1; min-width:150px; display:grid; grid-template-columns:1fr auto; align-items:center; gap:.1rem .5rem; padding:.4rem .7rem; border:1px solid var(--border); border-radius:6px; background:var(--card); cursor:pointer; font-weight:600; }
+  .chip:hover { background:var(--hover); }
+  .chip.on { box-shadow:0 0 0 2px var(--primary) inset; }
+  .chip .amt { grid-column:1 / -1; font-size:.72rem; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .chip .v { font-variant-numeric:tabular-nums; }
+  .chip.c-ok .v, .chip.c-ok .amt { color:var(--ok-tx); }
+  .chip.c-ck .v, .chip.c-ck .amt { color:var(--no-tx); }
+  .chip.c-ar .v, .chip.c-ar .amt { color:var(--ar-tx); }
+  .chip.c-df .v, .chip.c-df .amt { color:var(--df-tx); }
+
+  .rule { font-size:.7rem; color:var(--muted); padding:0 .7rem .4rem; flex-shrink:0; line-height:1.4; }
+  .rule b { color:var(--text); }
+  .wrap { flex:1; min-height:0; overflow:auto; margin:0 .7rem; border:1px solid var(--border); border-radius:8px; background:var(--card); }
+  table { width:100%; border-collapse:collapse; }
+  thead { position:sticky; top:0; z-index:2; }
+  th { color:#fff; padding:.35rem .5rem; text-align:center; font-weight:600; white-space:nowrap; border:1px solid rgba(255,255,255,.25); }
+  th.g1 { background:var(--th1); } th.g2 { background:var(--th2); } th.g3 { background:var(--thu); } th.g4 { background:var(--thr); }
+  th.g1, th.g2, th.g3, th.g4 { font-size:.8rem; letter-spacing:.5px; }
+  th.c1 { background:var(--th1); } th.c2 { background:var(--th2); } th.c3 { background:var(--thu); } th.c4 { background:var(--thr); }
+  td { padding:.25rem .5rem; border-bottom:1px solid var(--border); border-right:1px solid var(--border); white-space:nowrap; vertical-align:middle; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; } td.ctr { text-align:center; }
+  td.ket { white-space:normal; min-width:300px; max-width:480px; line-height:1.4; }
+  tr:hover td { background:var(--hover); }
+  tr.r-ok td:first-child { box-shadow:3px 0 0 var(--ok-tx) inset; }
+  tr.r-ck td:first-child { box-shadow:3px 0 0 var(--no-tx) inset; }
+  tr.r-ar td:first-child { box-shadow:3px 0 0 var(--ar-tx) inset; }
+  td.od { text-align:center; font-weight:700; font-variant-numeric:tabular-nums; color:var(--no-tx); } td.od.o2 { color:var(--df-tx); }
+  .st { display:inline-block; padding:1px 8px; border-radius:5px; font-weight:700; font-size:.7rem; }
+  .st.none { background:var(--no-bg); color:var(--no-tx); border:1px solid #fcd34d; }
+  .st.lunas { background:#2563eb; color:#fff; }
+  .st.titip { background:#fef08a; color:#854d0e; border:1px solid #eab308; }
+  .st.df { background:var(--df-bg); color:var(--df-tx); border:1px solid var(--df-tx); }
+  .st.na { background:var(--card); color:var(--muted); border:1px solid var(--border); font-weight:600; }
+  .hs { display:inline-block; padding:1px 8px; border-radius:5px; font-weight:700; font-size:.7rem; white-space:nowrap; }
+  .hs.ok { background:var(--ok-bg); color:var(--ok-tx); border:1px solid var(--ok-tx); }
+  .hs.ck { background:var(--no-bg); color:var(--no-tx); border:1px solid #fcd34d; }
+  .hs.ar { background:var(--ar-bg); color:var(--ar-tx); border:1px solid var(--ar-tx); }
+  .bad { color:var(--df-tx); font-weight:700; } .good { color:var(--ok-tx); font-weight:600; } .dim { color:var(--muted); }
+  .empty { padding:3rem 1rem; text-align:center; color:var(--muted); }
+  .pager { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; justify-content:space-between; padding:.35rem .7rem; color:var(--muted); font-size:.75rem; flex-shrink:0; }
+  .pager button { border:1px solid var(--border); background:var(--card); color:var(--primary); border-radius:5px; padding:.15rem .6rem; font-weight:700; cursor:pointer; }
+  .pager button:disabled { opacity:.4; cursor:not-allowed; }
+  .pager select { padding:.1rem .3rem; }
+  @media (max-width:640px) { .duo { flex-direction:column; } .vs { display:none; } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="msel" id="fMonth"><button type="button" class="msel-btn" id="fMonthBtn" title="Bulan tanggal faktur (bisa pilih beberapa)">Semua Bulan ▾</button><div class="msel-panel" id="fMonthPanel" hidden></div></div>
+  <select id="fSales" title="Sales"><option value="">Semua Sales</option></select>
+  <input type="text" id="fQ" placeholder="Cari faktur / toko / sales…">
+  <span class="acts">
+    <button class="btn" id="bReload" title="Muat ulang: hitung ulang CEK dan baca ulang AR" aria-label="Muat Ulang">↻</button>
+    <button class="btn" id="bXls" title="Simpan Excel (sesuai kartu yang dipilih)" aria-label="Simpan Excel">💾</button>
+  </span>
+</div>
+
+<div class="head">
+  <div class="ttl">BELUM ADA UANG MASUK · SUDAH JATUH TEMPO</div>
+  <div class="sub">Rekonsiliasi tab CEK dengan tab AR. Jatuh tempo = tanggal faktur + 12 hari. Pasangan faktur dicocokkan lewat No. Faktur.</div>
+</div>
+<div class="duo">
+  <div class="src cek">
+    <div class="lab">DATA CEK</div>
+    <div class="big"><span id="nC">0</span> <small>faktur belum masuk &amp; jatuh tempo</small></div>
+    <div class="amt" id="aC">Rp 0</div>
+    <div class="note" id="infoC"></div>
+  </div>
+  <div class="vs">⇄</div>
+  <div class="src ar">
+    <div class="lab">DATA AR</div>
+    <div class="big"><span id="nA">0</span> <small>faktur belum lunas (tanpa bayar) &amp; jatuh tempo</small></div>
+    <div class="amt" id="aA">Rp 0</div>
+    <div class="note" id="infoA"></div>
+  </div>
+</div>
+
+<div class="chips">
+  <div class="chip on" data-f="ALL" title="Gabungan semua faktur yang muncul di CEK atau AR"><span>Semua</span><span class="v" id="vAll">0</span><span class="amt" id="aAll">Rp 0</span></div>
+  <div class="chip c-ok" data-f="MATCH" title="Ada di CEK dan di AR: keduanya menyatakan belum ada uang masuk & sudah jatuh tempo"><span>✓ Cocok (ada di keduanya)</span><span class="v" id="vMatch">0</span><span class="amt" id="aMatch">Rp 0</span></div>
+  <div class="chip c-ck" data-f="CEK" title="CEK: belum masuk & jatuh tempo, tetapi AR tidak menyatakan demikian"><span>◀ Hanya di CEK</span><span class="v" id="vCek">0</span><span class="amt" id="aCek">Rp 0</span></div>
+  <div class="chip c-ar" data-f="AR" title="AR: belum lunas & jatuh tempo, tetapi CEK tidak menyatakan demikian"><span>Hanya di AR ▶</span><span class="v" id="vAr">0</span><span class="amt" id="aAr">Rp 0</span></div>
+  <div class="chip c-df" data-f="BEDA" title="Cocok di kedua sisi, tetapi nominal faktur CEK dan AR berbeda"><span>≠ Nominal beda</span><span class="v" id="vBeda">0</span><span class="amt" id="aBeda">Rp 0</span></div>
+</div>
+<div class="rule" id="cov">Memuat…</div>
+<div class="wrap"><table id="tb"><thead></thead><tbody></tbody></table></div>
+<div class="pager" id="pg"></div>
+
+<script>
+/* ===== tema: ikut shell (index.html) ===== */
+(function () {
+  function read() {
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') return t; } catch (e) {}
+    try { const p = window.parent.document.documentElement.getAttribute('data-theme'); if (p === 'light' || p === 'dark') return p; } catch (e) {}
+    return 'dark';
+  }
+  const set = t => document.documentElement.setAttribute('data-theme', t);
+  set(read());
+  setInterval(() => { const t = read(); if (t !== document.documentElement.getAttribute('data-theme')) set(t); }, 600);
+})();
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fmt = n => Number(n || 0).toLocaleString('id-ID');
+const rp = n => 'Rp ' + fmt(Math.round(n || 0));
+const MON = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const JT_HARI = 12;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const p2 = n => String(n).padStart(2, '0');
+
+/* ===== tanggal: semua dihitung sebagai nomor hari (UTC) ===== */
+const dnum = (y, m, d) => Math.floor(Date.UTC(y, m, d) / 864e5);   /* m: 0-11 */
+const TODAY = (() => { const n = new Date(); return dnum(n.getFullYear(), n.getMonth(), n.getDate()); })();
+function toDn(s) {
+  if (s == null || s === '') return null;
+  if (typeof s === 'number') { if (!isFinite(s) || s < 1) return null; return Math.floor(s) - 25569; }   /* serial Excel */
+  const t = String(s).trim();
+  let m = t.match(/^(\d{4})(\d{2})(\d{2})$/); if (m) return dnum(+m[1], +m[2] - 1, +m[3]);
+  m = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/); if (m) return dnum(+m[3], +m[2] - 1, +m[1]);
+  m = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/); if (m) return dnum(2000 + (+m[3]), +m[2] - 1, +m[1]);
+  m = t.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/); if (m) return dnum(+m[1], +m[2] - 1, +m[3]);
+  return null;
+}
+const dmyOf = dn => { if (dn == null) return '-'; const t = new Date(dn * 864e5); return p2(t.getUTCDate()) + '/' + p2(t.getUTCMonth() + 1) + '/' + String(t.getUTCFullYear()).slice(2); };
+const ymOf = dn => { if (dn == null) return ''; const t = new Date(dn * 864e5); return t.getUTCFullYear() + '-' + p2(t.getUTCMonth() + 1); };
+const isDue = dn => dn != null && TODAY - (dn + JT_HARI) > 0;
+const odOf = dn => dn == null ? 0 : Math.max(0, TODAY - (dn + JT_HARI));
+/* kunci pencocokan No Faktur: angka saja, tanpa nol di depan (toleran terhadap nol yang hilang / spasi / strip) */
+const nk = s => { const t = String(s == null ? '' : s).trim().toUpperCase(), dg = t.replace(/\D/g, ''); return dg.length >= 8 ? dg.replace(/^0+/, '') : t; };
+
+/* ===== sumber data CEK: ambil hasil hitungan tab CEK yang sedang berjalan ===== */
+let cekFrame = null;
+function cekWin() {
+  try { if (window.parent !== window && typeof window.parent.getTabWindow === 'function') return window.parent.getTabWindow('cek'); } catch (e) {}
+  if (!cekFrame) {                                           /* dibuka sendiri (tanpa shell): pakai CEK.html tersembunyi */
+    cekFrame = document.createElement('iframe');
+    cekFrame.style.cssText = 'position:absolute;width:0;height:0;border:0;visibility:hidden';
+    cekFrame.src = 'CEK.html'; document.body.appendChild(cekFrame);
+  }
+  return cekFrame.contentWindow;
+}
+function cekReady(w) {
+  try { const c = w.document.getElementById('cov'); return !!c && c.textContent.indexOf('Data terbaca') >= 0 && Array.isArray(w.eval('INV')); } catch (e) { return false; }
+}
+async function waitCek(w, tries) { for (let i = 0; i < tries; i++) { if (cekReady(w)) return true; await sleep(400); } return false; }
+function readCek(w) {
+  const inv = w.eval('INV'), um = w.eval('UM_ROWS'), list = [];
+  let lastUm = '', nUm = 0;
+  for (const u of um) { if (u.titip_aksi === 'BATAL') continue; nUm++; const d = u.tanggal_laporan_str || ''; if (d > lastUm) lastUm = d; }
+  for (const r of inv) {
+    if (r.orph) continue;
+    const dn = toDn(r.sk) != null ? toDn(r.sk) : toDn(r.tanggal);
+    list.push({ faktur: r.faktur, k: nk(r.faktur), dn, total: Number(r.total) || 0, sales: r.sales || '', toko: r.customer || '', alamat: r.alamat || '',
+      prod: r.prod || '', cat: r.cat, paid: Number(r.paid) || 0 });
+  }
+  return { list, lastUm, nUm };
+}
+
+/* ===== sumber data AR: IndexedDB 'piutangHarianDB' (dipakai tab AR) ===== */
+function openDB(name) {
+  return new Promise(res => {
+    const r = indexedDB.open(name);
+    r.onupgradeneeded = () => { try { r.transaction.abort(); } catch (e) {} };   /* jangan membuat database kosong */
+    r.onsuccess = () => res(r.result); r.onerror = () => res(null); r.onblocked = () => res(null);
+  });
+}
+async function loadAR() {
+  const out = { map: new Map(), meta: null };
+  try {
+    if (indexedDB.databases) { const l = await indexedDB.databases(); if (!l.some(x => x.name === 'piutangHarianDB')) return out; }
+    const db = await openDB('piutangHarianDB'); if (!db) return out;
+    if (!db.objectStoreNames.contains('slots')) { db.close(); return out; }
+    const recs = await new Promise(res => { const q = db.transaction('slots').objectStore('slots').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
+    db.close();
+    const mOf = r => r.month || String(r.slot || '').split('|')[0] || '';
+    const months = [...new Set(recs.map(mOf).filter(m => /^\d{4}-\d{2}$/.test(m)))].sort();
+    if (!months.length) return out;
+    const latest = months[months.length - 1];
+    let minDn = null, maxDn = null, ts = '';
+    recs.filter(r => mOf(r) === latest).forEach(rec => {      /* hanya snapshot terbaru: itulah posisi piutang terkini */
+      if (rec.ts && String(rec.ts) > ts) ts = String(rec.ts);
+      (rec.rows || []).forEach(r => {
+        const dn = toDn(r.tglFaktur), tp = Number(r.totalPayment) || 0;
+        if (dn != null) { if (minDn == null || dn < minDn) minDn = dn; if (maxDn == null || dn > maxDn) maxDn = dn; }
+        out.map.set(nk(r.noFaktur), { faktur: String(r.noFaktur || '').trim(), dn, toko: r.toko || '', sales: r.sales || '', alamat: r.alamat || '',
+          nominal: Number(r.nominal) || 0, tp, sisa: Number(r.sisaRiil) || 0, kat: r.kategori || (tp > 0 ? 'titip' : 'belum'), sumber: r.sumber || '',
+          dnLunas: toDn(r.tglPelunasan), ket: r.keterangan || '' });
+      });
+    });
+    out.meta = { latest, months, minDn, maxDn, ts, n: out.map.size };
+  } catch (e) { console.error('AR gagal dibaca', e); }
+  return out;
+}
+
+/* ===== bangun hasil rekonsiliasi ===== */
+let ROWS = [], CEKI = null, ARI = null, VIEW = [];
+const stC = c => !c ? ['TIDAK ADA', 'na'] : c.cat === 'NONE' ? ['BELUM MASUK', 'none'] : c.cat === 'OK' ? ['SUDAH MASUK', 'lunas'] : c.cat === 'TITIP' ? ['TITIP', 'titip'] : ['BEDA DATA', 'df'];
+const stA = a => !a ? ['TIDAK ADA', 'na'] : a.kat === 'belum' ? ['BELUM LUNAS', 'none'] : a.kat === 'titip' ? ['BAYAR TITIP', 'titip'] : ['SUDAH LUNAS', 'lunas'];
+function whyCekOnly(c, a, meta) {
+  if (!a) {
+    if (!meta) return 'Data AR belum ada (buka tab AR dan upload file piutang)';
+    if (meta.minDn != null && c.dn != null && c.dn < meta.minDn) return 'Tidak ada di AR: tanggal faktur lebih lama dari periode AR (mulai ' + dmyOf(meta.minDn) + ')';
+    return 'Faktur tidak ditemukan di AR (belum masuk file AR / file AR belum diunggah?)';
+  }
+  if (a.kat === 'lunas') return 'AR: SUDAH LUNAS' + (a.dnLunas != null ? ' (' + dmyOf(a.dnLunas) + ')' : '') + '. Uang masuk ada di AR tetapi belum tercatat di UM / CEK';
+  if (a.kat === 'titip') return 'AR: sudah dibayar ' + rp(a.tp) + ' (sisa ' + rp(a.sisa) + '). Belum tercatat di UM / CEK';
+  return 'AR: belum lunas tetapi belum jatuh tempo menurut tanggal faktur AR (' + dmyOf(a.dn) + ')';
+}
+function whyArOnly(c, a) {
+  if (!c) return 'Faktur tidak ada di CEK (tidak ada di Penjualan atau dibatalkan)';
+  if (c.cat === 'OK') return 'CEK: sudah ada uang masuk ' + rp(c.paid) + '. AR belum diperbarui';
+  if (c.cat === 'TITIP') return 'CEK: dibayar sebagian ' + rp(c.paid) + ' dari ' + rp(c.total) + '. AR belum diperbarui';
+  if (c.cat === 'DIFF') return 'CEK: ada uang masuk ' + rp(c.paid) + ' dengan beda data. Cek di tab CEK';
+  return 'CEK: belum masuk tetapi belum jatuh tempo menurut tanggal faktur CEK (' + dmyOf(c.dn) + ')';
+}
+function build(cek, ar) {
+  const cm = new Map(); cek.list.forEach(r => cm.set(r.k, r));
+  const keys = new Set(cm.keys()); ar.map.forEach((v, k) => keys.add(k));
+  const out = [];
+  keys.forEach(k => {
+    const c = cm.get(k), a = ar.map.get(k);
+    const inA = !!(c && c.cat === 'NONE' && isDue(c.dn)), inB = !!(a && a.kat === 'belum' && isDue(a.dn));
+    if (!inA && !inB) return;
+    const dn = c && c.dn != null ? c.dn : (a ? a.dn : null);
+    const nomC = c ? c.total : null, nomA = a ? a.nominal : null;
+    const beda = inA && inB && Math.abs(nomC - nomA) > 1;
+    const cat = inA && inB ? 'MATCH' : inA ? 'CEK' : 'AR';
+    const ket = cat === 'MATCH' ? (beda ? 'Nominal beda: CEK ' + rp(nomC) + ' vs AR ' + rp(nomA) + ' (selisih ' + rp(Math.abs(nomC - nomA)) + ')' : 'Belum ada uang masuk di CEK maupun AR')
+      : cat === 'CEK' ? whyCekOnly(c, a, ar.meta) : whyArOnly(c, a);
+    out.push({ k, faktur: c ? c.faktur : a.faktur, dn, ym: ymOf(dn), od: odOf(dn), toko: (c && c.toko) || (a && a.toko) || '', sales: (c && c.sales) || (a && a.sales) || '',
+      prod: c && c.prod && c.prod !== '-' ? c.prod : (a ? String(a.sumber || '').toUpperCase().replace('-', ' ') : ''),
+      nomC, nomA, sc: stC(c), sa: stA(a), cat, beda, inA, inB, ket });
+  });
+  out.sort((x, y) => (x.dn == null ? 1 : y.dn == null ? -1 : x.dn - y.dn) || (x.k < y.k ? -1 : 1));
+  return out;
+}
+
+/* ===== filter bulan model centang ===== */
+let MS = new Set(), MS_MONTHS = [];
+const msName = m => MON[+m.slice(5) - 1] + ' ' + m.slice(0, 4);
+function msLabel() {
+  const a = [...MS].sort();
+  if (!a.length) return 'Semua Bulan';
+  if (a.length === 1) return msName(a[0]);
+  if (a.length <= 3) return a.map(m => MON[+m.slice(5) - 1].slice(0, 3) + ' ' + m.slice(2, 4)).join(' + ');
+  return a.length + ' bulan dipilih';
+}
+function msRender() {
+  $('fMonthPanel').innerHTML = '<div class="ms-top"><button type="button" data-a="all">Semua bulan</button><button type="button" data-a="last">Terbaru saja</button></div>' +
+    MS_MONTHS.map(m => '<label><input type="checkbox" value="' + m + '"' + (MS.has(m) ? ' checked' : '') + '>' + msName(m) + '</label>').join('');
+  $('fMonthBtn').textContent = msLabel() + ' ▾';
+}
+$('fMonthBtn').addEventListener('click', e => { e.stopPropagation(); $('fMonthPanel').hidden = !$('fMonthPanel').hidden; });
+$('fMonthPanel').addEventListener('click', e => {
+  e.stopPropagation();
+  const b = e.target.closest('button[data-a]');
+  if (b) { MS = b.dataset.a === 'last' && MS_MONTHS.length ? new Set([MS_MONTHS[0]]) : new Set(); msRender(); state.page = 1; render(); }
+});
+$('fMonthPanel').addEventListener('change', e => {
+  const c = e.target.closest('input[type=checkbox]'); if (!c) return;
+  if (c.checked) MS.add(c.value); else MS.delete(c.value);
+  $('fMonthBtn').textContent = msLabel() + ' ▾'; state.page = 1; render();
+});
+document.addEventListener('click', e => { if (!e.target.closest('#fMonth')) $('fMonthPanel').hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('fMonthPanel').hidden = true; });
+
+/* ===== tampilan ===== */
+let state = { f: 'ALL', page: 1, size: 100 };
+function populate() {
+  MS_MONTHS = [...new Set(ROWS.map(r => r.ym).filter(Boolean))].sort().reverse();
+  MS = new Set([...MS].filter(m => MS_MONTHS.includes(m)));
+  msRender();
+  const ss = $('fSales'), pv = ss.value, mp = new Map();
+  ROWS.forEach(r => { const k = String(r.sales).trim().toUpperCase(); if (k && !mp.has(k)) mp.set(k, r.sales); });
+  ss.innerHTML = '<option value="">Semua Sales</option>' + [...mp.entries()].sort((a, b) => a[1].localeCompare(b[1], 'id')).map(e => '<option value="' + esc(e[0]) + '">' + esc(e[1]) + '</option>').join('');
+  ss.value = mp.has(pv) ? pv : '';
+}
+function baseRows() {
+  const s = $('fSales').value, q = $('fQ').value.trim().toLowerCase();
+  return ROWS.filter(r => (!MS.size || MS.has(r.ym)) && (!s || String(r.sales).trim().toUpperCase() === s)
+    && (!q || (r.faktur + ' ' + r.toko + ' ' + r.sales).toLowerCase().includes(q)));
+}
+const matchF = (r, f) => f === 'ALL' ? true : f === 'BEDA' ? r.beda : r.cat === f;
+const sumNom = a => a.reduce((t, r) => t + (r.nomC != null ? r.nomC : (r.nomA || 0)), 0);
+function render() {
+  const base = baseRows();
+  const A = base.filter(r => r.inA), B = base.filter(r => r.inB);
+  $('nC').textContent = fmt(A.length); $('aC').textContent = rp(A.reduce((t, r) => t + (r.nomC || 0), 0));
+  $('nA').textContent = fmt(B.length); $('aA').textContent = rp(B.reduce((t, r) => t + (r.nomA || 0), 0));
+  [['All', 'ALL'], ['Match', 'MATCH'], ['Cek', 'CEK'], ['Ar', 'AR'], ['Beda', 'BEDA']].forEach(p => {
+    const l = base.filter(r => matchF(r, p[1]));
+    $('v' + p[0]).textContent = fmt(l.length); $('a' + p[0]).textContent = rp(sumNom(l));
+  });
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === state.f));
+  VIEW = base.filter(r => matchF(r, state.f));
+  const pages = Math.max(1, Math.ceil(VIEW.length / state.size));
+  state.page = Math.min(Math.max(1, state.page), pages);
+  const st = (state.page - 1) * state.size, rows = VIEW.slice(st, st + state.size);
+  $('tb').querySelector('thead').innerHTML =
+    '<tr><th class="g1" colspan="7">FAKTUR</th><th class="g2" colspan="2">DATA CEK</th><th class="g3" colspan="2">DATA AR</th><th class="g4" colspan="2">HASIL REKON</th></tr>' +
+    '<tr>' + ['No', 'Tgl Faktur', 'No. Faktur', 'Toko', 'Sales', 'Produk', 'OD (hari)'].map(h => '<th class="c1">' + h + '</th>').join('') +
+    ['Nominal', 'Status'].map(h => '<th class="c2">' + h + '</th>').join('') + ['Nominal', 'Status'].map(h => '<th class="c3">' + h + '</th>').join('') +
+    ['Hasil', 'Keterangan'].map(h => '<th class="c4">' + h + '</th>').join('') + '</tr>';
+  const body = $('tb').querySelector('tbody');
+  if (!ROWS.length && !CEKI) body.innerHTML = '<tr><td class="empty" colspan="13">Memuat data…</td></tr>';
+  else if (!rows.length) body.innerHTML = '<tr><td class="empty" colspan="13">Tidak ada faktur pada filter ini</td></tr>';
+  else body.innerHTML = rows.map((r, k) => {
+    const hs = r.cat === 'MATCH' ? ['ok', '✓ Cocok'] : r.cat === 'CEK' ? ['ck', '◀ Hanya di CEK'] : ['ar', 'Hanya di AR ▶'];
+    const nomA = r.nomA == null ? '<span class="dim">-</span>' : (r.beda ? '<span class="bad">' + fmt(r.nomA) + '</span>' : fmt(r.nomA));
+    return '<tr class="r-' + (r.cat === 'MATCH' ? 'ok' : r.cat === 'CEK' ? 'ck' : 'ar') + '">' +
+      '<td class="ctr">' + (st + k + 1) + '</td><td class="ctr">' + dmyOf(r.dn) + '</td><td class="ctr">' + esc(r.faktur) + '</td><td>' + esc(r.toko) + '</td><td class="ctr">' + esc(r.sales) + '</td><td class="ctr">' + esc(r.prod) + '</td>' +
+      '<td class="od' + (r.od > 14 ? ' o2' : '') + '">' + (r.od || '-') + '</td>' +
+      '<td class="num">' + (r.nomC == null ? '<span class="dim">-</span>' : fmt(r.nomC)) + '</td><td class="ctr"><span class="st ' + r.sc[1] + '">' + r.sc[0] + '</span></td>' +
+      '<td class="num">' + nomA + '</td><td class="ctr"><span class="st ' + r.sa[1] + '">' + r.sa[0] + '</span></td>' +
+      '<td class="ctr"><span class="hs ' + hs[0] + '">' + hs[1] + '</span></td><td class="ket">' + (r.beda ? '<span class="bad">' + esc(r.ket) + '</span>' : '<span class="dim">' + esc(r.ket) + '</span>') + '</td></tr>';
+  }).join('');
+  const opts = [50, 100, 200, 500].map(n => '<option value="' + n + '"' + (n === state.size ? ' selected' : '') + '>' + n + '</option>').join('');
+  $('pg').innerHTML = '<span>Menampilkan <b>' + (VIEW.length ? st + 1 : 0) + '–' + Math.min(VIEW.length, st + state.size) + '</b> dari <b>' + fmt(VIEW.length) + '</b> faktur</span>' +
+    '<span><button ' + (state.page <= 1 ? 'disabled' : '') + ' data-p="' + (state.page - 1) + '">‹</button> Hal <b>' + state.page + '</b> / ' + pages +
+    ' <button ' + (state.page >= pages ? 'disabled' : '') + ' data-p="' + (state.page + 1) + '">›</button></span><span>Baris/hal <select id="pgSize">' + opts + '</select></span>';
+}
+function infoLines() {
+  const c = CEKI, a = ARI;
+  $('infoC').textContent = c ? ('Posisi CEK saat ini · ' + fmt(c.list.length) + ' faktur · uang masuk terakhir ' + (c.lastUm ? dmyOf(toDn(c.lastUm)) : '-')) : 'Data CEK belum terbaca';
+  $('infoA').textContent = a && a.meta ? ('Snapshot ' + msName(a.meta.latest) + ' · faktur ' + dmyOf(a.meta.minDn) + ' s/d ' + dmyOf(a.meta.maxDn) + ' · ' + fmt(a.meta.n) + ' faktur' +
+    (a.meta.ts ? ' · diunggah ' + new Date(a.meta.ts).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '')) : 'Belum ada data AR (buka tab AR, lalu upload file piutang)';
+  $('cov').innerHTML = '<b>Cara baca:</b> “Hanya di CEK” = CEK menyatakan belum ada uang masuk, tetapi AR tidak. Biasanya uang masuk sudah ada di AR dan belum diinput di UM. “Hanya di AR” = AR masih belum lunas, tetapi CEK sudah melihat uang masuk. Biasanya AR belum diperbarui. ' +
+    'AR adalah snapshot, sedangkan CEK mengikuti UM terbaru, jadi selisih bisa muncul bila ada pembayaran sesudah file AR diunggah.';
+}
+
+async function load(reloadCek) {
+  $('cov').textContent = 'Memuat data CEK dan AR…';
+  const w = cekWin();
+  if (reloadCek) { try { w.document.getElementById('cov').innerHTML = ''; w.document.getElementById('bReload').click(); } catch (e) {} }
+  const ok = await waitCek(w, 300);
+  const ar = await loadAR();
+  CEKI = ok ? readCek(w) : null; ARI = ar;
+  if (!ok) $('cov').innerHTML = '<b style="color:#e0a030">CEK belum selesai menghitung. Buka tab CEK sebentar, lalu tekan ↻ di sini.</b>';
+  ROWS = CEKI ? build(CEKI, ARI) : [];
+  populate(); state.page = 1; render();
+  if (ok) infoLines(); else { infoLines(); }
+}
+
+$('fSales').addEventListener('change', () => { state.page = 1; render(); });
+$('fQ').addEventListener('input', () => { state.page = 1; render(); });
+document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { state.f = c.dataset.f; state.page = 1; render(); }));
+$('pg').addEventListener('click', e => { const b = e.target.closest('button[data-p]'); if (b && !b.disabled) { state.page = +b.dataset.p; render(); document.querySelector('.wrap').scrollTop = 0; } });
+$('pg').addEventListener('change', e => { if (e.target.id === 'pgSize') { state.size = +e.target.value; state.page = 1; render(); } });
+$('bReload').addEventListener('click', () => load(true));
+$('bXls').addEventListener('click', () => {
+  if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat (cek koneksi internet).'); return; }
+  const head = ['No', 'Tgl Faktur', 'No. Faktur', 'Toko', 'Sales', 'Produk', 'OD (hari)', 'Nominal CEK', 'Status CEK', 'Nominal AR', 'Status AR', 'Hasil Rekon', 'Keterangan'];
+  const aoa = [['REKONSILIASI CEK ⇄ AR: BELUM ADA UANG MASUK & SUDAH JATUH TEMPO'], ['Filter: ' + msLabel() + ' · ' + (state.f === 'ALL' ? 'Semua' : state.f) + ' · dicetak ' + new Date().toLocaleDateString('id-ID')], head].concat(
+    VIEW.map((r, i) => [i + 1, dmyOf(r.dn), r.faktur, r.toko, r.sales, r.prod, r.od, r.nomC == null ? '' : r.nomC, r.sc[0], r.nomA == null ? '' : r.nomA, r.sa[0],
+      r.cat === 'MATCH' ? 'Cocok' : r.cat === 'CEK' ? 'Hanya di CEK' : 'Hanya di AR', r.ket]));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [5, 11, 18, 28, 10, 12, 9, 14, 13, 14, 13, 14, 80].map(w => ({ wch: w }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'REKON');
+  const n = new Date(); XLSX.writeFile(wb, 'Rekon_CEK_AR_' + n.getFullYear() + p2(n.getMonth() + 1) + p2(n.getDate()) + '.xlsx');
+});
+
+load(false);
+</script>
+</body>
+</html>
