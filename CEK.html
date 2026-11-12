@@ -31,6 +31,17 @@
   .acts .btn { padding:.32rem .55rem; min-width:2rem; text-align:center; }
   .bar { gap:.4rem; padding:.4rem .6rem; }
   .bar select { max-width:170px; }
+  .msel { position:relative; }
+  .msel-btn { padding:.32rem .6rem; border:1px solid var(--border); border-radius:6px; background:var(--input); color:var(--text); font-size:.8rem; cursor:pointer; white-space:nowrap; max-width:230px; overflow:hidden; text-overflow:ellipsis; }
+  .msel-btn:hover { background:var(--hover); }
+  .msel-panel { position:absolute; top:calc(100% + 4px); left:0; z-index:50; min-width:190px; max-height:60vh; overflow:auto; padding:.3rem; background:var(--card); border:1px solid var(--border); border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
+  .msel-panel[hidden] { display:none; }
+  .msel-panel .ms-top { display:flex; gap:.3rem; padding:.2rem .2rem .35rem; border-bottom:1px solid var(--border); margin-bottom:.2rem; }
+  .msel-panel .ms-top button { flex:1; padding:.25rem .4rem; border:1px solid var(--border); border-radius:5px; background:var(--card); color:var(--primary); font-size:.72rem; font-weight:600; cursor:pointer; }
+  .msel-panel .ms-top button:hover { background:var(--hover); }
+  .msel-panel label { display:flex; align-items:center; gap:.5rem; padding:.3rem .45rem; border-radius:5px; cursor:pointer; font-size:.8rem; white-space:nowrap; }
+  .msel-panel label:hover { background:var(--hover); }
+  .msel-panel input { width:15px; height:15px; cursor:pointer; accent-color:var(--primary); }
   .btn { padding:.32rem .8rem; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--primary); font-weight:600; font-size:.78rem; cursor:pointer; }
   .btn:hover { background:var(--hover); }
   .chips { display:flex; flex-wrap:wrap; gap:.5rem; padding:.5rem .7rem; flex-shrink:0; }
@@ -92,7 +103,7 @@
 <div class="bar">
   <button class="btn" type="button" title="Backup / Sync semua data" onclick="window.LaporanBackup&&LaporanBackup.open()">☁️</button>
   <select id="fBasis" title="Bulan dihitung berdasarkan apa"><option value="F">Bulan: tanggal faktur</option><option value="U">Bulan: tanggal uang masuk</option></select>
-  <select id="fMonth" title="Bulan"></select>
+  <div class="msel" id="fMonth"><button type="button" class="msel-btn" id="fMonthBtn" title="Pilih satu atau beberapa bulan">Semua Bulan ▾</button><div class="msel-panel" id="fMonthPanel" hidden></div></div>
   <select id="fSales" title="Sales"><option value="">Semua Sales</option></select>
   <select id="fPay" title="Pembayaran"><option value="">Semua Pembayaran</option><option value="Tempo">Tempo</option><option value="Cash">Cash</option></select>
   <select id="fProd" title="Produk"><option value="">Semua Produk</option><option value="MINYAK">Minyak</option><option value="RUPA">Rupa Rupa</option><option value="CAMPUR">Campur</option></select>
@@ -508,21 +519,51 @@ function populate() {
   const mset = new Set(INV.map(r => r.month).filter(Boolean));
   UM_ROWS.forEach(u => { if (u.titip_aksi !== 'BATAL' && u.bulan) mset.add(u.bulan); });
   const months = [...mset].sort().reverse();
-  const sm = $('fMonth'), prev = sm.value;
-  sm.innerHTML = '<option value="">Semua Bulan</option>' + months.map(m => '<option value="' + m + '">' + MON[+m.slice(5) - 1] + ' ' + m.slice(0, 4) + '</option>').join('');
-  if (!state.monthDone && months.length) { sm.value = months[0]; state.monthDone = true; } else sm.value = mset.has(prev) ? prev : '';
+  MS_MONTHS = months;
+  if (!state.monthDone && months.length) { MS = new Set([months[0]]); state.monthDone = true; } else MS = new Set([...MS].filter(m => mset.has(m)));
+  msRender();
   const ss = $('fSales'), pv = ss.value, mp = new Map();
   INV.forEach(r => { const k = String(r.sales).trim().toUpperCase(); if (k && !mp.has(k)) mp.set(k, r.sales); });
   ss.innerHTML = '<option value="">Semua Sales</option>' + [...mp.entries()].sort((a, b) => a[1].localeCompare(b[1], 'id')).map(e => '<option value="' + esc(e[0]) + '">' + esc(e[1]) + '</option>').join('');
   ss.value = mp.has(pv) ? pv : '';
 }
-function inMonth(r, m) {
-  if ($('fBasis').value === 'U') return r.orph ? r.month === m : r.um.some(u => String(u.tanggal_laporan_str || '').slice(0, 7) === m);
-  return r.month === m;
+/* ===== filter bulan model centang (bisa pilih beberapa bulan; kosong = semua bulan) ===== */
+let MS = new Set(), MS_MONTHS = [];
+const msName = m => MON[+m.slice(5) - 1] + ' ' + m.slice(0, 4);
+function msLabel() {
+  const a = [...MS].sort();
+  if (!a.length) return 'Semua Bulan';
+  if (a.length === 1) return msName(a[0]);
+  if (a.length <= 3) return a.map(m => MON[+m.slice(5) - 1].slice(0, 3) + ' ' + m.slice(2, 4)).join(' + ');
+  return a.length + ' bulan dipilih';
+}
+const msKey = () => [...MS].sort().map(m => m.replace('-', '')).join('_');   /* untuk nama file: 202610_202611 */
+function msRender() {
+  const pn = $('fMonthPanel');
+  pn.innerHTML = '<div class="ms-top"><button type="button" data-a="all">Semua bulan</button><button type="button" data-a="last">Terbaru saja</button></div>' +
+    MS_MONTHS.map(m => '<label><input type="checkbox" value="' + m + '"' + (MS.has(m) ? ' checked' : '') + '>' + msName(m) + '</label>').join('');
+  $('fMonthBtn').textContent = msLabel() + ' ▾';
+}
+$('fMonthBtn').addEventListener('click', e => { e.stopPropagation(); $('fMonthPanel').hidden = !$('fMonthPanel').hidden; });
+$('fMonthPanel').addEventListener('click', e => {
+  e.stopPropagation();
+  const b = e.target.closest('button[data-a]');
+  if (b) { MS = b.dataset.a === 'last' && MS_MONTHS.length ? new Set([MS_MONTHS[0]]) : new Set(); msRender(); state.page = 1; render(); }
+});
+$('fMonthPanel').addEventListener('change', e => {
+  const c = e.target.closest('input[type=checkbox]'); if (!c) return;
+  if (c.checked) MS.add(c.value); else MS.delete(c.value);
+  $('fMonthBtn').textContent = msLabel() + ' ▾'; state.page = 1; render();
+});
+document.addEventListener('click', e => { if (!e.target.closest('#fMonth')) $('fMonthPanel').hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('fMonthPanel').hidden = true; });
+function inMonth(r) {
+  if ($('fBasis').value === 'U') return r.orph ? MS.has(r.month) : r.um.some(u => MS.has(String(u.tanggal_laporan_str || '').slice(0, 7)));
+  return MS.has(r.month);
 }
 function baseRows() {
-  const m = $('fMonth').value, s = $('fSales').value, p = $('fPay').value, pr = $('fProd').value, q = $('fQ').value.trim().toLowerCase();
-  return INV.filter(r => (!m || inMonth(r, m)) && (!s || String(r.sales).trim().toUpperCase() === s) && (!p || r.pay === p)
+  const s = $('fSales').value, p = $('fPay').value, pr = $('fProd').value, q = $('fQ').value.trim().toLowerCase();
+  return INV.filter(r => (!MS.size || inMonth(r)) && (!s || String(r.sales).trim().toUpperCase() === s) && (!p || r.pay === p)
     && (!pr || (pr === 'MINYAK' ? r.prod === 'MINYAK' : pr === 'RUPA' ? r.prod === 'RUPA RUPA' : r.prod === 'CAMPUR'))
     && (!q || (r.faktur + ' ' + r.customer + ' ' + r.sales + ' ' + r.alamat).toLowerCase().includes(q)));
 }
@@ -532,8 +573,8 @@ function odCell(r, on) { if (!on) return ''; const d = r.orph ? null : odDays(r.
   return d > 0 ? '<td class="od ' + (d > 14 ? 'o2' : 'o1') + '" title="Jatuh tempo ' + JT_HARI + ' hari setelah tanggal faktur">' + d + '</td>' : '<td class="od o0" title="Belum jatuh tempo">-</td>'; }
 function render() {
   const base = baseRows();
-  const byU = $('fBasis').value === 'U', mSel = $('fMonth').value;
-  const valOf = r => byU ? r.um.reduce((t, u) => (!mSel || String(u.tanggal_laporan_str || '').slice(0, 7) === mSel) ? t + (Number(u.total_bayar) || 0) : t, 0) : (Number(r.total) || 0);
+  const byU = $('fBasis').value === 'U';
+  const valOf = r => byU ? r.um.reduce((t, u) => (!MS.size || MS.has(String(u.tanggal_laporan_str || '').slice(0, 7))) ? t + (Number(u.total_bayar) || 0) : t, 0) : (Number(r.total) || 0);
   const sumOf = a => (byU ? 'Masuk Rp ' : 'Faktur Rp ') + fmt(Math.round(a.reduce((t, r) => t + valOf(r), 0)));
   $('a_nAll').textContent = sumOf(base);
   { const ti = base.filter(r => r.cat === 'TITIP'), sisa = ti.reduce((t, r) => t + Math.max(0, (Number(r.total) || 0) - (Number(r.paid) || 0)), 0);
@@ -583,7 +624,7 @@ function render() {
     ' <button ' + (state.page >= pages ? 'disabled' : '') + ' data-p="' + (state.page + 1) + '">›</button></span><span>Baris/hal <select id="pgSize">' + opts + '</select></span>';
 }
 
-['fBasis','fMonth','fSales','fPay','fProd'].forEach(id => $(id).addEventListener('change', () => { state.page = 1; if (id === 'fMonth') {} render(); }));
+['fBasis','fSales','fPay','fProd'].forEach(id => $(id).addEventListener('change', () => { state.page = 1; render(); }));
 $('fQ').addEventListener('input', () => { state.page = 1; render(); });
 document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { state.f = c.dataset.f; state.page = 1; render(); }));
 $('pg').addEventListener('click', e => { const b = e.target.closest('button[data-p]'); if (b && !b.disabled) { state.page = +b.dataset.p; render(); document.querySelector('.wrap').scrollTop = 0; } });
@@ -598,7 +639,7 @@ function applyQP() {                       /* dibuka dari cari.html?q=...&bulan=
   const q = QP.get('q'); if (q === null) return;
   const b = QP.get('bulan') || '';
   $('fQ').value = q;
-  $('fMonth').value = [...$('fMonth').options].some(o => o.value === b) ? b : '';
+  MS = (b && MS_MONTHS.includes(b)) ? new Set([b]) : new Set(); msRender();
   state.f = 'ALL'; state.page = 1;
 }
 
@@ -723,8 +764,8 @@ async function exportXlsPrint() {
   const totalFaktur = VIEW.reduce((t, r) => t + (r.orph ? 0 : (Number(r.total) || 0)), 0);
   const wb = buildPrintWorkbook(ExcelJS, { od, rows, totalFaktur, savedAt: now, savedText,
     title: 'LAPORAN CEK PENJUALAN & UANG MASUK — ' + chipName.toUpperCase(),
-    filterText: 'Filter: ' + [sel('fBasis'), sel('fMonth'), sel('fSales'), sel('fPay'), sel('fProd')].filter(Boolean).join('  ·  ') + (q ? '  ·  Cari: "' + q + '"' : '') });
-  const buf = await wb.xlsx.writeBuffer(), m = $('fMonth').value, a = document.createElement('a');
+    filterText: 'Filter: ' + [sel('fBasis'), msLabel(), sel('fSales'), sel('fPay'), sel('fProd')].filter(Boolean).join('  ·  ') + (q ? '  ·  Cari: "' + q + '"' : '') });
+  const buf = await wb.xlsx.writeBuffer(), m = msKey(), a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
   a.download = 'Cek_' + chipName.replace(/[^A-Za-z0-9]+/g, '_') + '_' + (m ? m.replace('-', '') : 'SEMUA') + '.xlsx';
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
@@ -740,7 +781,7 @@ $('bXls').addEventListener('click', async () => {
   const o = od ? 1 : 0; ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 + o } }, { s: { r: 0, c: 8 + o }, e: { r: 0, c: 9 + o } }];
   ws['!cols'] = [10,14,14,12,26,30,12,12].concat(od ? [10] : [], [14,80]).map(w => ({ wch: w }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'CEK');
-  const m = $('fMonth').value;
+  const m = msKey();
   XLSX.writeFile(wb, 'Cek_Penjualan_Uang_Masuk_' + (m ? m.replace('-', '') : 'SEMUA') + '.xlsx');
 });
 
