@@ -168,6 +168,9 @@
     /* filter Kategori Produk & Sales di bar pencarian */
     .msel.big .msel-btn { height: 32px; font-size: 0.84rem; min-width: 170px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .msel.big .msel-pop { left: 0; right: auto; top: 36px; }
+    /* Uang Masuk: kolom lebar tetap, bila layar sempit tabel digeser ke kanan */
+    @media (min-width: 701px) { table.grid.grid-um { min-width: 1030px; } }
+    table.grid.grid-um td.center .badge { white-space: nowrap; }
     td.pcell { cursor: pointer; }
     td.pcell:hover .pbadge { filter: brightness(1.08); box-shadow: 0 0 0 2px var(--accent); }
     .pbadge { display: inline-block; padding: 2px 9px; border-radius: 5px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; border: 1px solid transparent; margin: 1px 2px 1px 0; }
@@ -395,10 +398,10 @@
           <span class="panel-right"><div class="msel" id="qMonthUM" title="Filter bulan tanggal uang masuk (bisa pilih lebih dari satu)"><button type="button" class="msel-btn" id="qMonthUMBtn">Semua Bulan</button><div class="msel-pop" id="qMonthUMPop"></div></div><span class="panel-meta" id="metaUM">—</span></span>
         </div>
         <div class="table-wrap">
-          <table class="grid">
+          <table class="grid grid-um">
             <colgroup>
-              <col style="width:9%"><col style="width:9%"><col style="width:8%"><col style="width:17%"><col style="width:17%">
-              <col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%">
+              <col style="width:72px"><col style="width:104px"><col style="width:92px"><col style="width:190px"><col style="width:190px">
+              <col style="width:104px"><col style="width:104px"><col style="width:84px"><col style="width:92px">
             </colgroup>
             <thead>
               <tr>
