@@ -1091,12 +1091,7 @@
     document.getElementById('qToko').addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
     });
-    // live search (debounce)
-    let _t;
-    document.getElementById('qToko').addEventListener('input', () => {
-      clearTimeout(_t);
-      _t = setTimeout(doSearch, 320);
-    });
+    // pencarian hanya dijalankan saat tombol Cari diklik atau tekan Enter (tidak lagi otomatis saat mengetik)
     
     /* ========== INIT ========== */
     (async function init() {
