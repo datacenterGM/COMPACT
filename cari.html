@@ -168,6 +168,29 @@
     /* filter Kategori Produk & Sales di bar pencarian */
     .msel.big .msel-btn { height: 32px; font-size: 0.84rem; min-width: 170px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .msel.big .msel-pop { left: 0; right: auto; top: 36px; }
+    td.pcell { cursor: pointer; }
+    td.pcell:hover .pbadge { filter: brightness(1.08); box-shadow: 0 0 0 2px var(--accent); }
+    .pbadge { display: inline-block; padding: 2px 9px; border-radius: 5px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; border: 1px solid transparent; margin: 1px 2px 1px 0; }
+    .pb-fitri { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+    .pb-rupa  { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+    html[data-theme="dark"] .pb-fitri { background: rgba(245,158,11,0.22); color: #fcd34d; border-color: rgba(245,158,11,0.45); }
+    html[data-theme="dark"] .pb-rupa  { background: rgba(59,130,246,0.22); color: #93c5fd; border-color: rgba(59,130,246,0.45); }
+    /* MODAL DETAIL FAKTUR */
+    .modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: none; align-items: center; justify-content: center; z-index: 90; padding: 14px; }
+    .modal-bg.show { display: flex; }
+    .modal { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 640px; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 16px 48px var(--shadow); }
+    .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .modal-head h3 { font-size: 0.95rem; font-weight: 700; }
+    .modal-sub { font-size: 0.76rem; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+    .modal-x { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 0.9rem; flex: none; }
+    .modal-x:hover { border-color: var(--accent); background: var(--card2); }
+    .modal-body { overflow: auto; padding: 4px 16px 12px; }
+    .modal table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .modal th { text-align: left; color: var(--muted); font-size: 0.68rem; text-transform: uppercase; padding: 8px 6px; border-bottom: 1px solid var(--border); position: static; background: transparent; }
+    .modal td { padding: 6px; border-bottom: 1px solid rgba(71,85,105,0.3); white-space: normal; }
+    .modal tr.cat-row td { background: var(--card2); font-weight: 700; font-size: 0.76rem; border-bottom: 1px solid var(--border); }
+    .modal tr.sum-row td { font-weight: 700; border-top: 2px solid var(--accent); border-bottom: 0; }
+    .modal .num { text-align: right; white-space: nowrap; }
     .btn-reset { align-self: flex-end; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); font-size: 0.78rem; cursor: pointer; }
     .btn-reset:hover { border-color: var(--accent); color: var(--text); }
     table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
@@ -397,6 +420,15 @@
     </div>
   </div>
 
+  <div class="modal-bg" id="pjModal">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div><h3 id="pjModalTitle">Detail Faktur</h3><div class="modal-sub" id="pjModalSub"></div></div>
+        <button type="button" class="modal-x" id="pjModalX" title="Tutup">✕</button>
+      </div>
+      <div class="modal-body" id="pjModalBody"></div>
+    </div>
+  </div>
   <div class="loading-overlay" id="loading"><div class="spinner"></div></div>
   <div class="toast" id="toast"></div>
 
@@ -902,47 +934,53 @@
         bodyPJ.innerHTML = `<tr><td colspan="7" class="empty-msg"><div class="icon">📭</div>Tidak ada data penjualan yang cocok</td></tr>`;
         metaPJ.textContent = '0 baris';
       } else {
-        // group by faktur untuk tampil total faktur hanya di baris pertama
-        const firstIdx = new Map();
+        // satu baris per faktur; kolom Produk hanya menampilkan kategori (FITRI / RUPA RUPA), klik -> modal detail
+        const groups = new Map();
         pjHit.forEach((r, i) => {
           const k = String(r['No. Faktur'] || '').trim().toUpperCase();
-          if (k && !firstIdx.has(k)) firstIdx.set(k, i);
+          const gk = k || ('#' + i);
+          if (!groups.has(gk)) groups.set(gk, { k, rows: [] });
+          groups.get(gk).rows.push(r);
         });
-        let sumTotal = 0;
+        /* detail lengkap SEMUA item tiap faktur (tidak terpengaruh filter kategori) untuk modal */
+        pjInv = new Map();
+        pjRows.forEach(r => {
+          const k = String(r['No. Faktur'] || '').trim().toUpperCase();
+          if (k && groups.has(k)) { if (!pjInv.has(k)) pjInv.set(k, []); pjInv.get(k).push(r); }
+        });
+        groups.forEach((g, gk) => { if (!pjInv.has(gk)) pjInv.set(gk, g.rows); });
+
         /* bila filter kategori aktif: total per faktur = jumlah item yang lolos filter saja */
-        const filtTot = new Map();
-        if (catSel.size) pjHit.forEach(r => { const k = String(r['No. Faktur'] || '').trim().toUpperCase(); if (k) filtTot.set(k, (filtTot.get(k) || 0) + (Number(r.Total) || 0)); });
-        const totF = (r, k) => catSel.size ? (k ? (filtTot.get(k) || 0) : (Number(r.Total) || 0)) : r._totalFaktur;
+        const totG = g => catSel.size ? g.rows.reduce((t, r) => t + (Number(r.Total) || 0), 0) : (g.rows[0]._totalFaktur || 0);
         document.getElementById('thTotPJ').textContent = catSel.size ? 'SUBTOTAL ITEM' : 'TOTAL FAKTUR';
         const qtyBy = new Map();
         pjHit.forEach(r => { const u = r.Satuan || ''; qtyBy.set(u, (qtyBy.get(u) || 0) + (Number(r.Jumlah) || 0)); });
         const qtyTxt = catSel.size ? [...qtyBy].map(([u, n]) => fmt(n) + (u ? ' ' + esc(u) : '')).join(' + ') : '';
-        const seenInv = new Set();
-        let html = pjHit.map((r, i) => {
-          const k = String(r['No. Faktur'] || '').trim().toUpperCase();
-          const show = !k || firstIdx.get(k) === i;
-          if (show && k && !seenInv.has(k)) {
-            sumTotal += totF(r, k) || 0;
-            seenInv.add(k);
-          }
-          return `<tr data-fk="${esc(k)}"${show ? '' : ' class="cont"'}>
-            <td class="center" data-label="Tanggal">${show ? esc(r.Tanggal) : ''}</td>
-            <td data-label="No. Faktur">${show ? `<span class="v">${esc(r['No. Faktur'])}${k ? `<a class="go" href="${cekUrl(String(r['No. Faktur']).trim(), '')}" title="Cek faktur ini di CEK">▲</a>` : ''}</span>` : ''}</td>
-            <td data-label="Produk"><span class="v">${esc(r.Produk)}${(r.Jumlah != null && r.Jumlah !== '') ? ` <span class="qty">× ${fmt(r.Jumlah)}</span>` : ''}</span></td>
-            <td class="num" data-label="Total Faktur">${show ? fmt(totF(r, k)) : ''}</td>
-            <td data-label="Customer">${show ? esc(r.Customer) : ''}</td>
-            <td data-label="Alamat">${show ? esc(r.Alamat) : ''}</td>
-            <td class="center" data-label="Sales">${show ? esc(r.Sales) : ''}</td>
+        let sumTotal = 0;
+        let html = [...groups.entries()].map(([gk, g]) => {
+          const r = g.rows[0], k = g.k;
+          sumTotal += totG(g);
+          const cats = new Set(g.rows.map(x => x._cat));
+          const badges = [['MINYAK FITRI', 'FITRI', 'pb-fitri'], ['RUPA RUPA', 'RUPA RUPA', 'pb-rupa']]
+            .filter(c => cats.has(c[0])).map(c => `<span class="pbadge ${c[2]}">${c[1]}</span>`).join(' ');
+          return `<tr data-fk="${esc(k)}" data-ik="${esc(gk)}">
+            <td class="center" data-label="Tanggal">${esc(r.Tanggal)}</td>
+            <td data-label="No. Faktur"><span class="v">${esc(r['No. Faktur'])}${k ? `<a class="go" href="${cekUrl(String(r['No. Faktur']).trim(), '')}" title="Cek faktur ini di CEK">▲</a>` : ''}</span></td>
+            <td class="pcell" data-label="Produk" title="Klik untuk lihat detail produk"><span class="v">${badges}</span></td>
+            <td class="num" data-label="Total Faktur">${fmt(totG(g))}</td>
+            <td data-label="Customer">${esc(r.Customer)}</td>
+            <td data-label="Alamat">${esc(r.Alamat)}</td>
+            <td class="center" data-label="Sales">${esc(r.Sales)}</td>
           </tr>`;
         }).join('');
         html += `<tr class="total-row">
-          <td colspan="2">TOTAL (${seenInv.size || pjHit.length} faktur · ${pjHit.length} baris)</td>
+          <td colspan="2">TOTAL (${groups.size} faktur · ${pjHit.length} baris)</td>
           <td${qtyTxt ? ' data-label="Total Qty"' : ''}>${qtyTxt}</td>
           <td class="num" data-label="Total Faktur">${fmt(sumTotal)}</td>
           <td colspan="3"></td>
         </tr>`;
         bodyPJ.innerHTML = html;
-        metaPJ.textContent = `${pjHit.length.toLocaleString('id-ID')} baris · ${seenInv.size || pjHit.length} faktur`;
+        metaPJ.textContent = `${pjHit.length.toLocaleString('id-ID')} baris · ${groups.size} faktur`;
       }
 
       // --- Uang Masuk ---
@@ -1008,6 +1046,41 @@
         metaUM.textContent = `${umHit.length.toLocaleString('id-ID')} faktur`;
       }
     }
+
+    /* ===== MODAL DETAIL PRODUK PER FAKTUR ===== */
+    let pjInv = new Map();
+    function openFaktur(key) {
+      const items = pjInv.get(key) || [];
+      if (!items.length) return;
+      const f = items[0];
+      document.getElementById('pjModalTitle').textContent = 'Faktur ' + (f['No. Faktur'] || '—');
+      document.getElementById('pjModalSub').innerHTML =
+        `${esc(f.Tanggal)} · <b>${esc(f.Customer)}</b>${f.Alamat ? ' · ' + esc(f.Alamat) : ''}<br>Sales: ${esc(f.Sales) || '—'}${f.Pembayaran ? ' · ' + payBadge(f.Pembayaran) : ''}`;
+      const qtyTxt = rows => { const m = new Map(); rows.forEach(r => { const u = r.Satuan || ''; m.set(u, (m.get(u) || 0) + (Number(r.Jumlah) || 0)); }); return [...m].map(([u, n]) => fmt(n) + (u ? ' ' + esc(u) : '')).join(' + '); };
+      let html = '<table><thead><tr><th>Produk</th><th class="num">Qty</th><th class="num">Total</th></tr></thead><tbody>';
+      let grand = 0;
+      [['MINYAK FITRI', 'FITRI', 'pb-fitri'], ['RUPA RUPA', 'RUPA RUPA', 'pb-rupa']].forEach(c => {
+        const rs = items.filter(r => r._cat === c[0]);
+        if (!rs.length) return;
+        const sub = rs.reduce((t, r) => t + (Number(r.Total) || 0), 0);
+        grand += sub;
+        html += `<tr class="cat-row"><td><span class="pbadge ${c[2]}">${c[1]}</span> <span class="qty">${rs.length} item</span></td><td class="num">${qtyTxt(rs)}</td><td class="num">${fmt(sub)}</td></tr>`;
+        rs.forEach(r => {
+          html += `<tr><td>${esc(r.Produk)}</td><td class="num">${(r.Jumlah != null && r.Jumlah !== '') ? fmt(r.Jumlah) + (r.Satuan ? ' <span class="qty">' + esc(r.Satuan) + '</span>' : '') : ''}</td><td class="num">${fmt(r.Total)}</td></tr>`;
+        });
+      });
+      html += `<tr class="sum-row"><td colspan="2">TOTAL FAKTUR</td><td class="num">${fmt(grand)}</td></tr></tbody></table>`;
+      document.getElementById('pjModalBody').innerHTML = html;
+      document.getElementById('pjModal').classList.add('show');
+    }
+    function closeFaktur() { document.getElementById('pjModal').classList.remove('show'); }
+    document.getElementById('bodyPJ').addEventListener('click', e => {
+      const c = e.target.closest('td.pcell'); if (!c) return;
+      openFaktur(c.parentElement.dataset.ik);
+    });
+    document.getElementById('pjModalX').addEventListener('click', closeFaktur);
+    document.getElementById('pjModal').addEventListener('click', e => { if (e.target.id === 'pjModal') closeFaktur(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFaktur(); });
 
     const cekUrl = (q, bulan) => 'CEK.html?q=' + encodeURIComponent(q || '') + (bulan ? '&bulan=' + encodeURIComponent(bulan) : '');
 
