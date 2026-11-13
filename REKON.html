@@ -140,8 +140,8 @@
 <div class="chips">
   <div class="chip on" data-f="ALL" title="Gabungan semua faktur yang muncul di CEK atau AR"><span>Semua</span><span class="v" id="vAll">0</span><span class="amt" id="aAll">Rp 0</span></div>
   <div class="chip c-ok" data-f="MATCH" title="Ada di CEK dan di AR: keduanya menyatakan belum ada uang masuk & sudah jatuh tempo"><span>✓ Cocok (ada di keduanya)</span><span class="v" id="vMatch">0</span><span class="amt" id="aMatch">Rp 0</span></div>
-  <div class="chip c-ck" data-f="CEK" title="CEK: belum masuk & jatuh tempo, tetapi AR tidak menyatakan demikian"><span>◀ Hanya di CEK</span><span class="v" id="vCek">0</span><span class="amt" id="aCek">Rp 0</span></div>
-  <div class="chip c-ar" data-f="AR" title="AR: belum lunas & jatuh tempo, tetapi CEK tidak menyatakan demikian"><span>Hanya di AR ▶</span><span class="v" id="vAr">0</span><span class="amt" id="aAr">Rp 0</span></div>
+  <div class="chip c-ck" data-f="CEK" title="CEK menyatakan belum ada uang masuk (UM) & sudah jatuh tempo, tetapi AR tidak menyatakan belum lunas"><span>◀ CEK belum ada UM</span><span class="v" id="vCek">0</span><span class="amt" id="aCek">Rp 0</span></div>
+  <div class="chip c-ar" data-f="AR" title="AR menyatakan belum lunas & sudah jatuh tempo, tetapi di CEK faktur itu sudah ada uang masuk (titip / sudah masuk) atau statusnya lain"><span>AR belum lunas ▶</span><span class="v" id="vAr">0</span><span class="amt" id="aAr">Rp 0</span></div>
   <div class="chip c-df" data-f="BEDA" title="Cocok di kedua sisi, tetapi nominal faktur CEK dan AR berbeda"><span>≠ Nominal beda</span><span class="v" id="vBeda">0</span><span class="amt" id="aBeda">Rp 0</span></div>
 </div>
 <div class="rule" id="cov">Memuat…</div>
@@ -368,7 +368,7 @@ function render() {
   if (!ROWS.length && !CEKI) body.innerHTML = '<tr><td class="empty" colspan="13">Memuat data…</td></tr>';
   else if (!rows.length) body.innerHTML = '<tr><td class="empty" colspan="13">Tidak ada faktur pada filter ini</td></tr>';
   else body.innerHTML = rows.map((r, k) => {
-    const hs = r.cat === 'MATCH' ? ['ok', '✓ Cocok'] : r.cat === 'CEK' ? ['ck', '◀ Hanya di CEK'] : ['ar', 'Hanya di AR ▶'];
+    const hs = r.cat === 'MATCH' ? ['ok', '✓ Cocok'] : r.cat === 'CEK' ? ['ck', '◀ CEK belum ada UM'] : ['ar', 'AR belum lunas ▶'];
     const nomA = r.nomA == null ? '<span class="dim">-</span>' : (r.beda ? '<span class="bad">' + fmt(r.nomA) + '</span>' : fmt(r.nomA));
     return '<tr class="r-' + (r.cat === 'MATCH' ? 'ok' : r.cat === 'CEK' ? 'ck' : 'ar') + '">' +
       '<td class="ctr">' + (st + k + 1) + '</td><td class="ctr">' + dmyOf(r.dn) + '</td><td class="ctr">' + esc(r.faktur) + '</td><td>' + esc(r.toko) + '</td><td class="ctr">' + esc(r.sales) + '</td><td class="ctr">' + esc(r.prod) + '</td>' +
@@ -387,7 +387,7 @@ function infoLines() {
   $('infoC').textContent = c ? ('Posisi CEK saat ini · ' + fmt(c.list.length) + ' faktur · uang masuk terakhir ' + (c.lastUm ? dmyOf(toDn(c.lastUm)) : '-')) : 'Data CEK belum terbaca';
   $('infoA').textContent = a && a.meta ? ('Snapshot ' + msName(a.meta.latest) + ' · faktur ' + dmyOf(a.meta.minDn) + ' s/d ' + dmyOf(a.meta.maxDn) + ' · ' + fmt(a.meta.n) + ' faktur' +
     (a.meta.ts ? ' · diunggah ' + new Date(a.meta.ts).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '')) : 'Belum ada data AR (buka tab AR, lalu upload file piutang)';
-  $('cov').innerHTML = '<b>Cara baca:</b> “Hanya di CEK” = CEK menyatakan belum ada uang masuk, tetapi AR tidak. Biasanya uang masuk sudah ada di AR dan belum diinput di UM. “Hanya di AR” = AR masih belum lunas, tetapi CEK sudah melihat uang masuk. Biasanya AR belum diperbarui. ' +
+  $('cov').innerHTML = '<b>Cara baca:</b> “CEK belum ada UM” = CEK menyatakan belum ada uang masuk, tetapi AR tidak menyatakan belum lunas. Biasanya uang masuk sudah ada di AR dan belum diinput di UM. “AR belum lunas” = AR masih belum lunas, tetapi di CEK faktur itu sudah ada uang masuk (status TITIP / SUDAH MASUK, jadi tetap ada datanya di kolom DATA CEK). Biasanya AR belum diperbarui. ' +
     'AR adalah snapshot, sedangkan CEK mengikuti UM terbaru, jadi selisih bisa muncul bila ada pembayaran sesudah file AR diunggah.';
 }
 
@@ -415,7 +415,7 @@ $('bXls').addEventListener('click', () => {
   const head = ['No', 'Tgl Faktur', 'No. Faktur', 'Toko', 'Sales', 'Produk', 'OD (hari)', 'Nominal CEK', 'Status CEK', 'Nominal AR', 'Status AR', 'Hasil Rekon', 'Keterangan'];
   const aoa = [['REKONSILIASI CEK ⇄ AR: BELUM ADA UANG MASUK & SUDAH JATUH TEMPO'], ['Filter: ' + msLabel() + ' · ' + (state.f === 'ALL' ? 'Semua' : state.f) + ' · dicetak ' + new Date().toLocaleDateString('id-ID')], head].concat(
     VIEW.map((r, i) => [i + 1, dmyOf(r.dn), r.faktur, r.toko, r.sales, r.prod, r.od, r.nomC == null ? '' : r.nomC, r.sc[0], r.nomA == null ? '' : r.nomA, r.sa[0],
-      r.cat === 'MATCH' ? 'Cocok' : r.cat === 'CEK' ? 'Hanya di CEK' : 'Hanya di AR', r.ket]));
+      r.cat === 'MATCH' ? 'Cocok' : r.cat === 'CEK' ? 'CEK belum ada UM (AR tidak)' : 'AR belum lunas (CEK tidak)', r.ket]));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = [5, 11, 18, 28, 10, 12, 9, 14, 13, 14, 13, 14, 80].map(w => ({ wch: w }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'REKON');
