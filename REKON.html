@@ -256,7 +256,7 @@ async function loadAR() {
 
 /* ===== bangun hasil rekonsiliasi ===== */
 let ROWS = [], CEKI = null, ARI = null, VIEW = [];
-const stC = c => !c ? ['TIDAK ADA', 'na'] : c.cat === 'NONE' ? ['BELUM MASUK', 'none'] : c.cat === 'OK' ? ['SUDAH MASUK', 'lunas'] : c.cat === 'TITIP' ? ['TITIP', 'titip'] : ['BEDA DATA', 'df'];
+const stC = c => !c ? ['TIDAK ADA', 'na'] : c.cat === 'NONE' ? ['BELUM ADA UM', 'none'] : c.cat === 'OK' ? ['SUDAH MASUK', 'lunas'] : c.cat === 'TITIP' ? ['TITIP', 'titip'] : ['BEDA DATA', 'df'];
 const stA = a => !a ? ['TIDAK ADA', 'na'] : a.kat === 'belum' ? ['BELUM LUNAS', 'none'] : a.kat === 'titip' ? ['BAYAR TITIP', 'titip'] : ['SUDAH LUNAS', 'lunas'];
 function whyCekOnly(c, a, meta) {
   if (!a) {
