@@ -592,6 +592,62 @@
       return [];
     }
 
+    /* ========== FILTER FAKTUR BATAL (aturan sama dengan tab PJ) ========== */
+    const PB_DB = 'pjbatal-v1', PB_ST = 'pjbatal-data';
+    async function loadBatalMap() {
+      try {
+        const db = await openExistingIDB(PB_DB);
+        if (!db.objectStoreNames.contains(PB_ST)) { db.close(); return {}; }
+        const v = await new Promise((ok, no) => {
+          const r = db.transaction(PB_ST).objectStore(PB_ST).get('latest');
+          r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+        });
+        db.close();
+        return (v && v.items) || {};
+      } catch (e) { return {}; }
+    }
+    async function filterBatalPJ(rows) {
+      const batal = await loadBatalMap();
+      const fk = r => String(r['No. Faktur'] || '').trim().toUpperCase();
+      const np = s => String(s || '').toUpperCase().replace(/\s+/g, ' ').trim();
+      const g = new Map();
+      rows.forEach(r => {
+        r._pair = false;
+        const k = fk(r); if (!k) return;
+        if (!g.has(k)) g.set(k, []);
+        g.get(k).push(r);
+      });
+      const nol = new Set();
+      g.forEach((lines, k) => {
+        const total = lines.reduce((s, r) => s + (Number(r.Total) || 0), 0);
+        if (Math.abs(total) < 1) nol.add(k);
+        // pasangan item +/- yang saling meniadakan (ITEM BATAL di PJ)
+        const pos = new Map();
+        lines.forEach((r, i) => {
+          if (!(r.Jumlah > 0)) return;
+          const kk = np(r.Produk) + '|' + Math.round(r.Jumlah * 1e6);
+          if (!pos.has(kk)) pos.set(kk, []);
+          pos.get(kk).push(i);
+        });
+        const used = new Set();
+        lines.forEach((n, ni) => {
+          if (!(n.Jumlah < 0) || used.has(ni)) return;
+          const cand = pos.get(np(n.Produk) + '|' + Math.round(-n.Jumlah * 1e6));
+          if (!cand) return;
+          for (const pi of cand) {
+            if (used.has(pi)) continue;
+            const p = lines[pi];
+            if (Math.abs(p.Total + n.Total) >= 1) continue;
+            used.add(pi); used.add(ni); p._pair = true; n._pair = true; break;
+          }
+        });
+      });
+      return rows.filter(r => {
+        const k = fk(r);
+        return !(batal[k] || nol.has(k) || r._pair);
+      });
+    }
+
     async function loadPenjualan() {
       const dot = document.getElementById('dotPJ');
       try {
@@ -653,6 +709,11 @@
             }
           }
         }
+
+        // Buang faktur batal / bernilai nol / item batal (dicoret) -> hanya tampil di tab PJ
+        const kept = await filterBatalPJ(rows);
+        rows.length = 0;
+        for (const r of kept) rows.push(r);
 
         // Hitung total faktur per no faktur
         const invTotals = new Map();
@@ -1093,6 +1154,17 @@
     });
     // pencarian hanya dijalankan saat tombol Cari diklik atau tekan Enter (tidak lagi otomatis saat mengetik)
     
+    /* ========== SINKRON: PJ menandai batal -> muat ulang data di sini ========== */
+    try {
+      const bcPJ = new BroadcastChannel('laporan-data');
+      let tPJ = null;
+      bcPJ.onmessage = e => {
+        if (e.data !== 'penjualan') return;
+        clearTimeout(tPJ);
+        tPJ = setTimeout(() => { loadPenjualan().then(() => { try { doSearch(); } catch (x) {} }); }, 400);
+      };
+    } catch (e) {}
+
     /* ========== INIT ========== */
     (async function init() {
       setLoading(true);
