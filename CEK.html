@@ -67,6 +67,10 @@
   tr:hover td { background:var(--hover); }
   tr.r-df td:first-child { box-shadow:3px 0 0 var(--df-tx) inset; } tr.r-no td:first-child { box-shadow:3px 0 0 var(--no-tx) inset; } tr.r-ok td:first-child { box-shadow:3px 0 0 var(--ok-tx) inset; }
   td.od { text-align:center; font-weight:700; font-variant-numeric:tabular-nums; } td.od.o1 { color:var(--no-tx); } td.od.o2 { color:var(--df-tx); } td.od.o0 { color:var(--muted,#94a3b8); font-weight:400; }
+  .kor { display:inline-block; margin-left:4px; padding:0 6px; border-radius:5px; font-size:.64rem; font-weight:700; background:#ede9fe; color:#6d28d9; border:1px solid #8b5cf6; white-space:nowrap; cursor:help; }
+  :root[data-theme="dark"] .kor { background:#2e1065; color:#c4b5fd; border-color:#8b5cf6; }
+  tr.kor td:first-child { box-shadow:3px 0 0 #8b5cf6 inset !important; }
+  .chip.c-ko .v, .chip.c-ko .amt { color:#7c3aed; } :root[data-theme="dark"] .chip.c-ko .v, :root[data-theme="dark"] .chip.c-ko .amt { color:#c4b5fd; }
   .st { display:inline-block; padding:1px 8px; border-radius:5px; font-weight:700; font-size:.7rem; }
   .st.lunas { background:#2563eb; color:#fff; } .st.titip { background:#fef08a; color:#854d0e; border:1px solid #eab308; }
   .st.orph { background:var(--df-bg); color:var(--df-tx); border:1px solid var(--df-tx); }
@@ -120,6 +124,7 @@
   <div class="chip c-df" data-f="DIFF"><span>⚠ Ada Beda Data</span><span class="v" id="nDf">0</span><span class="amt" id="a_nDf">Rp 0</span></div>
   <div class="chip c-no" data-f="NONE_DUE" title="Belum ada uang masuk DAN sudah lewat jatuh tempo (tanggal faktur + 12 hari) — perlu ditagih"><span>● Belum Masuk · Jatuh Tempo</span><span class="v" id="nNoD">0</span><span class="amt" id="a_nNoD">Rp 0</span></div>
   <div class="chip c-ti" data-f="NONE_NOT" title="Belum ada uang masuk, tetapi belum jatuh tempo — masih wajar"><span>○ Belum Masuk · Belum JT</span><span class="v" id="nNoN">0</span><span class="amt" id="a_nNoN">Rp 0</span></div>
+  <div class="chip c-ko" data-f="KOREKSI" title="Faktur yang Anda pindahkan manual (Pindahkan ke Sesuai / Lunas) — data koreksi"><span>✎ Koreksi (Dipindah Manual)</span><span class="v" id="nKo">0</span><span class="amt" id="a_nKo">Rp 0</span></div>
   <div class="chip c-df" data-f="ORPH" title="Uang Masuk yang No Fakturnya tidak ditemukan / salah ketik"><span>✎ UM Tanpa Faktur</span><span class="v" id="nOr">0</span><span class="amt" id="a_nOr">Rp 0</span></div>
 </div>
 <div class="rule" id="cov"></div>
@@ -223,7 +228,10 @@ function odDays(t) { const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d
   return Math.max(0, Math.round((today - due) / 86400000)); }
 /* Jatuh tempo: sudah lewat (OD > 0) atau belum. Faktur tanpa tanggal valid dianggap belum jatuh tempo */
 function isDue(r) { if (r.orph) return false; const d = odDays(r.tanggal); return d !== null && d > 0; }
-function matchF(r, f) { return f === 'ALL' ? true : f === 'NONE_DUE' ? (r.cat === 'NONE' && isDue(r)) : f === 'NONE_NOT' ? (r.cat === 'NONE' && !isDue(r)) : r.cat === f; }
+function korOf(r) { return r && !r.orph ? (r.manual || r.lunasMan || null) : null; }
+function korDate(ts) { if (!ts) return ''; const d = new Date(ts); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getFullYear()).slice(2); }
+function korTitle(r) { const k = korOf(r); if (!k) return ''; return (r.lunasMan ? 'Dilunasi manual' : 'Dipindahkan manual ke Sesuai') + ' pada ' + korDate(k.at) + (k.note ? ' — Catatan: ' + k.note : ''); }
+function matchF(r, f) { return f === 'ALL' ? true : f === 'KOREKSI' ? !!korOf(r) : f === 'NONE_DUE' ? (r.cat === 'NONE' && isDue(r)) : f === 'NONE_NOT' ? (r.cat === 'NONE' && !isDue(r)) : r.cat === f; }
 function jtText(t) { const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if (!m) return '';
   const y = m[3].length === 2 ? 2000 + (+m[3]) : +m[3], due = new Date(y, +m[2] - 1, +m[1] + JT_HARI), n = new Date(), today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
   const sisa = Math.round((due - today) / 86400000), ds = String(due.getDate()).padStart(2, '0') + '/' + String(due.getMonth() + 1).padStart(2, '0') + '/' + String(due.getFullYear()).slice(2);
@@ -584,6 +592,8 @@ function render() {
   $('a_nNoD').textContent = sumOf(base.filter(r => matchF(r, 'NONE_DUE')));
   $('a_nNoN').textContent = sumOf(base.filter(r => matchF(r, 'NONE_NOT')));
   $('a_nOr').textContent = (byU ? 'Masuk Rp ' : 'Uang masuk Rp ') + fmt(Math.round(base.filter(r => r.cat === 'ORPH').reduce((t, r) => t + (Number(r.total) || 0), 0)));
+  $('a_nKo').textContent = sumOf(base.filter(r => korOf(r)));
+  $('nKo').textContent = fmt(base.filter(r => korOf(r)).length);
   $('nAll').textContent = fmt(base.length);
   $('nTi').textContent = fmt(base.filter(r => r.cat === 'TITIP').length);
   $('nOk').textContent = fmt(base.filter(r => r.cat === 'OK').length);
@@ -606,14 +616,15 @@ function render() {
   else body.innerHTML = rows.map((r, k) => {
     const stT = stText(r), stU = stT.toUpperCase(), stc = stU.includes('LUNAS') ? 'lunas' : stU.includes('TITIP') ? 'titip' : r.orph ? 'orph' : r.ketUM !== undefined ? 'tf' : 'none';
     const clk = (r.cat === 'DIFF' || r.manual || r.cat === 'TITIP' || r.cat === 'NONE' || r.lunasMan) ? ' clk" data-i="' + (st + k) + '" title="Klik untuk detail & aksi' : '';
-    const lm = r.lunasMan ? '<span class="good">✓ Dilunasi manual' + (r.um.length ? ' (tercatat ' + fmt(r.paid) + ' dari ' + fmt(r.total) + ')' : ' (tanpa catatan uang masuk)') + '</span> ' + (r.lunasMan.note ? '<span class="dim">Catatan: ' + esc(r.lunasMan.note) + '</span><br>' : '<br>') : '';
-    const ket = lm + (r.manual ? '<span class="good">✓ Dicek manual: sesuai</span> <span class="dim">' + (r.manual.note ? esc(r.manual.note) + ' · ' : '') + esc(r.info) + '</span>'
+    const lm = r.lunasMan ? '<span class="good">✓ Dilunasi manual (' + korDate(r.lunasMan.at) + ')' + (r.um.length ? ' (tercatat ' + fmt(r.paid) + ' dari ' + fmt(r.total) + ')' : ' (tanpa catatan uang masuk)') + '</span> ' + (r.lunasMan.note ? '<span class="dim">Catatan: ' + esc(r.lunasMan.note) + '</span><br>' : '<br>') : '';
+    const ket = lm + (r.manual ? '<span class="good">✓ Dicek manual: sesuai (dipindahkan ' + korDate(r.manual.at) + ')</span> <span class="dim">' + (r.manual.note ? esc(r.manual.note) + ' · ' : '') + esc(r.info) + '</span>'
       : r.cat === 'NONE' ? '<span class="dim">' + esc(r.info) + (jtText(r.tanggal) ? ' · ' + esc(jtText(r.tanggal)) : '') + '</span>'
       : (r.issues.length ? (r.reopened ? '<span class="dim">(sebelumnya ditandai sesuai, tetapi data berubah)</span><br>' : '') + r.issues.map(i => '<span class="x">' + esc(i) + '</span>').join('') + '<br>' : '<span class="good">Sesuai</span> ') + '<span class="dim">' + esc(r.info) + '</span>');
-    const cls = r.cat === 'ORPH' ? 'or' : r.cat === 'TITIP' ? 'ti' : r.cat === 'DIFF' ? 'df' : r.cat === 'NONE' ? 'no' : 'ok';
+    const cls = (r.cat === 'ORPH' ? 'or' : r.cat === 'TITIP' ? 'ti' : r.cat === 'DIFF' ? 'df' : r.cat === 'NONE' ? 'no' : 'ok') + (korOf(r) ? ' kor' : '');
+    const korB = korOf(r) ? '<span class="kor" title="' + esc(korTitle(r)) + '">✎ KOREKSI ' + korDate(korOf(r).at) + '</span>' : '';
     const L = r.orph ? ['', '', '', '', '', '', '', ''] : [esc(r.tanggal), esc(r.faktur), fmt(r.total), esc(r.sales), esc(r.customer), esc(r.alamat), esc(r.prod), esc(r.pay)];
     return '<tr class="r-' + cls + clk + '">' +
-      '<td class="ctr">' + L[0] + '</td><td class="ctr">' + L[1] + '</td><td class="num">' + L[2] + '</td>' +
+      '<td class="ctr">' + L[0] + '</td><td class="ctr">' + L[1] + korB + '</td><td class="num">' + L[2] + '</td>' +
       '<td class="ctr">' + L[3] + '</td><td>' + L[4] + '' + '</td><td>' + L[5] + '</td>' +
       '<td class="ctr">' + L[6] + '</td><td class="ctr">' + L[7] + '</td>' + odCell(r, showOD) +
       '<td class="ctr"><span class="st ' + stc + '"' + (r.ketUM !== undefined ? ' title="Tertulis di UM (kolom KET)"' : r.lunasMan ? ' title="Dilunasi manual di CEK"' : '') + '>' + esc(stT) + '</span></td><td class="ket">' + ket + '</td></tr>';
@@ -678,7 +689,7 @@ const pnm = r => { const a = []; if ((+r.minyak_cash || 0) + (+r.minyak_tf || 0)
 function openModal(i) {
   const r = VIEW[i]; if (!r) return; cur = r;
   const isTi = r.cat === 'TITIP' || r.cat === 'NONE' || !!r.lunasMan;
-  $('mTitle').textContent = 'Faktur ' + r.faktur + (isTi ? (r.lunasMan ? ' — dilunasi manual' : r.cat === 'NONE' ? ' — belum masuk' : ' — titip / belum lunas') : (r.manual ? ' — dicek manual: sesuai' : ' — ada beda data'));
+  $('mTitle').textContent = 'Faktur ' + r.faktur + (isTi ? (r.lunasMan ? ' — dilunasi manual' : r.cat === 'NONE' ? ' — belum masuk' : ' — titip / belum lunas') : (r.manual ? ' — dicek manual: sesuai (koreksi ' + korDate(r.manual.at) + ')' : ' — ada beda data'));
   const kv = [['Tanggal', r.tanggal], ['No. Faktur', r.faktur], ['Total Faktur', fmt(r.total)], ['Pembayaran', r.pay], ['Customer', r.customer], ['Alamat', r.alamat], ['Sales', r.sales], ['Produk', r.prod]];
   $('mBody').innerHTML = '<h4>Data Penjualan</h4><div class="kv">' + kv.map(x => '<div><span>' + x[0] + '</span><b>' + esc(x[1] || '-') + '</b></div>').join('') + '</div>' +
     (isTi ? '<h4>Pembayaran</h4><div class="kv"><div><span>Total Faktur</span><b>' + fmt(r.total) + '</b></div><div><span>Sudah Dibayar</span><b>' + fmt(r.paid || 0) + '</b></div><div><span>Sisa</span><b class="' + (r.total - (r.paid || 0) > 1 && !r.lunasMan ? 'bad' : 'good') + '">' + fmt(r.lunasMan ? 0 : Math.max(0, r.total - (r.paid || 0))) + '</b></div><div><span>Status</span><b>' + esc(r.status) + (r.lunasMan ? ' (manual)' : '') + '</b></div></div>' : '') +
