@@ -1215,6 +1215,16 @@
       });
     });
 
+    const _hayCache = new WeakMap();
+    function normSearch(v) { return String(v == null ? '' : v).replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+    function searchHay(r) {
+      let h = _hayCache.get(r);
+      if (h === undefined) {
+        h = normSearch([r.Produk, r.Customer, r['No. Faktur'], r.Sales, r.Alamat, r['Kd Customer']].join(' | '));
+        _hayCache.set(r, h);
+      }
+      return h;
+    }
     function applyFilter(key) {
       const st = tabState[key];
       const q = st.search;
@@ -1232,13 +1242,13 @@
       }
 
       if (q) {
-        base = base.filter(r =>
-          (r.Produk || '').toLowerCase().includes(q) ||
-          (r.Customer || '').toLowerCase().includes(q) ||
-          (r['No. Faktur'] || '').toLowerCase().includes(q) ||
-          (r.Sales || '').toLowerCase().includes(q) ||
-          (r.Alamat || '').toLowerCase().includes(q) ||
-          (r['Kd Customer'] || '').toLowerCase().includes(q));
+        // Pencarian mengabaikan spasi ganda / spasi non-breaking / karakter lebar-nol, dan tiap kata dicari terpisah (urutan bebas)
+        const words = normSearch(q).split(' ').filter(Boolean);
+        base = base.filter(r => {
+          const h = searchHay(r);
+          for (let i = 0; i < words.length; i++) if (h.indexOf(words[i]) < 0) return false;
+          return true;
+        });
       }
 
       st.filtered = base;   // referensi, tanpa salinan
