@@ -682,6 +682,7 @@
     let invTotals = new Map();
     let filesMap = new Map();
     /* File yang DIMATIKAN (tidak dipakai) — tetap tersimpan, tidak dihapus */
+    let dupInfo = {};   /* nama file -> jumlah faktur yang juga ada di file lain */
     let disabledFiles = new Set();
     try { disabledFiles = new Set(JSON.parse(localStorage.getItem('pj_disabled_files') || '[]')); } catch (e) {}
     function saveDisabled() { try { localStorage.setItem('pj_disabled_files', JSON.stringify([...disabledFiles])); } catch (e) {} }
@@ -940,6 +941,7 @@
         html += '<div class="file-row"' + (on ? '' : ' style="opacity:.5"') + '>' +
           '<input type="checkbox" ' + (on ? 'checked ' : '') + 'title="Centang = dipakai, hilangkan centang = tidak dipakai (data tidak dihapus)" onchange="toggleFile(\'' + safe + '\', this.checked)" style="margin-right:6px;cursor:pointer">' +
           '<span class="fname" title="' + name + '">📄 ' + name + '</span>' +
+          (dupInfo[name] ? '<span title="Faktur di file ini juga ada di file lain. Hanya satu file yang dipakai; matikan file yang tidak diinginkan." style="color:#d97706;font-size:11px;margin-left:4px;white-space:nowrap">⚠ ' + dupInfo[name] + ' dobel</span>' : '') +
           '<button class="del-btn" title="Hapus file ini permanen" onclick="removeFile(\'' + safe + '\')">×</button>' +
           '</div>';
       }
@@ -1065,7 +1067,7 @@
           seenNames.add(name);
           const hit = cache[name];
           if (hit && hit.fp === fp && Array.isArray(hit.rows)) {
-            for (const rw of hit.rows) allData.push(rw);
+            for (const rw of (hit.full || hit.rows)) allData.push(rw);
             continue;
           }
           const fileRows = [];
@@ -1103,21 +1105,38 @@
       }
 
       for (const k of Object.keys(cache)) if (!seenNames.has(k)) { delete cache[k]; cacheDirty = true; }
-      if (cacheDirty) pcSave();
-
       /* Anti-dobel antar file: bila satu No. Faktur muncul di lebih dari satu file Excel
          (mis. file bulanan + file gabungan), pakai baris dari SATU file saja (file pertama yang memuat faktur itu).
          Baris kembar di dalam file yang sama tetap dipertahankan (bisa jadi item yang memang dobel). */
       {
-        const owner = new Map();
-        allData = allData.filter(r => {
-          const k = String(r['No. Faktur'] || '').trim().toUpperCase();
-          if (!k) return true;
-          if (!owner.has(k)) { owner.set(k, r._source); return true; }
-          return owner.get(k) === r._source;
+        const fkOf = r => String(r['No. Faktur'] || '').trim().toUpperCase();
+        const owner = new Map(), srcs = new Map(), full = {}, eff = {};
+        allData.forEach(r => {
+          (full[r._source] = full[r._source] || []).push(r);
+          const k = fkOf(r); if (!k) return;
+          if (!owner.has(k)) owner.set(k, r._source);
+          let st = srcs.get(k); if (!st) srcs.set(k, st = new Set()); st.add(r._source);
         });
+        dupInfo = {};
+        srcs.forEach(st => { if (st.size > 1) st.forEach(n => { dupInfo[n] = (dupInfo[n] || 0) + 1; }); });
+        allData = allData.filter(r => { const k = fkOf(r); return !k || owner.get(k) === r._source; });
+        allData.forEach(r => { (eff[r._source] = eff[r._source] || []).push(r); });
+        /* Tulis hasil bersih ke cache supaya tab lain (CARI/CEK/dll) yang membaca cache ikut bebas dobel.
+           Baris lengkap disimpan di 'full' agar file bisa diaktifkan lagi. */
+        for (const name of Object.keys(cache)) {
+          const c = cache[name]; if (!c) continue;
+          const off = disabledFiles.has(name);
+          const fullRows = off ? (c.full || c.rows || []) : (full[name] || []);
+          const effRows = off ? [] : (eff[name] || []);
+          const before = (c.rows || []).length + '|' + (c.full ? c.full.length : '-');
+          if (effRows.length !== fullRows.length) { c.rows = effRows; c.full = fullRows; }
+          else { c.rows = fullRows; delete c.full; }
+          if (before !== (c.rows.length + '|' + (c.full ? c.full.length : '-'))) cacheDirty = true;
+        }
+        if (cacheDirty) pcSave();
       }
 
+      try { renderFileListMenu(); } catch (e) {}
       applyHargaOverrides();
       applyPayOverrides();
       allData.sort((a, b) => {
