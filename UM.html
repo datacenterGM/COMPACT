@@ -273,6 +273,14 @@
     .titip-only .tabs-row { justify-content: space-between; flex-wrap: nowrap; }
     .titip-only .tabs-row .titip-subtabs { margin: 0; }
     .titip-subtabs .filter-btn { padding: 5px 16px; font-size: 0.8rem; }
+    /* Cek TITIP (mode tab TITIP): filter ikut satu baris dengan sub tab, tombol Excel pindah ke menu */
+    .titip-only .tabs-row { flex-wrap: wrap; }
+    .cek-bar { display: none; flex: 1 1 auto; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+    .titip-only.cek-active .cek-bar { display: flex; }
+    .cek-bar .msel { margin-left: auto; }
+    .titip-only #titipSubCek > .toolbar { display: none; }
+    .menu-item.cek-only { display: none; }
+    .titip-only.cek-active .menu-item.cek-only { display: flex; }
     /* Cek TITIP */
     #tab-titip #titipSubCek th, #tab-titip #titipSubCek td { width: auto; max-width: none; }
     /* Cek TITIP: kolom dirapatkan */
@@ -584,6 +592,9 @@
           <div class="menu-divider um-only"></div>
           <button class="um-only menu-item" onclick="switchTab('manage'); closeMenu();">
             🗂️ Kelola Bulan
+          </button>
+          <button type="button" class="menu-item cek-only" onclick="exportCekTitipExcel(); closeMenu();" title="Simpan tabel Cek TITIP (sesuai filter) ke Excel siap cetak">
+            📊 Excel siap cetak
           </button>
           <button class="menu-item" onclick="exportExcelByFilter(); closeMenu();">
             📊 Export Excel (Bulan Aktif)
@@ -2677,6 +2688,7 @@ function toggleMenu(e) {
     function cekToggleMonth(k, on) { if (on) cekSel.add(k); else cekSel.delete(k); cekApplyMonths(); }
     async function switchTitipSub(name) {
       _titipSub = name === 'cek' ? 'cek' : 'list';
+      document.documentElement.classList.toggle('cek-active', _titipSub === 'cek');
       document.querySelectorAll('#titipSubGroup .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.val === _titipSub));
       document.getElementById('titipSubList').style.display = _titipSub === 'list' ? 'block' : 'none';
       document.getElementById('titipSubCek').style.display = _titipSub === 'cek' ? 'block' : 'none';
@@ -4541,6 +4553,14 @@ function toggleMenu(e) {
         // pindahkan sub tab (Daftar / Cek TITIP) ke baris atas, menggantikan barisan tab UM
         const row = document.querySelector('.tabs-row'), sub = document.getElementById('titipSubGroup'), act = row && row.querySelector('.header-actions');
         if (row && sub && act) row.insertBefore(sub, act);
+        // Cek TITIP: status, bulan, dan kolom cari dipindah ke baris yang sama (urutan: status | bulan | cari | tema | menu)
+        const cs = document.getElementById('cekStatusGroup'), cm = document.getElementById('cekMonthBox'), cq = document.getElementById('searchCek');
+        if (row && act && cs && cm && cq) {
+          const bar = document.createElement('div');
+          bar.className = 'cek-bar'; bar.id = 'cekBar';
+          bar.appendChild(cs); bar.appendChild(cm); bar.appendChild(cq);
+          row.insertBefore(bar, act);
+        }
         switchTab('titip');
       }
       setTimeout(bridgeEnsureFresh, 1500);        // pastikan CEK punya data Uang Masuk terbaru
