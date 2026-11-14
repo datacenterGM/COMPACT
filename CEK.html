@@ -200,6 +200,15 @@ async function loadData() {
     const c = await idbGet('pj-parse-v1', 'c', 'parsed');
     if (c && c.files) Object.values(c.files).forEach(f => { if (f && Array.isArray(f.rows)) f.rows.forEach(r => pj.push(r)); });
   }
+  /* Samakan dengan tab PJ: abaikan file yang dimatikan & buang faktur dobel antar file */
+  let off = new Set(); try { off = new Set(JSON.parse(localStorage.getItem('pj_disabled_files') || '[]')); } catch (e) {}
+  const own = new Map();
+  pj = pj.filter(r => {
+    if (r && r._source && off.has(r._source)) return false;
+    const k = fk(r && r['No. Faktur']); if (!k) return true;
+    if (!own.has(k)) { own.set(k, r._source); return true; }
+    return own.get(k) === r._source;
+  });
   SALES_ROWS = pj;
   let um = liveVar('uangmasuk', 'allRecords');
   if (!Array.isArray(um) || !um.length) { const u = await idbGet('um-fixv1', 'um-data', 'latest'); um = (u && u.records) || []; }
