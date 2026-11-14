@@ -278,6 +278,11 @@
     .cek-bar { display: none; flex: 1 1 auto; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
     .titip-only.cek-active .cek-bar { display: flex; }
     .cek-bar .msel { margin-left: auto; }
+    /* Daftar TITIP: sama seperti Cek TITIP, semua kontrol satu baris dengan sub tab */
+    .list-bar { display: none; flex: 1 1 auto; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+    .titip-only:not(.cek-active) .list-bar { display: flex; }
+    .list-bar #titipMonth { margin-left: auto; }
+    .titip-only #titipSubList > .toolbar { display: none; }
     .titip-only #titipSubCek > .toolbar { display: none; }
     .menu-item.cek-only { display: none; }
     .titip-only.cek-active .menu-item.cek-only { display: flex; }
@@ -4560,6 +4565,15 @@ function toggleMenu(e) {
           bar.className = 'cek-bar'; bar.id = 'cekBar';
           bar.appendChild(cs); bar.appendChild(cm); bar.appendChild(cq);
           row.insertBefore(bar, act);
+        }
+        // Daftar TITIP: urutan status | bulan | tanggal | section | cari
+        const ls = document.getElementById('titipStatusGroup'), lm = document.getElementById('titipMonth'), ld = document.getElementById('titipDate'),
+              lsec = document.getElementById('titipSection'), lq = document.getElementById('searchTitip');
+        if (row && act && ls && lm && ld && lsec && lq) {
+          const lb = document.createElement('div');
+          lb.className = 'list-bar'; lb.id = 'listBar';
+          [ls, lm, ld, lsec, lq].forEach(el => lb.appendChild(el));
+          row.insertBefore(lb, act);
         }
         switchTab('titip');
       }
