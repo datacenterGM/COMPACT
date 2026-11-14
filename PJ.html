@@ -681,6 +681,17 @@
     let allData = [];
     let invTotals = new Map();
     let filesMap = new Map();
+    /* File yang DIMATIKAN (tidak dipakai) — tetap tersimpan, tidak dihapus */
+    let disabledFiles = new Set();
+    try { disabledFiles = new Set(JSON.parse(localStorage.getItem('pj_disabled_files') || '[]')); } catch (e) {}
+    function saveDisabled() { try { localStorage.setItem('pj_disabled_files', JSON.stringify([...disabledFiles])); } catch (e) {} }
+    function toggleFile(name, on) {
+      if (on) disabledFiles.delete(name); else disabledFiles.add(name);
+      saveDisabled();
+      renderFileListMenu();
+      processAllFiles();
+    }
+    window.toggleFile = toggleFile;
     const ROWS_PER_PAGE = 100;
     let currentTab = 'lengkap'; 
 
@@ -898,6 +909,7 @@
     function removeFile(name) {
       if (!confirm('Hapus data dari file "' + name + '"?')) return;
       filesMap.delete(name);
+      disabledFiles.delete(name); saveDisabled();
       renderFileListMenu();
       processAllFiles();
       savePJ();
@@ -924,9 +936,11 @@
       let html = '';
       for (const name of filesMap.keys()) {
         const safe = name.replace(/'/g, "\\'");
-        html += '<div class="file-row">' +
+        const on = !disabledFiles.has(name);
+        html += '<div class="file-row"' + (on ? '' : ' style="opacity:.5"') + '>' +
+          '<input type="checkbox" ' + (on ? 'checked ' : '') + 'title="Centang = dipakai, hilangkan centang = tidak dipakai (data tidak dihapus)" onchange="toggleFile(\'' + safe + '\', this.checked)" style="margin-right:6px;cursor:pointer">' +
           '<span class="fname" title="' + name + '">📄 ' + name + '</span>' +
-          '<button class="del-btn" title="Hapus data bulan ini" onclick="removeFile(\'' + safe + '\')">×</button>' +
+          '<button class="del-btn" title="Hapus file ini permanen" onclick="removeFile(\'' + safe + '\')">×</button>' +
           '</div>';
       }
       el.innerHTML = html;
@@ -1045,6 +1059,7 @@
       let cacheDirty = false;
       const seenNames = new Set();
       for (const [name, buffer] of filesMap) {
+        if (disabledFiles.has(name)) { seenNames.add(name); continue; }   // file dimatikan: dilewati, cache tetap
         try {
           const fp = bufFp(buffer);
           seenNames.add(name);
@@ -1089,6 +1104,19 @@
 
       for (const k of Object.keys(cache)) if (!seenNames.has(k)) { delete cache[k]; cacheDirty = true; }
       if (cacheDirty) pcSave();
+
+      /* Anti-dobel antar file: bila satu No. Faktur muncul di lebih dari satu file Excel
+         (mis. file bulanan + file gabungan), pakai baris dari SATU file saja (file pertama yang memuat faktur itu).
+         Baris kembar di dalam file yang sama tetap dipertahankan (bisa jadi item yang memang dobel). */
+      {
+        const owner = new Map();
+        allData = allData.filter(r => {
+          const k = String(r['No. Faktur'] || '').trim().toUpperCase();
+          if (!k) return true;
+          if (!owner.has(k)) { owner.set(k, r._source); return true; }
+          return owner.get(k) === r._source;
+        });
+      }
 
       applyHargaOverrides();
       applyPayOverrides();
