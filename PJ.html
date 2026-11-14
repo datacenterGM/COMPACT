@@ -563,6 +563,11 @@
               <div class="hb-info" id="hbInfo">Pilih rentang tanggal + produk, isi harga beli baru.</div>
               <div id="hbList"></div>
             </div>
+            <div class="dropdown-section" id="monthSection" style="display:none;">
+              <div style="font-weight:600;margin-bottom:4px">Bulan yang dipakai</div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:6px">Hilangkan centang untuk menyembunyikan bulan itu (data tidak dihapus, bisa dicentang lagi).</div>
+              <div id="monthListMenu"></div>
+            </div>
             <div class="dropdown-section" id="clearAllSection" style="display:none;">
               <button class="btn-sm btn-danger" onclick="clearAllData()">
                 🗑️ Hapus Semua Data
@@ -682,6 +687,37 @@
     let invTotals = new Map();
     let filesMap = new Map();
     /* File yang DIMATIKAN (tidak dipakai) — tetap tersimpan, tidak dihapus */
+    /* Bulan yang DIMATIKAN (tidak dipakai) — baris bulan itu disaring di PJ, CEK, dan tab lain */
+    let disabledMonths = new Set();
+    try { disabledMonths = new Set(JSON.parse(localStorage.getItem('pj_disabled_months') || '[]')); } catch (e) {}
+    let monthInfo = {};   /* 'YYYY-MM' -> {rows, fk:Set} dari semua file yang aktif */
+    function monthKeyOf(t) {
+      const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      return m ? (m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + m[2].padStart(2, '0') : '';
+    }
+    const BLN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    function monthLabel(ym) { const [y, m] = ym.split('-'); return (BLN[+m - 1] || m) + ' ' + y; }
+    function toggleMonth(ym, on) {
+      if (on) disabledMonths.delete(ym); else disabledMonths.add(ym);
+      try { localStorage.setItem('pj_disabled_months', JSON.stringify([...disabledMonths])); } catch (e) {}
+      processAllFiles();
+    }
+    window.toggleMonth = toggleMonth;
+    function renderMonthMenu() {
+      const sec = document.getElementById('monthSection'), el = document.getElementById('monthListMenu');
+      if (!sec || !el) return;
+      const keys = new Set([...Object.keys(monthInfo), ...disabledMonths]);
+      keys.delete(''); 
+      if (!filesMap.size || !keys.size) { sec.style.display = 'none'; return; }
+      sec.style.display = 'block';
+      el.innerHTML = [...keys].sort().reverse().map(ym => {
+        const on = !disabledMonths.has(ym), inf = monthInfo[ym];
+        return '<label class="file-row" style="cursor:pointer;' + (on ? '' : 'opacity:.5') + '">' +
+          '<input type="checkbox" ' + (on ? 'checked ' : '') + 'onchange="toggleMonth(\'' + ym + '\', this.checked)" style="margin-right:6px;cursor:pointer">' +
+          '<span class="fname">' + monthLabel(ym) + '</span>' +
+          '<span style="font-size:11px;color:#6b7280;margin-left:6px;white-space:nowrap">' + (inf ? inf.fk.size.toLocaleString('id-ID') + ' faktur' : 'tersembunyi') + '</span></label>';
+      }).join('');
+    }
     let dupInfo = {};   /* nama file -> jumlah faktur yang juga ada di file lain */
     let disabledFiles = new Set();
     try { disabledFiles = new Set(JSON.parse(localStorage.getItem('pj_disabled_files') || '[]')); } catch (e) {}
@@ -1111,8 +1147,14 @@
       {
         const fkOf = r => String(r['No. Faktur'] || '').trim().toUpperCase();
         const owner = new Map(), srcs = new Map(), full = {}, eff = {};
+        monthInfo = {};
         allData.forEach(r => {
           (full[r._source] = full[r._source] || []).push(r);
+          const mk = monthKeyOf(r.Tanggal);
+          if (mk) { const o = monthInfo[mk] || (monthInfo[mk] = { rows: 0, fk: new Set() }); o.rows++; const k0 = fkOf(r); if (k0) o.fk.add(k0); }
+        });
+        if (disabledMonths.size) allData = allData.filter(r => !disabledMonths.has(monthKeyOf(r.Tanggal)));
+        allData.forEach(r => {
           const k = fkOf(r); if (!k) return;
           if (!owner.has(k)) owner.set(k, r._source);
           let st = srcs.get(k); if (!st) srcs.set(k, st = new Set()); st.add(r._source);
@@ -1136,7 +1178,7 @@
         if (cacheDirty) pcSave();
       }
 
-      try { renderFileListMenu(); } catch (e) {}
+      try { renderFileListMenu(); renderMonthMenu(); } catch (e) {}
       applyHargaOverrides();
       applyPayOverrides();
       allData.sort((a, b) => {
