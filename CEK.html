@@ -209,6 +209,17 @@ async function loadData() {
     if (!own.has(k)) { own.set(k, r._source); return true; }
     return own.get(k) === r._source;
   });
+  /* Samakan dengan tab PJ: terapkan perubahan Pembayaran manual (Tempo <-> Cash) yang dibuat di PJ */
+  let pm = liveVar('penjualan', 'payMap');
+  if (!pm || typeof pm !== 'object' || !Object.keys(pm).length) { const y = await idbGet('pjbayar-v1', 'pjbayar-data', 'latest'); pm = (y && y.items) || {}; }
+  if (Object.keys(pm).length) {
+    pj = pj.map(r => {
+      const o = pm[fk(r && r['No. Faktur'])];
+      if (!o || !o.to || r.orphan) return r;
+      if (String(r.Pembayaran || '').trim().toLowerCase() === String(o.to).toLowerCase()) return r;
+      return Object.assign({}, r, { Pembayaran: o.to, _payOrig: r.Pembayaran });
+    });
+  }
   SALES_ROWS = pj;
   let um = liveVar('uangmasuk', 'allRecords');
   if (!Array.isArray(um) || !um.length) { const u = await idbGet('um-fixv1', 'um-data', 'latest'); um = (u && u.records) || []; }
