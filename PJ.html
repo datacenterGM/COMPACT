@@ -494,6 +494,10 @@
     :root[data-theme="dark"] .lengkap-bar select {
       background: #161b22; color: var(--text); border-color: var(--border);
     }
+    .btn-xlsx { margin-left:auto; padding:.35rem .9rem; border:0; border-radius:6px; background:#1b7a3d; color:#fff; font-size:.8rem; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .btn-xlsx:hover { background:#14612f; }
+    .btn-xlsx:disabled { opacity:.6; cursor:wait; }
+    :root[data-theme="dark"] .btn-xlsx { background:#238636; }
   </style>
 </head>
 <body>
@@ -605,6 +609,7 @@
             <option value="MINYAK">Minyak Fitri</option>
             <option value="RUPA">Rupa-Rupa</option>
           </select>
+          <button type="button" id="btnXlsxLengkap" class="btn-xlsx" title="Simpan tabel yang sedang tampil (semua halaman, sesuai filter) ke Excel siap print">📥 Simpan Excel</button>
         </div>
         <div class="table-wrapper"><div id="table-lengkap"></div></div>
         <div class="pagination" id="page-lengkap"></div>
@@ -2360,6 +2365,127 @@
 
     loadBatal().then(loadHarga).then(loadBayar).then(loadPJ).then(cekLoadUM).then(cekBadgeSoon);
   </script>
+<script>
+/* ===== Simpan Excel (siap print) untuk tab Data Lengkap ===== */
+const XL_COLS = [
+  ['Tanggal', 10, 'c'], ['No. Faktur', 17, 'c'], ['Produk', 30, 'l'], ['Jumlah', 8, 'c'], ['Satuan', 8, 'c'],
+  ['Harga Beli', 12, 'r'], ['Discount', 9, 'c'], ['Harga Jual', 12, 'r'], ['Total', 13, 'r'], ['TOTAL FAKTUR', 14, 'r'],
+  ['Sales', 9, 'c'], ['Customer', 26, 'l'], ['Kd Customer', 14, 'c'], ['Alamat', 20, 'l'], ['Pembayaran', 11, 'c'], ['Ket.', 11, 'c']
+];
+function buildLengkapWorkbook(ExcelJS, c) {
+  const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Data Lengkap');
+  const N = XL_COLS.length, HR = 5, AL = { c: 'center', l: 'left', r: 'right' };
+  ws.columns = XL_COLS.map(x => ({ width: x[1] }));
+  const line = (rn, txt, bold, size) => {
+    ws.mergeCells(rn, 1, rn, N);
+    const cell = ws.getCell(rn, 1); cell.value = txt;
+    cell.font = { bold: !!bold, size: size || 10 }; cell.alignment = { horizontal: 'left', vertical: 'middle' };
+  };
+  line(1, 'LAPORAN PENJUALAN (DATA LENGKAP)', true, 14);
+  line(2, 'Periode: ' + c.periode);
+  line(3, 'Filter: ' + c.filter);
+  line(4, 'Faktur: ' + c.nFaktur + '  |  Baris item: ' + c.rows.length + '  |  Dicetak: ' + c.printed);
+  ws.getRow(1).height = 22;
+  const thin = (argb) => ({ style: 'thin', color: { argb } });
+  const hr = ws.getRow(HR); hr.height = 20;
+  XL_COLS.forEach((x, i) => {
+    const cell = hr.getCell(i + 1); cell.value = x[0];
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D47A1' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = { top: thin('FF000000'), bottom: thin('FF000000'), left: thin('FF000000'), right: thin('FF000000') };
+  });
+  let sumTotal = 0, sumFaktur = 0;
+  c.rows.forEach((r, i) => {
+    const fk = String(r['No. Faktur'] || '').trim().toUpperCase();
+    const show = !fk || c.firstIdx.get(fk) === i;
+    const batal = !!c.batalMap[fk], pair = !!r._pair;
+    const tf = fk ? (c.invTotals.get(fk) || 0) : (Number(r.Total) || 0);
+    let ket = '';
+    if (show) {
+      if (batal) ket = 'BATAL'; else if (c.invKind[fk] === 'NOL') ket = 'NOL'; else if (c.invKind[fk] === 'PARSIAL') ket = 'ITEM BATAL';
+      if (r._payOrig !== undefined) ket += (ket ? ', ' : '') + 'DIUBAH';
+    }
+    if (!batal && !pair) { sumTotal += Number(r.Total) || 0; if (show) sumFaktur += tf; }
+    const row = ws.addRow([
+      show ? (r.Tanggal || '') : '', show ? (r['No. Faktur'] || '') : '', r.Produk || '',
+      Number(r.Jumlah) || 0, r.Satuan || '', Number(r['Harga Beli']) || 0, Number(r.Discount) || 0,
+      Number(r['Harga Jual']) || 0, Number(r.Total) || 0, show ? tf : '',
+      show ? (r.Sales || '') : '', show ? (r.Customer || '') : '', show ? (r['Kd Customer'] || '') : '',
+      show ? (r.Alamat || '') : '', show ? (r.Pembayaran || '') : '', ket
+    ]);
+    row.eachCell({ includeEmpty: true }, (cell, ci) => {
+      const x = XL_COLS[ci - 1];
+      cell.font = { size: 10, bold: ci === 10 && show, strike: batal, color: { argb: batal ? 'FF888888' : 'FF000000' } };
+      cell.alignment = { horizontal: AL[x[2]], vertical: 'middle' };
+      cell.border = { top: show ? thin('FF555555') : thin('FFDDDDDD'), bottom: thin('FFDDDDDD'), left: thin('FFDDDDDD'), right: thin('FFDDDDDD') };
+      if ([6, 7, 8, 9, 10].includes(ci)) cell.numFmt = '#,##0';
+      if (ci === 10 && show) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: batal ? 'FFEEEEEE' : 'FFFFF3E0' } };
+      if (batal && ci !== 10) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+    });
+  });
+  const tr = ws.addRow(['TOTAL', '', '', '', '', '', '', '', sumTotal, sumFaktur, '', '', '', '', '', '']);
+  ws.mergeCells(tr.number, 1, tr.number, 8);
+  tr.eachCell({ includeEmpty: true }, (cell, ci) => {
+    cell.font = { bold: true, size: 10 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
+    cell.border = { top: thin('FF000000'), bottom: { style: 'double', color: { argb: 'FF000000' } } };
+    cell.alignment = { horizontal: ci === 1 ? 'left' : 'right', vertical: 'middle' };
+    if (ci === 9 || ci === 10) cell.numFmt = '#,##0';
+  });
+  ws.views = [{ state: 'frozen', ySplit: HR }];
+  ws.pageSetup = {
+    paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+    horizontalCentered: true, printTitlesRow: HR + ':' + HR,
+    margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.55, header: 0.25, footer: 0.25 }
+  };
+  ws.headerFooter.oddFooter = '&L&8Data Lengkap&R&8Halaman &P dari &N';
+  return wb;
+}
+(function () {
+  const btn = document.getElementById('btnXlsxLengkap');
+  if (!btn) return;
+  let loading = null;
+  const loadExcelJS = () => window.ExcelJS ? Promise.resolve() : (loading = loading || new Promise((ok, no) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+    s.onload = ok; s.onerror = () => { loading = null; no(new Error('Library Excel gagal dimuat. Cek koneksi internet.')); };
+    document.head.appendChild(s);
+  }));
+  const selText = s => (s && s.value && s.selectedOptions[0]) ? s.selectedOptions[0].text : '';
+  const ymd = v => v ? v.split('-').reverse().join('/') : '';
+  btn.addEventListener('click', async () => {
+    const st = tabState.lengkap;
+    if (st.dirty) applyFilter('lengkap');
+    const rows = st.filtered || [];
+    if (!rows.length) { alert('Tidak ada data untuk disimpan.'); return; }
+    const old = btn.textContent; btn.disabled = true; btn.textContent = '⏳ Menyiapkan...';
+    try {
+      await loadExcelJS();
+      const bulan = selText(monthSel), pay = selText(document.getElementById('payFilter')), prod = selText(document.getElementById('prodFilter'));
+      const sales = selText(salesSel), q = (st.search || '').trim();
+      const periode = (dateFrom || dateTo) ? (ymd(dateFrom) || '...') + ' s/d ' + (ymd(dateTo) || '...') : (bulan || 'Semua Bulan');
+      const fl = [];
+      if (document.getElementById('payFilter').value) fl.push(pay);
+      if (document.getElementById('prodFilter').value) fl.push(prod);
+      if (sales) fl.push('Sales ' + sales);
+      if (q) fl.push('Cari "' + q + '"');
+      const fset = new Set(); rows.forEach(r => { const k = fkey(r); if (k && !batalMap[k]) fset.add(k); });
+      const wb = buildLengkapWorkbook(window.ExcelJS, {
+        rows, firstIdx: st.firstIdx, invTotals, batalMap, invKind, periode,
+        filter: fl.length ? fl.join(', ') : 'Semua data', nFaktur: fset.size.toLocaleString('id-ID'),
+        printed: new Date().toLocaleString('id-ID')
+      });
+      const buf = await wb.xlsx.writeBuffer();
+      const name = ['PJ', (dateFrom || dateTo) ? (dateFrom + '_' + dateTo) : (bulan || 'Semua'), ...fl].join('_').replace(/[^\w\-.]+/g, '-').replace(/-+/g, '-') + '.xlsx';
+      const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) { console.error(e); alert('Gagal membuat Excel: ' + (e.message || e)); }
+    finally { btn.disabled = false; btn.textContent = old; }
+  });
+})();
+</script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
 <script src="backup.js"></script>
 <script>
