@@ -104,6 +104,17 @@
   a.go { display:inline-block; margin-left:6px; padding:0 5px; border:1px solid var(--border); border-radius:4px; color:var(--primary); font-size:.62rem; line-height:1.5; text-decoration:none; vertical-align:middle; }
   a.go:hover { background:var(--hover); border-color:var(--primary); }
   @media (max-width:640px) { .kv { grid-template-columns:repeat(2,1fr); } }
+  /* === Perbaikan tampilan HP: halaman boleh di-scroll, tabel diberi tinggi tetap === */
+  @media (max-width:700px) {
+    html, body { height:auto; }
+    body { display:block; overflow:auto; }
+    .chips { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:.4rem .5rem; }
+    .chip { flex:0 0 auto; min-width:150px; }
+    .wrap { flex:none; height:75vh; height:75dvh; min-height:320px; margin:0 .4rem; }
+    .bar select { max-width:100%; }
+    input[type=text] { max-width:none; flex:1 1 100%; }
+    .rule, .pager { padding-left:.5rem; padding-right:.5rem; }
+  }
 </style>
 </head>
 <body>
