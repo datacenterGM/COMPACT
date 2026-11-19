@@ -1513,6 +1513,7 @@
       html += '</tbody>';
       {
         let sT = 0, sF = 0, sM = 0, sN = 0; const sU = new Map();
+        const noJml = key === 'cash_rupa' || key === 'tempo_rupa' || (key === 'lengkap' && document.getElementById('prodFilter')?.value === 'RUPA');
         const rowsAll = st.filtered;
         for (let i = 0; i < rowsAll.length; i++) {
           const r = rowsAll[i], k = fkey(r);
@@ -1525,8 +1526,8 @@
         }
         const sP = sT ? ((sM / sT) * 100).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '';
         html += '<tfoot><tr class="tfoot-total"><td colspan="3" style="text-align:left">TOTAL (' + sN.toLocaleString('id-ID') + ' baris item, semua halaman)</td>' +
-          '<td class="center">' + [...sU.values()].map(v => formatNum(v)).join('<br>') + '</td>' +
-          '<td class="center">' + [...sU.keys()].map(u => pe(u)).join('<br>') + '</td><td colspan="4"></td>' +
+          '<td class="center">' + (noJml ? '' : [...sU.values()].map(v => formatNum(v)).join('<br>')) + '</td>' +
+          '<td class="center">' + (noJml ? '' : [...sU.keys()].map(u => pe(u)).join('<br>')) + '</td><td colspan="4"></td>' +
           '<td class="num">' + formatNum(sT) + '</td><td class="num">' + formatNum(sF) + '</td>' +
           '<td colspan="5"></td><td class="num">' + formatNum(sM) + '</td><td class="num">' + sP + '</td></tr></tfoot>';
       }
@@ -2482,9 +2483,10 @@ function buildLengkapWorkbook(ExcelJS, c) {
     });
   });
   const uK = [...sumU.keys()], uV = [...sumU.values()];
-  const tr = ws.addRow(['TOTAL', '', '', uV.length === 1 ? uV[0] : uV.map(v => v.toLocaleString('id-ID')).join('\n'), uK.join('\n'), '', '', '', '', sumTotal, sumFaktur, '', '', '', '', '', '', sumMargin, sumTotal ? sumMargin / sumTotal : '']);
+  const noJml = document.getElementById('prodFilter')?.value === 'RUPA';
+  const tr = ws.addRow(['TOTAL', '', '', noJml ? '' : (uV.length === 1 ? uV[0] : uV.map(v => v.toLocaleString('id-ID')).join('\n')), noJml ? '' : uK.join('\n'), '', '', '', '', sumTotal, sumFaktur, '', '', '', '', '', '', sumMargin, sumTotal ? sumMargin / sumTotal : '']);
   ws.mergeCells(tr.number, 1, tr.number, 3); ws.mergeCells(tr.number, 6, tr.number, 9);
-  if (uK.length > 1) tr.height = 14 * uK.length;
+  if (!noJml && uK.length > 1) tr.height = 14 * uK.length;
   tr.eachCell({ includeEmpty: true }, (cell, ci) => {
     cell.font = { bold: true, size: 10 };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
