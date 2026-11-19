@@ -1512,18 +1512,21 @@
       });
       html += '</tbody>';
       {
-        let sT = 0, sF = 0, sM = 0, sN = 0;
+        let sT = 0, sF = 0, sM = 0, sN = 0; const sU = new Map();
         const rowsAll = st.filtered;
         for (let i = 0; i < rowsAll.length; i++) {
           const r = rowsAll[i], k = fkey(r);
           if (batalMap[k] || r._pair) continue;
           const t = Number(r.Total) || 0;
           sT += t; sN++;
+          { const u = String(r.Satuan || '').trim(); sU.set(u, (sU.get(u) || 0) + (Number(r.Jumlah) || 0)); }
           sM += t - (Number(r['Harga Beli']) || 0) * (Number(r.Jumlah) || 0);
           if (!k || st.firstIdx.get(k) === i) sF += k ? (invTotals.get(k) || 0) : t;
         }
         const sP = sT ? ((sM / sT) * 100).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '';
-        html += '<tfoot><tr class="tfoot-total"><td colspan="9" style="text-align:left">TOTAL (' + sN.toLocaleString('id-ID') + ' baris item, semua halaman)</td>' +
+        html += '<tfoot><tr class="tfoot-total"><td colspan="3" style="text-align:left">TOTAL (' + sN.toLocaleString('id-ID') + ' baris item, semua halaman)</td>' +
+          '<td class="center">' + [...sU.values()].map(v => formatNum(v)).join('<br>') + '</td>' +
+          '<td class="center">' + [...sU.keys()].map(u => pe(u)).join('<br>') + '</td><td colspan="4"></td>' +
           '<td class="num">' + formatNum(sT) + '</td><td class="num">' + formatNum(sF) + '</td>' +
           '<td colspan="5"></td><td class="num">' + formatNum(sM) + '</td><td class="num">' + sP + '</td></tr></tfoot>';
       }
@@ -2446,7 +2449,7 @@ function buildLengkapWorkbook(ExcelJS, c) {
     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     cell.border = { top: thin('FF000000'), bottom: thin('FF000000'), left: thin('FF000000'), right: thin('FF000000') };
   });
-  let sumTotal = 0, sumFaktur = 0, sumMargin = 0;
+  let sumTotal = 0, sumFaktur = 0, sumMargin = 0; const sumU = new Map();
   c.rows.forEach((r, i) => {
     const fk = String(r['No. Faktur'] || '').trim().toUpperCase();
     const show = !fk || c.firstIdx.get(fk) === i;
@@ -2458,7 +2461,7 @@ function buildLengkapWorkbook(ExcelJS, c) {
       if (r._payOrig !== undefined) ket += (ket ? ', ' : '') + 'DIUBAH';
     }
     const mgn = (Number(r.Total) || 0) - (Number(r['Harga Beli']) || 0) * (Number(r.Jumlah) || 0);
-    if (!batal && !pair) { sumTotal += Number(r.Total) || 0; sumMargin += mgn; if (show) sumFaktur += tf; }
+    if (!batal && !pair) { sumTotal += Number(r.Total) || 0; sumMargin += mgn; { const u = String(r.Satuan || '').trim(); sumU.set(u, (sumU.get(u) || 0) + (Number(r.Jumlah) || 0)); } if (show) sumFaktur += tf; }
     const row = ws.addRow([
       show ? (r.Tanggal || '') : '', show ? (r['No. Faktur'] || '') : '', r.Produk || '',
       Number(r.Jumlah) || 0, r.Satuan || '', Number(r['Harga Beli']) || 0, (Number(r.Discount) || 0) || '',
@@ -2478,14 +2481,16 @@ function buildLengkapWorkbook(ExcelJS, c) {
       if ((ci === 18 || ci === 19) && !batal && !pair && Number(r.Total) && (mgn / Number(r.Total)) * 100 < 2) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFBCFE8' } };
     });
   });
-  const tr = ws.addRow(['TOTAL', '', '', '', '', '', '', '', '', sumTotal, sumFaktur, '', '', '', '', '', '', sumMargin, sumTotal ? sumMargin / sumTotal : '']);
-  ws.mergeCells(tr.number, 1, tr.number, 9);
+  const uK = [...sumU.keys()], uV = [...sumU.values()];
+  const tr = ws.addRow(['TOTAL', '', '', uV.length === 1 ? uV[0] : uV.map(v => v.toLocaleString('id-ID')).join('\n'), uK.join('\n'), '', '', '', '', sumTotal, sumFaktur, '', '', '', '', '', '', sumMargin, sumTotal ? sumMargin / sumTotal : '']);
+  ws.mergeCells(tr.number, 1, tr.number, 3); ws.mergeCells(tr.number, 6, tr.number, 9);
+  if (uK.length > 1) tr.height = 14 * uK.length;
   tr.eachCell({ includeEmpty: true }, (cell, ci) => {
     cell.font = { bold: true, size: 10 };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
     cell.border = { top: thin('FF000000'), bottom: { style: 'double', color: { argb: 'FF000000' } } };
-    cell.alignment = { horizontal: ci === 1 ? 'left' : 'right', vertical: 'middle' };
-    if (ci === 10 || ci === 11 || ci === 18) cell.numFmt = '#,##0';
+    cell.alignment = { horizontal: ci === 1 ? 'left' : (ci === 4 || ci === 5) ? 'center' : 'right', vertical: 'middle', wrapText: ci === 4 || ci === 5 };
+    if (ci === 4 || ci === 10 || ci === 11 || ci === 18) cell.numFmt = '#,##0';
     if (ci === 19) cell.numFmt = '0.0%';
   });
   ws.views = [{ state: 'frozen', ySplit: HR }];
