@@ -1513,7 +1513,6 @@
       html += '</tbody>';
       {
         let sT = 0, sF = 0, sM = 0, sN = 0; const sU = new Map();
-        const noJml = key === 'cash_rupa' || key === 'tempo_rupa' || (key === 'lengkap' && document.getElementById('prodFilter')?.value === 'RUPA');
         const rowsAll = st.filtered;
         for (let i = 0; i < rowsAll.length; i++) {
           const r = rowsAll[i], k = fkey(r);
@@ -1524,6 +1523,7 @@
           sM += t - (Number(r['Harga Beli']) || 0) * (Number(r.Jumlah) || 0);
           if (!k || st.firstIdx.get(k) === i) sF += k ? (invTotals.get(k) || 0) : t;
         }
+        const noJml = key === 'lengkap' || key === 'cash_rupa' || key === 'tempo_rupa' || sU.size > 1;
         const sP = sT ? ((sM / sT) * 100).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '';
         html += '<tfoot><tr class="tfoot-total"><td colspan="3" style="text-align:left">TOTAL (' + sN.toLocaleString('id-ID') + ' baris item, semua halaman)</td>' +
           '<td class="center">' + (noJml ? '' : [...sU.values()].map(v => formatNum(v)).join('<br>')) + '</td>' +
@@ -2483,7 +2483,7 @@ function buildLengkapWorkbook(ExcelJS, c) {
     });
   });
   const uK = [...sumU.keys()], uV = [...sumU.values()];
-  const noJml = document.getElementById('prodFilter')?.value === 'RUPA';
+  const noJml = true;   // Data Lengkap: total Jumlah/Satuan tidak ditampilkan
   const tr = ws.addRow(['TOTAL', '', '', noJml ? '' : (uV.length === 1 ? uV[0] : uV.map(v => v.toLocaleString('id-ID')).join('\n')), noJml ? '' : uK.join('\n'), '', '', '', '', sumTotal, sumFaktur, '', '', '', '', '', '', sumMargin, sumTotal ? sumMargin / sumTotal : '']);
   ws.mergeCells(tr.number, 1, tr.number, 3); ws.mergeCells(tr.number, 6, tr.number, 9);
   if (!noJml && uK.length > 1) tr.height = 14 * uK.length;
