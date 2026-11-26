@@ -813,6 +813,12 @@ function buildPrintWorkbook(EJ, o) {
   ws.headerFooter.oddFooter = '&L&8Disimpan: ' + o.savedText + '&C&8Halaman &P dari &N&R&8' + o.title.replace(/&/g, '&&');
   return wb;
 }
+/* nama file mengikuti filter: Cek [Pembayaran] [Produk] [Sales] [Kartu] [bulan] */
+function fileBase(chipName) {
+  const opt = id => { const e = $(id); return e && e.value && e.selectedOptions[0] ? e.selectedOptions[0].textContent.trim() : ''; };
+  const t = s => s.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return ['Cek', opt('fPay'), opt('fProd'), opt('fSales'), chipName].map(t).filter(Boolean).map(w => w.replace(/\b([a-z])([A-Z]*)\b/gi, (m, c, r) => c.toUpperCase() + r.toLowerCase())).join(' ');
+}
 async function exportXlsPrint() {
   const od = state.f === 'NONE_DUE', now = new Date();
   const chip = document.querySelector('.chip.on > span'), chipName = (chip ? chip.textContent : 'Semua Faktur').replace(/^[^A-Za-z]+/, '').trim();
@@ -827,7 +833,7 @@ async function exportXlsPrint() {
     filterText: 'Filter: ' + [sel('fBasis'), msLabel(), sel('fSales'), sel('fPay'), sel('fProd')].filter(Boolean).join('  ·  ') + (q ? '  ·  Cari: "' + q + '"' : '') });
   const buf = await wb.xlsx.writeBuffer(), m = msKey(), a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  a.download = 'Cek_' + chipName.replace(/[^A-Za-z0-9]+/g, '_') + '_' + (m ? m.replace('-', '') : 'SEMUA') + '.xlsx';
+  a.download = fileBase(chipName) + (m ? ' ' + m : ' SEMUA BULAN') + '.xlsx';
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
@@ -842,7 +848,7 @@ $('bXls').addEventListener('click', async () => {
   ws['!cols'] = [10,14,14,12,26,30,12,12].concat(od ? [10] : [], [14,12,16,80]).map(w => ({ wch: w }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'CEK');
   const m = msKey();
-  XLSX.writeFile(wb, 'Cek_Penjualan_Uang_Masuk_' + (m ? m.replace('-', '') : 'SEMUA') + '.xlsx');
+  XLSX.writeFile(wb, fileBase((() => { const c = document.querySelector('.chip.on > span'); return (c ? c.textContent : 'Semua Faktur').replace(/^[^A-Za-z]+/, '').trim(); })()) + (m ? ' ' + m : ' SEMUA BULAN') + '.xlsx');
 });
 
 /* ===== sinkron dengan shell ===== */
