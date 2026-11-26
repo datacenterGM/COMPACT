@@ -821,7 +821,7 @@ async function exportXlsPrint() {
     .concat(od ? [r.orph ? '' : (odDays(r.tanggal) || 0)] : [], [stText(r), tglUMList(r).join('\n'), (r.issues.length ? r.issues : (r.cat === 'OK' ? ['Sesuai'] : [])).concat(r.info ? [r.info] : []).join('\n')]));
   const totalFaktur = VIEW.reduce((t, r) => t + (r.orph ? 0 : (Number(r.total) || 0)), 0);
   const wb = buildPrintWorkbook(ExcelJS, { od, rows, totalFaktur, savedAt: now, savedText,
-    title: 'LAPORAN CEK PENJUALAN & UANG MASUK — ' + chipName.toUpperCase(),
+    title: 'LAPORAN CEK PENJUALAN & UANG MASUK — ' + chipName.toUpperCase() + ($('fPay').value ? ' ' + $('fPay').value.toUpperCase() : ''),
     filterText: 'Filter: ' + [sel('fBasis'), msLabel(), sel('fSales'), sel('fPay'), sel('fProd')].filter(Boolean).join('  ·  ') + (q ? '  ·  Cari: "' + q + '"' : '') });
   const buf = await wb.xlsx.writeBuffer(), m = msKey(), a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
