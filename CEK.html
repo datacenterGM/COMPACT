@@ -485,7 +485,7 @@ function build() {
       um: o.recs, status: 'TANPA FAKTUR', cat: 'ORPH',
       issues: [g.has(o.k) ? 'No Faktur "' + f.no_faktur + '" ada di penjualan tetapi dibatalkan / bernilai nol' : 'No Faktur "' + f.no_faktur + '" tidak ditemukan di data penjualan (salah ketik?)'],
       info: [toko, alm, sls].filter(Boolean).join(' · ') + ' — ' + o.recs.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || ''))
-        .map(r => dmy(r.tanggal_laporan_str) + ' ' + (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop') + ' ' + fmt(r.total_bayar)).join(' · ')
+        .map(r => dmy(r.tanggal_laporan_str) + ' ' + (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop')).join(' · ')
     });
   });
   INV.sort((a, b) => a.sk === b.sk ? a.fk.localeCompare(b.fk) : (!a.sk ? 1 : !b.sk ? -1 : (a.sk < b.sk ? -1 : 1)));   /* tanggal terlama di atas */
@@ -504,6 +504,7 @@ function umKetText(u) { const k = String(u.status || '').trim(); if (!k) return 
   return (!K.includes('LUNAS') && umKetLunas(u)) ? k + ' - LUNAS' : k; }
 /* Tgl UM: tanggal tiap catatan uang masuk (urut sama dengan baris di Ket) */
 function tglUMList(r) { return (r.um || []).slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || '')).map(u => dmy(u.tanggal_laporan_str)); }
+function nomList(r) { return (r.um || []).slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || '')).map(u => fmt(u.total_bayar)); }
 function stText(r) { return r.ketUM !== undefined ? (r.ketUM || '—') : r.status; }
 function evaluate(rec, S) {
   const um = rec.um;
@@ -552,7 +553,7 @@ function evaluate(rec, S) {
   else if (rec.status === 'TITIP') issues.push('Baru dibayar ' + fmt(paid) + ' dari ' + fmt(rec.total) + ' (sisa ' + fmt(sisa) + ')' + (kets === '(kosong)' ? ' · KET di UM kosong' : ''));
   rec.issues = issues;
   rec.info = um.slice().sort((a, b) => (a.tanggal_laporan_str || '').localeCompare(b.tanggal_laporan_str || ''))
-    .map(r => (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop') + ' ' + fmt(r.total_bayar)).join('\n');   /* tanggal dipindah ke kolom Tgl UM; 1 baris per catatan */
+    .map(r => (r.section === 'PIUTANG' ? 'Piutang' : 'Cash Drop')).join('\n');   /* tanggal -> kolom Tgl UM, nominal -> kolom Nominal; 1 baris per catatan */
   /* TITIP murni (hanya belum lunas) bukan salah catat */
   rec.cat = issues.filter(i => !/^Baru dibayar/.test(i)).length ? 'DIFF' : (rec.status === 'TITIP' ? 'TITIP' : 'OK');
   rec.sig = issues.join('|');
@@ -645,10 +646,10 @@ function render() {
   const pages = Math.max(1, Math.ceil(VIEW.length / state.size));
   state.page = Math.min(Math.max(1, state.page), pages);
   const st = (state.page - 1) * state.size, rows = VIEW.slice(st, st + state.size);
-  const showOD = state.f === 'NONE_DUE', nc = showOD ? 12 : 11;
+  const showOD = state.f === 'NONE_DUE', nc = showOD ? 13 : 12;
   $('tb').querySelector('thead').innerHTML =
-    '<tr><th class="g1" colspan="' + (nc - 3) + '">DATA PENJUALAN</th><th class="g2" colspan="3">DATA UANG MASUK</th></tr>' +
-    '<tr>' + ['Tanggal','No. Faktur','Total Faktur','Sales','Customer','Alamat','Produk','Pembayaran'].concat(showOD ? ['OD (hari)'] : []).map(h => '<th class="c1">' + h + '</th>').join('') + '<th class="c2">Status</th><th class="c2">Tgl UM</th><th class="c2">Ket</th></tr>';
+    '<tr><th class="g1" colspan="' + (nc - 4) + '">DATA PENJUALAN</th><th class="g2" colspan="4">DATA UANG MASUK</th></tr>' +
+    '<tr>' + ['Tanggal','No. Faktur','Total Faktur','Sales','Customer','Alamat','Produk','Pembayaran'].concat(showOD ? ['OD (hari)'] : []).map(h => '<th class="c1">' + h + '</th>').join('') + '<th class="c2">Status</th><th class="c2">Tgl UM</th><th class="c2">Nominal</th><th class="c2">Ket</th></tr>';
   const body = $('tb').querySelector('tbody');
   if (!SALES_ROWS.length) body.innerHTML = '<tr><td class="empty" colspan="' + nc + '">Belum ada data Penjualan. Upload dulu di tab PENJUALAN (Menu → Upload File Excel), lalu klik ↻ Muat Ulang.</td></tr>';
   else if (!rows.length) body.innerHTML = '<tr><td class="empty" colspan="' + nc + '">Tidak ada faktur pada filter ini</td></tr>';
@@ -666,10 +667,10 @@ function render() {
       '<td class="ctr">' + L[0] + '</td><td class="ctr">' + L[1] + korB + '</td><td class="num">' + L[2] + '</td>' +
       '<td class="ctr">' + L[3] + '</td><td>' + L[4] + '' + '</td><td>' + L[5] + '</td>' +
       '<td class="ctr">' + L[6] + '</td><td class="ctr">' + L[7] + '</td>' + odCell(r, showOD) +
-      '<td class="ctr"><span class="st ' + stc + '"' + (r.ketUM !== undefined ? ' title="Tertulis di UM (kolom KET)"' : r.lunasMan ? ' title="Dilunasi manual di CEK"' : '') + '>' + esc(stT) + '</span></td><td class="ctr tgl">' + tglUMList(r).map(esc).join('<br>') + '</td><td class="ket">' + ket + '</td></tr>';
+      '<td class="ctr"><span class="st ' + stc + '"' + (r.ketUM !== undefined ? ' title="Tertulis di UM (kolom KET)"' : r.lunasMan ? ' title="Dilunasi manual di CEK"' : '') + '>' + esc(stT) + '</span></td><td class="ctr tgl">' + tglUMList(r).map(esc).join('<br>') + '</td><td class="num tgl">' + nomList(r).join('<br>') + '</td><td class="ket">' + ket + '</td></tr>';
   }).join('');
-  { const tf = $('tb').querySelector('tfoot'), tv = VIEW.filter(r => !r.orph), tot = tv.reduce((t, r) => t + (Number(r.total) || 0), 0);
-    tf.innerHTML = tv.length ? '<tr><td class="ctr" colspan="2">TOTAL (' + fmt(tv.length) + ' faktur' + (pages > 1 ? ', semua halaman' : '') + ')</td><td class="num">' + fmt(Math.round(tot)) + '</td><td colspan="' + (nc - 3) + '"></td></tr>' : ''; }
+  { const tf = $('tb').querySelector('tfoot'), tv = VIEW.filter(r => !r.orph), tot = tv.reduce((t, r) => t + (Number(r.total) || 0), 0), nomTot = VIEW.reduce((t, r) => t + (r.um || []).reduce((x, u) => x + (Number(u.total_bayar) || 0), 0), 0);
+    tf.innerHTML = VIEW.length ? '<tr><td class="ctr" colspan="2">TOTAL (' + fmt(tv.length) + ' faktur' + (pages > 1 ? ', semua halaman' : '') + ')</td><td class="num">' + fmt(Math.round(tot)) + '</td><td colspan="' + (nc - 5) + '"></td><td class="num">' + fmt(Math.round(nomTot)) + '</td><td></td></tr>' : ''; }
   const opts = [50, 100, 200, 500].map(n => '<option value="' + n + '"' + (n === state.size ? ' selected' : '') + '>' + n + '</option>').join('');
   $('pg').innerHTML = '<span>Menampilkan <b>' + (VIEW.length ? st + 1 : 0) + '–' + Math.min(VIEW.length, st + state.size) + '</b> dari <b>' + fmt(VIEW.length) + '</b> faktur</span>' +
     '<span><button ' + (state.page <= 1 ? 'disabled' : '') + ' data-p="' + (state.page - 1) + '">‹</button> Hal <b>' + state.page + '</b> / ' + pages +
@@ -772,8 +773,8 @@ $('tb').addEventListener('click', e => { if (e.target.closest('a.go')) return; c
 function buildPrintWorkbook(EJ, o) {
   const wb = new EJ.Workbook(); wb.creator = 'CEK'; wb.created = o.savedAt;
   const ws = wb.addWorksheet('CEK', { views: [{ state: 'frozen', ySplit: 6 }] });
-  const od = o.od, heads = ['Tanggal','No. Faktur','Total Faktur','Sales','Customer','Alamat','Produk','Pembayaran'].concat(od ? ['OD (hari)'] : [], ['Status','Tgl UM','Ket']);
-  const widths = [10,17,14,10,22,22,11,11].concat(od ? [9] : [], [13,11,50]), n = heads.length, nSales = 8 + (od ? 1 : 0);
+  const od = o.od, heads = ['Tanggal','No. Faktur','Total Faktur','Sales','Customer','Alamat','Produk','Pembayaran'].concat(od ? ['OD (hari)'] : [], ['Status','Tgl UM','Nominal','Ket']);
+  const widths = [10,17,14,10,22,22,11,11].concat(od ? [9] : [], [13,11,13,46]), n = heads.length, nSales = 8 + (od ? 1 : 0);
   ws.columns = widths.map(w => ({ width: w }));
   const thin = { style: 'thin', color: { argb: 'FF9CA3AF' } }, box = { top: thin, left: thin, bottom: thin, right: thin };
   const full = (r, v, font, h) => { ws.mergeCells(r, 1, r, n); const c = ws.getCell(r, 1); c.value = v; c.font = font; c.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }; ws.getRow(r).height = h; };
@@ -794,9 +795,9 @@ function buildPrintWorkbook(EJ, o) {
   o.rows.forEach((row, k) => {
     const r = 7 + k, rw = ws.getRow(r); let lines = 1;
     row.forEach((v, i) => { const c = rw.getCell(i + 1), col = i + 1; c.value = v === '' ? null : v; c.font = { name: 'Calibri', size: 9 }; c.border = box;
-      c.alignment = { vertical: 'top', horizontal: ctrCols.has(col) ? 'center' : (col === 3 ? 'right' : 'left'), wrapText: col === 5 || col === 6 || col === nSales + 2 || col === n };
+      c.alignment = { vertical: 'top', horizontal: ctrCols.has(col) ? 'center' : (col === 3 || col === n - 1 ? 'right' : 'left'), wrapText: col === 5 || col === 6 || col === nSales + 2 || col === n - 1 || col === n };
       if (col === 3 && typeof v === 'number') c.numFmt = '#,##0';
-      if (typeof v === 'string' && (col === 5 || col === 6 || col === nSales + 2 || col === n)) { const cpl = Math.max(8, Math.floor(widths[i] * 1.15)); lines = Math.max(lines, v.split('\n').reduce((t, s) => t + Math.max(1, Math.ceil(s.length / cpl)), 0)); } });
+      if (typeof v === 'string' && (col === 5 || col === 6 || col === nSales + 2 || col === n - 1 || col === n)) { const cpl = Math.max(8, Math.floor(widths[i] * 1.15)); lines = Math.max(lines, v.split('\n').reduce((t, s) => t + Math.max(1, Math.ceil(s.length / cpl)), 0)); } });
     const stc = rw.getCell(nSales + 1), su = String(row[nSales] || '').toUpperCase();
     if (su.includes('LUNAS')) { stc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }; stc.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF1E40AF' } }; }
     else if (su.includes('TITIP')) { stc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF9C3' } }; stc.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF854D0E' } }; }
@@ -804,7 +805,7 @@ function buildPrintWorkbook(EJ, o) {
     rw.height = Math.max(15, lines * 12 + 3);
   });
   const tr = 7 + o.rows.length;
-  if (o.rows.length) { ws.mergeCells(tr, 1, tr, 2); const a = ws.getCell(tr, 1); a.value = 'TOTAL'; const t = ws.getCell(tr, 3); t.value = o.totalFaktur; t.numFmt = '#,##0';
+  if (o.rows.length) { ws.mergeCells(tr, 1, tr, 2); const a = ws.getCell(tr, 1); a.value = 'TOTAL'; const t = ws.getCell(tr, 3); t.value = o.totalFaktur; t.numFmt = '#,##0'; const nt = ws.getCell(tr, n - 1); nt.value = Math.round(o.nomTotal || 0); nt.numFmt = '#,##0'; nt.alignment = { horizontal: 'right' };
     for (let i = 1; i <= n; i++) { const c = ws.getCell(tr, i); c.border = box; c.font = { name: 'Calibri', size: 10, bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }; }
     a.alignment = { horizontal: 'center' }; t.alignment = { horizontal: 'right' }; }
   ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, printTitlesRow: '5:6',
@@ -818,9 +819,10 @@ async function exportXlsPrint() {
   const sel = id => { const e = $(id); return e && e.selectedOptions[0] ? e.selectedOptions[0].textContent.trim() : ''; }, q = $('fQ').value.trim();
   const savedText = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ', pukul ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
   const rows = VIEW.map(r => (r.orph ? ['', '', '', '', '', '', '', ''] : [r.tanggal, r.faktur, r.total, r.sales, r.customer, r.alamat, r.prod, r.pay])
-    .concat(od ? [r.orph ? '' : (odDays(r.tanggal) || 0)] : [], [stText(r), tglUMList(r).join('\n'), (r.issues.length ? r.issues : (r.cat === 'OK' ? ['Sesuai'] : [])).concat(r.info ? [r.info] : []).join('\n')]));
+    .concat(od ? [r.orph ? '' : (odDays(r.tanggal) || 0)] : [], [stText(r), tglUMList(r).join('\n'), nomList(r).join('\n'), (r.issues.length ? r.issues : (r.cat === 'OK' ? ['Sesuai'] : [])).concat(r.info ? [r.info] : []).join('\n')]));
+  const nomTotal = VIEW.reduce((t, r) => t + (r.um || []).reduce((x, u) => x + (Number(u.total_bayar) || 0), 0), 0);
   const totalFaktur = VIEW.reduce((t, r) => t + (r.orph ? 0 : (Number(r.total) || 0)), 0);
-  const wb = buildPrintWorkbook(ExcelJS, { od, rows, totalFaktur, savedAt: now, savedText,
+  const wb = buildPrintWorkbook(ExcelJS, { od, rows, totalFaktur, nomTotal, savedAt: now, savedText,
     title: 'LAPORAN CEK PENJUALAN & UANG MASUK — ' + chipName.toUpperCase() + ($('fPay').value ? ' ' + $('fPay').value.toUpperCase() : ''),
     filterText: 'Filter: ' + [sel('fBasis'), msLabel(), sel('fSales'), sel('fPay'), sel('fProd')].filter(Boolean).join('  ·  ') + (q ? '  ·  Cari: "' + q + '"' : '') });
   const buf = await wb.xlsx.writeBuffer(), m = msKey(), a = document.createElement('a');
@@ -832,12 +834,12 @@ async function exportXlsPrint() {
 $('bXls').addEventListener('click', async () => {
   if (typeof ExcelJS !== 'undefined') { try { await exportXlsPrint(); return; } catch (e) { console.error(e); } }   /* gagal / pustaka tak termuat -> pakai ekspor sederhana */
   if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat (cek koneksi internet).'); return; }
-  const od = state.f === 'NONE_DUE', head = ['Tanggal','No. Faktur','Total Faktur','Sales','Customer','Alamat','Produk','Pembayaran'].concat(od ? ['OD (hari)'] : [], ['Status','Tgl UM','Ket']);
-  const aoa = [['DATA PENJUALAN','','','','','','',''].concat(od ? [''] : [], ['DATA UANG MASUK','','']), head].concat(VIEW.map(r =>
-    (r.orph ? ['', '', '', '', '', '', '', ''] : [r.tanggal, r.faktur, r.total, r.sales, r.customer, r.alamat, r.prod, r.pay]).concat(od ? [r.orph ? '' : (odDays(r.tanggal) || 0)] : [], [stText(r), tglUMList(r).join(', '), (r.issues.length ? r.issues.join(' | ') + ' || ' : (r.cat === 'OK' ? 'Sesuai || ' : '')) + String(r.info || '').replace(/\n/g, ' · ')])));
+  const od = state.f === 'NONE_DUE', head = ['Tanggal','No. Faktur','Total Faktur','Sales','Customer','Alamat','Produk','Pembayaran'].concat(od ? ['OD (hari)'] : [], ['Status','Tgl UM','Nominal','Ket']);
+  const aoa = [['DATA PENJUALAN','','','','','','',''].concat(od ? [''] : [], ['DATA UANG MASUK','','','']), head].concat(VIEW.map(r =>
+    (r.orph ? ['', '', '', '', '', '', '', ''] : [r.tanggal, r.faktur, r.total, r.sales, r.customer, r.alamat, r.prod, r.pay]).concat(od ? [r.orph ? '' : (odDays(r.tanggal) || 0)] : [], [stText(r), tglUMList(r).join(', '), nomList(r).join(', '), (r.issues.length ? r.issues.join(' | ') + ' || ' : (r.cat === 'OK' ? 'Sesuai || ' : '')) + String(r.info || '').replace(/\n/g, ' · ')])));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  const o = od ? 1 : 0; ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 + o } }, { s: { r: 0, c: 8 + o }, e: { r: 0, c: 10 + o } }];
-  ws['!cols'] = [10,14,14,12,26,30,12,12].concat(od ? [10] : [], [14,12,80]).map(w => ({ wch: w }));
+  const o = od ? 1 : 0; ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 + o } }, { s: { r: 0, c: 8 + o }, e: { r: 0, c: 11 + o } }];
+  ws['!cols'] = [10,14,14,12,26,30,12,12].concat(od ? [10] : [], [14,12,16,80]).map(w => ({ wch: w }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'CEK');
   const m = msKey();
   XLSX.writeFile(wb, 'Cek_Penjualan_Uang_Masuk_' + (m ? m.replace('-', '') : 'SEMUA') + '.xlsx');
