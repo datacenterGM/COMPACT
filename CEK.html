@@ -626,7 +626,8 @@ function render() {
   const sumOf = a => (byU ? 'Masuk Rp ' : 'Faktur Rp ') + fmt(Math.round(a.reduce((t, r) => t + valOf(r), 0)));
   $('a_nAll').textContent = sumOf(base);
   { const ti = base.filter(r => r.cat === 'TITIP'), sisa = ti.reduce((t, r) => t + Math.max(0, (Number(r.total) || 0) - (Number(r.paid) || 0)), 0);
-    $('a_nTi').textContent = (byU ? sumOf(ti) + ' · ' : '') + 'Sisa Rp ' + fmt(Math.round(sisa)); }
+    const fk = ti.reduce((t, r) => t + (Number(r.total) || 0), 0), ms = ti.reduce((t, r) => t + Math.min(Number(r.total) || 0, Number(r.paid) || 0), 0);
+    $('a_nTi').innerHTML = 'Faktur Rp ' + fmt(Math.round(fk)) + '<br>Masuk Rp ' + fmt(Math.round(ms)) + '<br>Kurang Rp ' + fmt(Math.round(sisa)); }
   $('a_nOk').textContent = sumOf(base.filter(r => r.cat === 'OK'));
   $('a_nDf').textContent = sumOf(base.filter(r => r.cat === 'DIFF'));
   $('a_nNoD').textContent = sumOf(base.filter(r => matchF(r, 'NONE_DUE')));
