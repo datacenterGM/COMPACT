@@ -1354,12 +1354,16 @@
 
       if (q) {
         // Pencarian mengabaikan spasi ganda / spasi non-breaking / karakter lebar-nol, dan tiap kata dicari terpisah (urutan bebas)
-        const words = normSearch(q).split(' ').filter(Boolean);
-        base = base.filter(r => {
-          const h = searchHay(r);
-          for (let i = 0; i < words.length; i++) if (h.indexOf(words[i]) < 0) return false;
-          return true;
-        });
+        // Kata harus dimulai di awal kata (bukan potongan di tengah kata): "bu" tidak lagi cocok dengan "SUSI"/"SUBUR".
+        // Prioritas 1: frasa utuh berurutan ("toko bu ari"). Jika tidak ada yang cocok, prioritas 2: semua kata, urutan bebas.
+        const nq = normSearch(q), words = nq.split(' ').filter(Boolean);
+        const rxEsc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const wb = '(^|[^a-z0-9])';
+        const phraseRe = new RegExp(wb + rxEsc(nq));
+        const wordRes = words.map(w => new RegExp(wb + rxEsc(w)));
+        let hit = base.filter(r => phraseRe.test(searchHay(r)));
+        if (!hit.length) hit = base.filter(r => { const h = searchHay(r); return wordRes.every(re => re.test(h)); });
+        base = hit;
       }
 
       st.filtered = base;   // referensi, tanpa salinan
