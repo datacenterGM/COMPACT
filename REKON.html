@@ -291,7 +291,7 @@ function build(cek, ar) {
       : cat === 'CEK' ? whyCekOnly(c, a, ar.meta) : whyArOnly(c, a);
     out.push({ k, faktur: c ? c.faktur : a.faktur, dn, ym: ymOf(dn), od: odOf(dn), toko: (c && c.toko) || (a && a.toko) || '', sales: (c && c.sales) || (a && a.sales) || '',
       prod: c && c.prod && c.prod !== '-' ? c.prod : (a ? String(a.sumber || '').toUpperCase().replace('-', ' ') : ''),
-      nomC, nomA, sc: stC(c), sa: stA(a), cat, beda, inA, inB, ket });
+      nomF: c ? c.total : null, nomC, nomA, sc: stC(c), sa: stA(a), cat, beda, inA, inB, ket });
   });
   out.sort((x, y) => (x.dn == null ? 1 : y.dn == null ? -1 : x.dn - y.dn) || (x.k < y.k ? -1 : 1));
   return out;
@@ -360,19 +360,20 @@ function render() {
   state.page = Math.min(Math.max(1, state.page), pages);
   const st = (state.page - 1) * state.size, rows = VIEW.slice(st, st + state.size);
   $('tb').querySelector('thead').innerHTML =
-    '<tr><th class="g1" colspan="7">FAKTUR</th><th class="g2" colspan="2">DATA CEK</th><th class="g3" colspan="2">DATA AR</th><th class="g4" colspan="2">HASIL REKON</th></tr>' +
-    '<tr>' + ['No', 'Tgl Faktur', 'No. Faktur', 'Toko', 'Sales', 'Produk', 'OD (hari)'].map(h => '<th class="c1">' + h + '</th>').join('') +
+    '<tr><th class="g1" colspan="8">FAKTUR</th><th class="g2" colspan="2">DATA CEK</th><th class="g3" colspan="2">DATA AR</th><th class="g4" colspan="2">HASIL REKON</th></tr>' +
+    '<tr>' + ['No', 'Tgl Faktur', 'No. Faktur', 'Toko', 'Sales', 'Produk', 'OD (hari)', 'Nominal'].map(h => '<th class="c1">' + h + '</th>').join('') +
     ['Nominal', 'Status'].map(h => '<th class="c2">' + h + '</th>').join('') + ['Nominal', 'Status'].map(h => '<th class="c3">' + h + '</th>').join('') +
     ['Hasil', 'Keterangan'].map(h => '<th class="c4">' + h + '</th>').join('') + '</tr>';
   const body = $('tb').querySelector('tbody');
-  if (!ROWS.length && !CEKI) body.innerHTML = '<tr><td class="empty" colspan="13">Memuat data…</td></tr>';
-  else if (!rows.length) body.innerHTML = '<tr><td class="empty" colspan="13">Tidak ada faktur pada filter ini</td></tr>';
+  if (!ROWS.length && !CEKI) body.innerHTML = '<tr><td class="empty" colspan="14">Memuat data…</td></tr>';
+  else if (!rows.length) body.innerHTML = '<tr><td class="empty" colspan="14">Tidak ada faktur pada filter ini</td></tr>';
   else body.innerHTML = rows.map((r, k) => {
     const hs = r.cat === 'MATCH' ? ['ok', '✓ Cocok'] : r.cat === 'CEK' ? ['ck', '◀ CEK belum ada UM'] : ['ar', 'AR belum lunas ▶'];
     const nomA = r.nomA == null ? '<span class="dim">-</span>' : (r.beda ? '<span class="bad">' + fmt(r.nomA) + '</span>' : fmt(r.nomA));
     return '<tr class="r-' + (r.cat === 'MATCH' ? 'ok' : r.cat === 'CEK' ? 'ck' : 'ar') + '">' +
       '<td class="ctr">' + (st + k + 1) + '</td><td class="ctr">' + dmyOf(r.dn) + '</td><td class="ctr">' + esc(r.faktur) + '</td><td>' + esc(r.toko) + '</td><td class="ctr">' + esc(r.sales) + '</td><td class="ctr">' + esc(r.prod) + '</td>' +
       '<td class="od' + (r.od > 14 ? ' o2' : '') + '">' + (r.od || '-') + '</td>' +
+      '<td class="num">' + (r.nomF == null ? '<span class="dim">-</span>' : fmt(r.nomF)) + '</td>' +
       '<td class="num">' + (r.nomC == null ? '<span class="dim">-</span>' : fmt(r.nomC)) + '</td><td class="ctr"><span class="st ' + r.sc[1] + '">' + r.sc[0] + '</span></td>' +
       '<td class="num">' + nomA + '</td><td class="ctr"><span class="st ' + r.sa[1] + '">' + r.sa[0] + '</span></td>' +
       '<td class="ctr"><span class="hs ' + hs[0] + '">' + hs[1] + '</span></td><td class="ket">' + (r.beda ? '<span class="bad">' + esc(r.ket) + '</span>' : '<span class="dim">' + esc(r.ket) + '</span>') + '</td></tr>';
@@ -412,12 +413,12 @@ $('pg').addEventListener('change', e => { if (e.target.id === 'pgSize') { state.
 $('bReload').addEventListener('click', () => load(true));
 $('bXls').addEventListener('click', () => {
   if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat (cek koneksi internet).'); return; }
-  const head = ['No', 'Tgl Faktur', 'No. Faktur', 'Toko', 'Sales', 'Produk', 'OD (hari)', 'Nominal CEK', 'Status CEK', 'Nominal AR', 'Status AR', 'Hasil Rekon', 'Keterangan'];
+  const head = ['No', 'Tgl Faktur', 'No. Faktur', 'Toko', 'Sales', 'Produk', 'OD (hari)', 'Nominal Faktur', 'Nominal CEK', 'Status CEK', 'Nominal AR', 'Status AR', 'Hasil Rekon', 'Keterangan'];
   const aoa = [['REKONSILIASI CEK ⇄ AR: BELUM ADA UANG MASUK & SUDAH JATUH TEMPO'], ['Filter: ' + msLabel() + ' · ' + (state.f === 'ALL' ? 'Semua' : state.f) + ' · dicetak ' + new Date().toLocaleDateString('id-ID')], head].concat(
-    VIEW.map((r, i) => [i + 1, dmyOf(r.dn), r.faktur, r.toko, r.sales, r.prod, r.od, r.nomC == null ? '' : r.nomC, r.sc[0], r.nomA == null ? '' : r.nomA, r.sa[0],
+    VIEW.map((r, i) => [i + 1, dmyOf(r.dn), r.faktur, r.toko, r.sales, r.prod, r.od, r.nomF == null ? '' : r.nomF, r.nomC == null ? '' : r.nomC, r.sc[0], r.nomA == null ? '' : r.nomA, r.sa[0],
       r.cat === 'MATCH' ? 'Cocok' : r.cat === 'CEK' ? 'CEK belum ada UM (AR tidak)' : 'AR belum lunas (CEK tidak)', r.ket]));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [5, 11, 18, 28, 10, 12, 9, 14, 13, 14, 13, 14, 80].map(w => ({ wch: w }));
+  ws['!cols'] = [5, 11, 18, 28, 10, 12, 9, 14, 14, 13, 14, 13, 14, 80].map(w => ({ wch: w }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'REKON');
   const n = new Date(); XLSX.writeFile(wb, 'Rekon_CEK_AR_' + n.getFullYear() + p2(n.getMonth() + 1) + p2(n.getDate()) + '.xlsx');
 });
